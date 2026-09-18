@@ -62,6 +62,23 @@ class CalendarContractTests(unittest.TestCase):
 
 
 class ClientLimitsTests(unittest.TestCase):
+    def test_internal_rpc_error_backs_off_then_recovers(self):
+        bad = NS(status_code=200,text=")]}'\n"+json.dumps([["wrb.fr","LqxFAb",None,None,None,[13]]]))
+        good = NS(status_code=200,text=")]}'\n"+json.dumps([["wrb.fr","LqxFAb","[]"]]))
+        session = NS(post=Mock(side_effect=[bad,good]))
+        sleep = Mock()
+        client = GuardedClient(Config(),session=session,sleep=sleep)
+        self.assertIs(client.post("https://www.google.com",""),good)
+        sleep.assert_any_call(10)
+        self.assertEqual(client.used,2)
+
+    def test_denial_stops_all_later_requests_in_run(self):
+        session = NS(post=Mock(return_value=NS(status_code=429)))
+        client = GuardedClient(Config(),session=session,sleep=lambda _:None)
+        for _ in range(2):
+            with self.assertRaises(BudgetError):client.post("https://www.google.com","")
+        self.assertEqual(session.post.call_count,1)
+
     def test_prefetch_transport_preserves_filter_payload_and_locale(self):
         from fli.models import FlightSearchFilters
         from fli.search import SearchFlights

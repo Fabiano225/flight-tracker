@@ -83,7 +83,7 @@ not a reservation or guaranteed bookable price.
 
 The initial search fare is the minimum over still-unselected return choices.
 Only selected, checked round trips are used for deal alerts. Requests are serial,
-spaced by at least 0.7 seconds, bounded to 1,600 HTTP attempts and 35 minutes per
+spaced by at least 1.2 seconds, bounded to 1,600 HTTP attempts and 40 minutes per
 scan. Source access denial/rate limits stop the affected search; no CAPTCHA or
 proxy handling is implemented. A full run can take tens of minutes. This approach
 uses more requests than a working calendar endpoint (155,520 date searches per
@@ -206,7 +206,7 @@ uses `scripts/state_git.py restore` and `save` for that purpose.
 - **No nonstop results:** the source may have no nonstop itinerary for those dates;
   an absent calendar price is recorded as unknown, not as a €0 fare.
 - **Partial run:** completed calendar chunks are retained. Request and time budgets
-  bound the scan; the default 35-minute source budget leaves room for state persistence.
+  bound the scan; the default 40-minute source budget leaves room for state persistence.
 - **Silent schedule:** inspect the Actions page and GitHub notifications. A workflow
   that never starts has no opportunity to send its own Telegram failure alert.
 

@@ -49,10 +49,10 @@ class Config:
     max_verifications_per_run: int = 18
     outbound_candidates: int = 3
     max_http_attempts_per_run: int = 1600
-    max_run_seconds: int = 2100
+    max_run_seconds: int = 2400
     http_timeout_seconds: int = 60
     http_attempts: int = 3
-    request_interval_seconds: float = 0.7
+    request_interval_seconds: float = 1.2
 
     def __post_init__(self):
         if not self.origins or len(set(self.origins)) != len(self.origins):
@@ -73,7 +73,7 @@ class Config:
             ("carry_on_bags", 0, 1), ("checked_bags", 0, 1),
             ("max_direction_minutes", 1, 1259), ("max_verifications_per_run", 6, 100),
             ("outbound_candidates", 1, 10),
-            ("max_run_seconds", 60, 2100),
+            ("max_run_seconds", 60, 2400),
         ]:
             value = getattr(self, name)
             if type(value) is not int or not low <= value <= high:

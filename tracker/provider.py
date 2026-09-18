@@ -41,6 +41,7 @@ class GuardedClient:
         self.session = session or Session()
         self.config, self.sleep = config, sleep
         self.used = 0
+        self.blocked = False
         self.lock = threading.Lock()
         self.deadline = time.monotonic() + config.max_run_seconds
 
@@ -48,6 +49,8 @@ class GuardedClient:
         # Calls made in fli's worker pool are deliberately serialized and paced.
         with self.lock:
             for attempt in range(self.config.http_attempts):
+                if self.blocked:
+                    raise BudgetError("Flight source requested a pause; deferred to next scheduled run")
                 if time.monotonic() + self.config.request_interval_seconds + 1 >= self.deadline:
                     raise BudgetError("Flight scan time budget exhausted; checkpointing completed searches")
                 if self.used >= self.config.max_http_attempts_per_run:
@@ -77,7 +80,8 @@ class GuardedClient:
                     self.sleep(2 ** attempt)
                     continue
                 if response.status_code in {401, 403, 429}:
-                    raise ServiceError(f"Flight source HTTP {response.status_code}; pause until next run")
+                    self.blocked = True
+                    raise BudgetError(f"Flight source HTTP {response.status_code}; pause until next run")
                 if response.status_code in {500, 502, 503, 504} and attempt + 1 < self.config.http_attempts:
                     self.sleep(2 ** attempt)
                     continue
@@ -89,11 +93,33 @@ class GuardedClient:
                 # Validate the envelope before the permissive upstream decoder.
                 from fli.search._wire import parse_first_wrb_payload
                 if parse_first_wrb_payload(text) is None:
-                    raise ServiceError("Google Flights RPC error or changed response; no price data received")
+                    code = rpc_error_code(text)
+                    # 13 is the standard RPC INTERNAL status, not an empty fare
+                    # result. Back off; never retry explicit access/rate denials.
+                    if code == 13 and attempt + 1 < self.config.http_attempts:
+                        self.sleep(10 * (attempt + 1))
+                        continue
+                    if code in {7, 8, 16}:
+                        self.blocked = True
+                        raise BudgetError(f"Flight source RPC {code}; pause until next run")
+                    raise ServiceError(f"Google Flights RPC {code if code is not None else 'error'} or changed response; no price data received")
                 return response
 
     def close(self):
         self.session.close()
+
+
+def rpc_error_code(text):
+    """Read only the sanitized numeric status from the observed error envelope."""
+    try:
+        rows = json.loads(text[4:].strip())
+        for row in rows:
+            if isinstance(row, list) and len(row) > 5 and row[0] == "wrb.fr" and row[2] is None:
+                if isinstance(row[5], list) and row[5] and type(row[5][0]) is int:
+                    return row[5][0]
+    except (ValueError, TypeError, IndexError):
+        pass
+    return None
 
 
 class PrefetchDates:

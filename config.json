@@ -27,8 +27,8 @@
   "max_verifications_per_run": 18,
   "outbound_candidates": 3,
   "max_http_attempts_per_run": 1600,
-  "max_run_seconds": 2100,
+  "max_run_seconds": 2400,
   "http_timeout_seconds": 60,
   "http_attempts": 3,
-  "request_interval_seconds": 0.7
+  "request_interval_seconds": 1.2
 }
