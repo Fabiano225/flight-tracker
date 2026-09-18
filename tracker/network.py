@@ -70,6 +70,3 @@ class JsonHttp:
             if attempt + 1 == self.attempts:
                 raise ServiceError(f"API failed after {self.attempts} attempts ({status})") from None
             self.sleep(retry_delay)
-
-
-
