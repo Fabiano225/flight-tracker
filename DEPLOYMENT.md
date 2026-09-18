@@ -20,7 +20,10 @@ Last inspected: 2026-09-18. This file records evidence, not an operational guara
 - Published commit `5c770aa`: Telegram setup workflow and helper only.
 - Telegram setup run `35349481938` reached the helper successfully but found no
   recent private `/start` message. It did not deliver a chat-ID message.
-- Secret-name check found `TELEGRAM_BOT_TOKEN`; `TELEGRAM_CHAT_ID` was not yet present.
+- The earlier secret-name check found `TELEGRAM_BOT_TOKEN`. At 16:18 on September 18,
+  the user reported independently obtaining the chat ID and saving
+  `TELEGRAM_CHAT_ID` in GitHub Actions secrets. A fresh secret-name check and an
+  actual Telegram delivery test remain pending; no secret values were requested.
 - Free Google Flights tests returned an HTTP 200 response containing RPC error 13,
   not usable prices. An ordinary cookie-consent Reject all flow reached the Flights
   page, but the subsequent calendar RPC still failed.
@@ -34,7 +37,7 @@ Last inspected: 2026-09-18. This file records evidence, not an operational guara
 - [ ] Verify real outbound/return itineraries, actual stop counts, final round-trip
       prices and both direction durations.
 - [ ] Publish the complete tracker to `main` and pass its GitHub CI run.
-- [ ] Send the chat ID privately after a fresh `/start`; user saves `TELEGRAM_CHAT_ID`.
+- [x] User independently obtained the chat ID and reports saving `TELEGRAM_CHAT_ID`.
 - [ ] Run `Track flights` successfully in GitHub Actions.
 - [ ] Confirm persistent `tracker-state` creation, then a second run that restores
       and appends history without duplicating unchanged alerts.
