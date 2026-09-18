@@ -32,7 +32,7 @@ def main():
         batches = plan(config, now.date())
         slots = sum(len(b.pairs()) for b in batches)
         print(json.dumps({"departure_date_pairs": slots // 2, "calendar_profile_slots": slots,
-            "calendar_queries": len(batches), "calendar_queries_30_days": len(batches)*4*30,
+            "date_batches": len(batches), "date_searches": slots, "date_searches_30_days": slots*4*30,
             "verification_searches_max": config.max_verifications_per_run,
             "http_attempt_cap": config.max_http_attempts_per_run,
             "data_source": "Free unofficial Google Flights via flights==0.9.0",

@@ -48,11 +48,11 @@ class Config:
     pending_ttl_hours: int = 12
     max_verifications_per_run: int = 18
     outbound_candidates: int = 3
-    max_http_attempts_per_run: int = 400
-    max_run_seconds: int = 1500
+    max_http_attempts_per_run: int = 1600
+    max_run_seconds: int = 2100
     http_timeout_seconds: int = 60
     http_attempts: int = 3
-    request_interval_seconds: float = 1.5
+    request_interval_seconds: float = 0.7
 
     def __post_init__(self):
         if not self.origins or len(set(self.origins)) != len(self.origins):
@@ -68,7 +68,7 @@ class Config:
         for name, low, high in [
             ("min_trip_days", 1, 90), ("max_trip_days", 1, 90),
             ("history_window_days", 1, 365), ("max_deals_per_run", 1, 6),
-            ("pending_ttl_hours", 1, 24), ("max_http_attempts_per_run", 1, 1000),
+            ("pending_ttl_hours", 1, 24), ("max_http_attempts_per_run", 1, 2000),
             ("http_timeout_seconds", 1, 120), ("http_attempts", 1, 4),
             ("carry_on_bags", 0, 1), ("checked_bags", 0, 1),
             ("max_direction_minutes", 1, 1259), ("max_verifications_per_run", 6, 100),
@@ -113,7 +113,7 @@ class Config:
         names = ("destination", "currency", "adults", "travel_class", "max_direction_minutes",
                  "hide_separate_tickets", "carry_on_bags", "checked_bags")
         data = {name: getattr(self, name) for name in names}
-        data.update(provider="fli-0.9-v1", mode=mode, gl="DE", hl="en")
+        data.update(provider="fli-0.9-prefetch-v2", mode=mode, gl="DE", hl="en")
         return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()[:24]
 
     def public_dict(self):

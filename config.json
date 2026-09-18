@@ -1,5 +1,9 @@
 {
-  "origins": ["DUS", "FRA", "AMS"],
+  "origins": [
+    "DUS",
+    "FRA",
+    "AMS"
+  ],
   "destination": "BKK",
   "departure_start": "2026-10-15",
   "departure_end": "2026-11-10",
@@ -22,9 +26,9 @@
   "pending_ttl_hours": 12,
   "max_verifications_per_run": 18,
   "outbound_candidates": 3,
-  "max_http_attempts_per_run": 400,
-  "max_run_seconds": 1500,
+  "max_http_attempts_per_run": 1600,
+  "max_run_seconds": 2100,
   "http_timeout_seconds": 60,
   "http_attempts": 3,
-  "request_interval_seconds": 1.5
+  "request_interval_seconds": 0.7
 }

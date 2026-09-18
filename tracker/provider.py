@@ -1,6 +1,8 @@
 """Free unofficial Google Flights adapter; no paid or mock fallbacks."""
 from dataclasses import dataclass, asdict
-from datetime import date
+from datetime import date, datetime, timedelta
+from copy import deepcopy
+from urllib.parse import parse_qs, urlsplit, urlencode
 import json
 import threading
 import time
@@ -54,7 +56,19 @@ class GuardedClient:
                     self.sleep(self.config.request_interval_seconds)
                 self.used += 1
                 try:
-                    response = self.session.post(url, data=data, impersonate="chrome", allow_redirects=False,
+                    # The streaming named endpoint currently returns RPC error 13.
+                    # Use the public page's shopping-prefetch RPC, with the same
+                    # filter payload and locale. No cookies or API key required.
+                    if "GetShoppingResults" in url:
+                        request = json.loads(parse_qs(data)["f.req"][0])[1]
+                        query = parse_qs(urlsplit(url).query)
+                        params = {key: query[key][0] for key in ("hl", "curr", "gl") if key in query}
+                        params["rpcids"] = "LqxFAb"
+                        request_url = "https://www.google.com/_/FlightsFrontendUi/data/batchexecute?" + urlencode(params)
+                        request_data = {"f.req": json.dumps([[["LqxFAb", request, None, "generic"]]])}
+                    else:
+                        request_url, request_data = url, data
+                    response = self.session.post(request_url, data=request_data, impersonate="chrome", allow_redirects=False,
                         timeout=min(self.config.http_timeout_seconds, max(1, self.deadline - time.monotonic())),
                         headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"})
                 except Exception:
@@ -82,13 +96,49 @@ class GuardedClient:
         self.session.close()
 
 
+class PrefetchDates:
+    """Date-grid observations from individual round-trip shopping searches.
+
+    The broken calendar-stream endpoint is deliberately not used. Each profile
+    and date pair receives its own real search; no dates are sampled or invented.
+    Return choices are still unselected, so these remain indicative fares only.
+    """
+    def __init__(self, client):
+        from fli.search import SearchFlights
+        self.shopping = SearchFlights()
+        self.shopping.client = client
+
+    def search(self, filters, **locale):
+        from fli.models import FlightSearchFilters, SortBy
+        from fli.search.dates import DatePrice
+        current = date.fromisoformat(filters.from_date)
+        end = date.fromisoformat(filters.to_date)
+        rows = []
+        while current <= end:
+            returning = current + timedelta(days=filters.duration)
+            segments = deepcopy(filters.flight_segments)
+            segments[0].travel_date = current.isoformat()
+            segments[1].travel_date = returning.isoformat()
+            search = FlightSearchFilters(trip_type=filters.trip_type, passenger_info=filters.passenger_info,
+                flight_segments=segments, stops=filters.stops, seat_type=filters.seat_type,
+                max_duration=filters.max_duration, bags=filters.bags, sort_by=SortBy.CHEAPEST)
+            offers = self.shopping._fetch_flights(search, capture_session=False, **locale) or []
+            if any(offer.currency != "EUR" for offer in offers if offer.price is not None):
+                raise ServiceError("Date-search currency is missing or differs from EUR")
+            prices = [offer.price for offer in offers if offer.price is not None and offer.price > 0]
+            if prices:
+                rows.append(DatePrice(date=(datetime.combine(current, datetime.min.time()),
+                    datetime.combine(returning, datetime.min.time())), price=min(prices), currency="EUR"))
+            current += timedelta(days=1)
+        return rows
+
+
 class FreeProvider:
     def __init__(self, config):
-        from fli.search import SearchDates, SearchFlights
+        from fli.search import SearchFlights
         self.config = config
         self.http = GuardedClient(config)
-        self.dates, self.flights = SearchDates(), SearchFlights()
-        self.dates.client = self.http
+        self.dates, self.flights = PrefetchDates(self.http), SearchFlights()
         self.flights.client = self.http
 
     def common(self, origin, departure, return_date, profile):
@@ -138,7 +188,9 @@ class FreeProvider:
         except Exception:
             raise ServiceError("Itinerary search/parser failed") from None
         return normalize_pairs(pairs or [], origin, departure, return_date, profile, self.config,
-                               lambda pair: self.flights.build_flight_booking_url(pair, currency="EUR", language="en", country="DE"))
+            lambda pair: "https://www.google.com/travel/flights?" + urlencode({"q":
+                f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} {self.config.travel_class} one adult",
+                "curr": "EUR", "hl": "en"}))
 
     def close(self):
         self.http.close()

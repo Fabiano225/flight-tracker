@@ -3,10 +3,9 @@
 Free-source flight monitoring with price history, separate nonstop/layover alerts,
 and four scheduled GitHub Actions runs per day.
 
-**Deployment status:** see [DEPLOYMENT.md](DEPLOYMENT.md). Offline tests pass;
-the free live data source has returned an RPC error during initial testing.
-A working live flight search and end-to-end Telegram delivery are still required
-before treating the system as operational. Demo prices are synthetic.
+**Deployment evidence:** see [DEPLOYMENT.md](DEPLOYMENT.md). Real EUR date searches,
+selected outbound/return itineraries and the GitHub Telegram test have succeeded.
+Full scheduled-run acceptance is in progress. Demo prices are synthetic.
 
 ## Search rules
 
@@ -57,9 +56,12 @@ Google Flights client. No flight API key, subscription, proxy service, or paid
 fallback is configured. GitHub Actions minutes/storage remain subject to your
 account's own limits. Free data access does not imply a service-level guarantee.
 
-1. Cover all **648 route/date pairs** in two calendar profiles: nonstop and any
-   number of stops. This produces 1,296 potential calendar price points in
-   **48 calendar requests**, before retries, while the full date window is future.
+1. Cover all **648 route/date pairs** in two profiles: nonstop and any number of
+   stops. This produces **1,296 individual date/profile searches**, grouped into
+   48 checkpoint batches, before retries while the full window is future.
+   Google's streaming calendar endpoint returned RPC error 13 in live tests.
+   The adapter therefore uses the public shopping-prefetch RPC observed on the
+   search page, not that broken endpoint. There is no paid fallback.
 2. Keep every returned calendar price, including unknown/missing slots, in SQLite.
    The any-stops calendar is **not** a layover-only calendar and is never labeled as one.
 3. Select up to **18 date/profile candidates** per run, prioritizing observed
@@ -73,11 +75,20 @@ account's own limits. Free data access does not imply a service-level guarantee.
 6. Queue deal and health messages, checkpoint state, deliver messages, then persist
    delivery receipts.
 
-This is **calendar-wide monitoring with bounded itinerary verification**, not an
+This is **full date-grid monitoring with bounded itinerary verification**, not an
 exhaustive enumeration of every airline, fare, or return combination. It can miss
 deals outside the shortlist or the expanded outbound candidates. Calendar quotes
 alone never trigger a deal message. Each verified quote is still a search fare,
 not a reservation or guaranteed bookable price.
+
+The initial search fare is the minimum over still-unselected return choices.
+Only selected, checked round trips are used for deal alerts. Requests are serial,
+spaced by at least 0.7 seconds, bounded to 1,600 HTTP attempts and 35 minutes per
+scan. Source access denial/rate limits stop the affected search; no CAPTCHA or
+proxy handling is implemented. A full run can take tens of minutes. This approach
+uses more requests than a working calendar endpoint (155,520 date searches per
+30 days at the initial window size); it has no API subscription fee, but may be
+throttled or broken by upstream changes.
 
 The API filter requests the duration cap, and the final itinerary check enforces it
 again on both directions. Explicitly flagged self-transfer trips are rejected by
@@ -106,6 +117,7 @@ schedules disabled after prolonged inactivity. See [GitHub's schedule documentat
 
 - `Track flights`: scheduled or manually dispatched, one persistent-state writer at a time.
 - `Telegram setup`: manually dispatched, sends the chat ID privately.
+- `Test Telegram`: manually dispatched, tests both repository secrets with one message.
 - `Tests`: offline tests on pushes and pull requests; no secrets or live searches.
 - Actions are pinned to resolved commit hashes. Dependabot proposes updates.
 - Set repository **Actions variable** `TRACKER_ENABLED` to `false` to stop tracking runs.

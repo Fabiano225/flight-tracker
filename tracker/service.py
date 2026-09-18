@@ -49,6 +49,9 @@ def scan(config, store, provider, now, demo=False):
                 else:
                     summary["calendar_unknown"] += 1
             db.commit()  # Preserve completed chunks if a later search fails.
+            if not demo:
+                print(f"Date batches {summary['calendar_queries_ok']}/{len(batches)}; "
+                      f"prices {summary['calendar_prices']}; HTTP {provider.http.used}", flush=True)
         candidates.sort()
         # Check existing alert dates too, so a further meaningful drop is not starved
         # by previously alerted cheap dates. Unalerted dates then rotate naturally.
