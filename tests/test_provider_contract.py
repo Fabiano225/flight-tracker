@@ -7,7 +7,9 @@ from unittest.mock import Mock
 from tracker.config import Config
 from tracker.network import ServiceError, BudgetError
 from tracker.planner import Batch
-from tracker.provider import FreeProvider, GuardedClient
+from tracker.provider import FreeProvider, GuardedClient, PrefetchDates
+import json
+from urllib.parse import parse_qs, urlsplit
 
 
 class CalendarContractTests(unittest.TestCase):
@@ -60,6 +62,25 @@ class CalendarContractTests(unittest.TestCase):
 
 
 class ClientLimitsTests(unittest.TestCase):
+    def test_prefetch_transport_preserves_filter_payload_and_locale(self):
+        from fli.models import FlightSearchFilters
+        from fli.search import SearchFlights
+        start = date.today() + timedelta(days=30)
+        provider = FreeProvider(Config())
+        filters = FlightSearchFilters(**provider.common("FRA",start.isoformat(),
+            (start+timedelta(days=14)).isoformat(),"nonstop"))
+        reply = NS(status_code=200, text=")]}'\n"+json.dumps([["wrb.fr","LqxFAb",json.dumps([None,None,None,None])]]))
+        session = NS(post=Mock(return_value=reply))
+        client = GuardedClient(Config(), session=session, sleep=lambda _:None)
+        client.post(SearchFlights.BASE_URL+"?curr=EUR&hl=en&gl=DE", "f.req="+filters.encode())
+        call = session.post.call_args
+        self.assertEqual(urlsplit(call.args[0]).path,"/_/FlightsFrontendUi/data/batchexecute")
+        self.assertEqual(parse_qs(urlsplit(call.args[0]).query)["curr"],["EUR"])
+        rpc = json.loads(call.kwargs["data"]["f.req"])[0][0]
+        self.assertEqual(rpc[0],"LqxFAb")
+        self.assertEqual(json.loads(rpc[1]),filters.format())
+        provider.close()
+
     def test_deadline_stops_before_network(self):
         session = NS(post=Mock())
         client = GuardedClient(Config(), session=session, sleep=lambda _:None)
@@ -74,6 +95,47 @@ class ClientLimitsTests(unittest.TestCase):
         with self.assertRaises(ServiceError):
             client.post("https://www.google.com", "")
         self.assertEqual(session.post.call_count,1)
+
+
+class PrefetchDateTests(unittest.TestCase):
+    def test_each_date_pair_is_searched_and_empty_remains_unknown(self):
+        provider = FreeProvider(Config())
+        from fli.models import DateSearchFilters
+        start = date.today()+timedelta(days=30)
+        end = start+timedelta(days=1)
+        filters = DateSearchFilters(**provider.common("FRA",start.isoformat(),
+            (start+timedelta(days=14)).isoformat(),"nonstop"),
+            from_date=start.isoformat(),to_date=end.isoformat(),duration=14)
+        fetch = Mock(side_effect=[[NS(price=700,currency="EUR"),NS(price=650,currency="EUR")],None])
+        provider.dates.shopping._fetch_flights = fetch
+        rows = provider.dates.search(filters,currency="EUR",language="en",country="DE")
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0].price,650)
+        self.assertEqual(fetch.call_count,2)
+        for i,call in enumerate(fetch.call_args_list):
+            query = call.args[0]
+            self.assertEqual(query.flight_segments[0].travel_date,(start+timedelta(days=i)).isoformat())
+            self.assertEqual(query.flight_segments[1].travel_date,(start+timedelta(days=14+i)).isoformat())
+            self.assertEqual(query.stops.name,"NON_STOP")
+            self.assertEqual(query.max_duration,1259)
+        self.assertEqual(filters.flight_segments[0].travel_date,start.isoformat())
+        provider.close()
+
+    def test_pinned_library_verification_has_working_research_link(self):
+        # Regression: build_flight_booking_url exists on unreleased fli main,
+        # but not in the pinned 0.9.0 package installed on Actions.
+        from test_tracker import pair
+        provider = FreeProvider(Config())
+        start = date.today()+timedelta(days=30)
+        end = start+timedelta(days=14)
+        fixture = pair(800,900)
+        fixture[0].legs[0].departure_datetime = datetime.combine(start,datetime.min.time())
+        fixture[1].legs[0].departure_datetime = datetime.combine(end,datetime.min.time())
+        provider.flights.search = Mock(return_value=[fixture])
+        quotes = provider.verify("FRA",start.isoformat(),end.isoformat(),"any")
+        self.assertTrue(quotes)
+        self.assertIn("curr=EUR",quotes[0].link)
+        provider.close()
 
 
 if __name__ == "__main__":

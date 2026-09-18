@@ -206,7 +206,7 @@ uses `scripts/state_git.py restore` and `save` for that purpose.
 - **No nonstop results:** the source may have no nonstop itinerary for those dates;
   an absent calendar price is recorded as unknown, not as a €0 fare.
 - **Partial run:** completed calendar chunks are retained. Request and time budgets
-  bound the scan; the default 25-minute source budget leaves room for state persistence.
+  bound the scan; the default 35-minute source budget leaves room for state persistence.
 - **Silent schedule:** inspect the Actions page and GitHub notifications. A workflow
   that never starts has no opportunity to send its own Telegram failure alert.
 

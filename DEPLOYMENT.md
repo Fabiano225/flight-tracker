@@ -1,47 +1,29 @@
-# Deployment and acceptance checklist
+# Deployment and acceptance evidence
 
-Last inspected: 2026-09-18. This file records evidence, not an operational guarantee.
+Last updated: September 19, 2026 (Europe/Berlin). Evidence is not an upstream uptime guarantee.
 
-## Completed locally
+## Verified
 
-- All 648 route/date combinations are enumerated; both calendar profiles cover
-  1,296 slots using 48 requests before retries.
-- Nonstop/layover classification, strict under-21-hour filtering in both directions,
-  separate historical baselines, €650 / 10% + €50 rules, and alert suppression are tested.
-- SQLite history, pending-message outbox, synthetic/live isolation and Telegram
-  acknowledgement handling are implemented.
-- Git state restore/save, fast-forward conflict protection and corruption checks
-  have offline integration tests using real local repositories.
-- Four daily UTC schedule entries, failure propagation and recovery artifacts are implemented.
+- Complete project published to `Fabiano225/flight-tracker`, default branch `main`.
+- Both Telegram secret names were confirmed through GitHub; values were never retrieved, printed, or committed.
+- [Telegram delivery test](https://github.com/Fabiano225/flight-tracker/actions/runs/35404325725) succeeded using those secrets. The sender requires Telegram's message-ID acknowledgement.
+- [Initial GitHub CI](https://github.com/Fabiano225/flight-tracker/actions/runs/35404326216) passed. Current local suite: 44 offline tests, including real local Git persistence tests.
+- The streaming Google calendar endpoint returned RPC error 13. The adapter now uses the public shopping-prefetch RPC from Google's own search document.
+- Live date checks returned EUR fares for FRA and AMS. DUS nonstop searches correctly returned unknown/no offered fare, not zero.
+- A selected FRA-BKK round trip, October 15-29, was verified at EUR 659: Etihad, one stop each way, 1,215 minutes outbound and 945 minutes return. This was a search observation, not a reservation or price guarantee, and exceeds the EUR 650 deal threshold.
+- The grid contains 648 route/date pairs, searched under both nonstop and any-stops filters: 1,296 initial searches, plus bounded return-selection checks.
+- History and alerts enforce separate actual nonstop/layover categories and strictly under 21 hours in both directions. Synthetic prices are isolated from live state.
+- Schedule is on `main`: 00:17, 06:17, 12:17, 18:17 UTC. `TRACKER_ENABLED=true`.
 
-## External evidence so far
+## In progress
 
-- Repository: https://github.com/Fabiano225/flight-tracker
-- Published commit `5c770aa`: Telegram setup workflow and helper only.
-- Telegram setup run `35349481938` reached the helper successfully but found no
-  recent private `/start` message. It did not deliver a chat-ID message.
-- The earlier secret-name check found `TELEGRAM_BOT_TOKEN`. At 16:18 on September 18,
-  the user reported independently obtaining the chat ID and saving
-  `TELEGRAM_CHAT_ID` in GitHub Actions secrets. A fresh secret-name check and an
-  actual Telegram delivery test remain pending; no secret values were requested.
-- Free Google Flights tests returned an HTTP 200 response containing RPC error 13,
-  not usable prices. An ordinary cookie-consent Reject all flow reached the Flights
-  page, but the subsequent calendar RPC still failed.
-- The remaining session-field diagnosis, publishing the complete tracker, and
-  further external checks were blocked by the automatic approval review's usage
-  limit. The stated reset time was 17:40 on September 18.
+- [First complete live scan](https://github.com/Fabiano225/flight-tracker/actions/runs/35404770103)
+- Verify creation of `tracker-state` and saved Telegram delivery receipts.
+- Verify a second run restores and appends history, retaining alert suppression.
+- Inspect the first scheduled execution.
 
-## Required before completion
+## Cost and reliability boundary
 
-- [ ] Obtain usable live calendar prices with the free source and validate EUR pricing.
-- [ ] Verify real outbound/return itineraries, actual stop counts, final round-trip
-      prices and both direction durations.
-- [ ] Publish the complete tracker to `main` and pass its GitHub CI run.
-- [x] User independently obtained the chat ID and reports saving `TELEGRAM_CHAT_ID`.
-- [ ] Run `Track flights` successfully in GitHub Actions.
-- [ ] Confirm persistent `tracker-state` creation, then a second run that restores
-      and appends history without duplicating unchanged alerts.
-- [ ] Confirm Telegram delivery using the repository secrets.
-- [ ] Inspect the enabled schedule on the default branch and its next scheduled run.
+The repository is **private**; its visibility was not changed. No flight API fee, paid fallback, proxy, or purchased service is configured. Private-repository GitHub Actions minutes/storage consume the account's included allowance and may incur charges above it depending on billing settings. A 35-minute scan budget is a safety cap, not a measured runtime or guarantee of fitting the free allowance. [GitHub billing documentation](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
 
-Offline demo output must never be used as proof of live data or Telegram delivery.
+The free source is unofficial. Source changes, rate limits, GitHub outages, or an exhausted Actions allowance can interrupt tracking. Failure is surfaced rather than converted to fabricated prices. Only 18 date/profile candidates per run have return itineraries expanded (up to three outbound options each); date-grid coverage does not imply exhaustive coverage of all airlines, fares, or combinations.
