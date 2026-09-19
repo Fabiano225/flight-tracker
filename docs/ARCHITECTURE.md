@@ -43,13 +43,21 @@ The SQLite database stores:
 - `runs`: configuration and health summaries;
 - `outbox`: pending/sent Telegram messages;
 - `alert_items`: the quote rows represented by each message;
+- `outbox_replies`: references from check receipts to delivered price alerts (no chat IDs);
 - `meta`: the current stable date watches and health markers.
 
 `tracker/trends.py` keeps one stable watch per airport and actual flight category.
 It rechecks those dates first, then uses remaining verification capacity for new
-candidates. A new notification requires a €25 movement from the previous alert or
+candidates. A new price alert requires a €25 movement from the previous alert or
 a crossing of the configured budget. New dates are labelled alternatives and never
 masquerade as a drop for a different date pair.
+
+`tracker/check_status.py` queues a short receipt when a scan produces no price alert.
+It compares only reverified watches against delivered alerts and distinguishes exact
+equality, small changes and incomplete coverage. Receipts never become a price
+baseline. Their native Telegram reply target is persisted across restarts; the send
+payload uses [ReplyParameters](https://core.telegram.org/bots/api#replyparameters)
+with `allow_sending_without_reply` so deleted originals do not block delivery.
 
 The previous 30-day low is calculated from earlier observations only; the current
 run is excluded. History scopes include the settings that affect comparability,

@@ -174,7 +174,7 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(summary["status"],"partial")
         self.assertEqual(summary["queued_deals"],0)
         self.assertEqual(self.store.db.execute("SELECT COUNT(*) FROM quotes").fetchone()[0],0)
-        self.assertEqual(self.store.db.execute("SELECT kind FROM outbox").fetchone()[0],"health")
+        self.assertIn('health', [r[0] for r in self.store.db.execute('SELECT kind FROM outbox')])
 
 
 class DeliveryTests(unittest.TestCase):

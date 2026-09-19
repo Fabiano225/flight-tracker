@@ -67,7 +67,9 @@ An unknown fare is recorded as unknown; it is never converted to zero.
 
 Check that both secret names are exact, the bot is not blocked, and the chat ID is
 the recipient's private chat ID. Run **Test Telegram**. A successful search with no
-price change is intentionally silent.
+price change now sends a short check receipt replying to the last applicable price
+alert. Incomplete checks say so explicitly. If the trip window has ended, the
+tracker stops searching and does not send these receipts.
 
 ### A price appears to rise
 
@@ -106,7 +108,7 @@ changed.
 
 The public deployment was validated with the offline suite and a migration check
 against an isolated copy of the existing live state. The migration check preserved
-all existing verified quote rows, produced no alert for unchanged prices and detected
+all existing verified quote rows, produced no new price alert for unchanged prices and detected
 simulated rises. The authoritative current checks are the green `Tests` workflow and
 the run summaries linked from the Actions page; historical acceptance runs remain
 available there for context.

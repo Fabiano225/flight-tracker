@@ -2,8 +2,8 @@
 
 Automated fare monitoring from **Düsseldorf (DUS), Frankfurt (FRA) and Amsterdam
 (AMS) to Bangkok (BKK)**. The tracker searches flexible dates four times per day,
-keeps a durable price history and sends Telegram messages only when a fare has
-meaningfully changed.
+keeps a durable price history and sends Telegram price alerts plus short check
+receipts when no alert threshold was reached.
 
 [![Tests](https://github.com/Fabiano225/flight-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/Fabiano225/flight-tracker/actions/workflows/tests.yml)
 [![Track flights](https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml/badge.svg)](https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml)
@@ -20,12 +20,23 @@ meaningfully changed.
 - Rejects itineraries lasting **21 hours or more in either direction**.
 - Tracks one adult, economy fares in EUR and stores observations in SQLite.
 - Sends Telegram alerts for meaningful rises, falls, budget crossings and strong
-  drops. Unchanged prices stay quiet.
+  drops. Checks without a new alert send a short status rather than repeating fares.
 - Runs at 00:17, 06:17, 12:17 and 18:17 UTC through GitHub Actions.
 
 ## Telegram alerts, at a glance
 
 The first observation establishes a watch. Later messages include:
+
+After each subsequent scan (about every six hours), a check without a new price
+alert sends **“Keine Preisänderung”** or **“Nur kleine Preisänderungen”**. Small
+changes show the current price and euro difference against the previous price alert.
+Incomplete scans or missing comparisons are explicitly labelled incomplete, never
+unchanged. Expired trip windows do not generate check receipts.
+
+In the private bot chat, the receipt is a native Telegram reply to the latest
+applicable delivered price alert: tap the quoted message to jump back to it.
+It does not link to an intervening status or health message. If the original was
+deleted, delivery continues without the reply. No chat ID is written to state.
 
 | Message | Meaning |
 |---|---|
@@ -56,7 +67,8 @@ booking.
 | Notification threshold | €25 since the last alert, or crossing the budget |
 
 Edit `config.json` for a new trip. Changing dates or comparable search settings
-creates a separate history scope; it does not rewrite old observations.
+resets the date watches as appropriate; compatible dated observations are retained.
+Changing comparability filters creates a separate history scope.
 
 ## Set up Telegram and GitHub Actions
 

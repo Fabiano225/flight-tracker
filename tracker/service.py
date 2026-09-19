@@ -6,6 +6,7 @@ from .alerts import is_drop, diverse_take
 from .network import ServiceError, BudgetError
 from .planner import plan
 from .store import stamp
+from .check_status import queue_check_status
 from .trends import load_watches, watch_searches, queue_trends
 
 
@@ -24,6 +25,7 @@ def scan(config, store, provider, now, demo=False):
     store.expire_outside_search(config)
     # Retire unsent legacy rotating overviews after switching notification policy.
     db.execute("UPDATE outbox SET status='expired' WHERE kind='deal' AND status='pending'")
+    db.execute("UPDATE outbox SET status='expired' WHERE kind='check_status' AND status='pending'")
     db.commit()
     candidates = []
     consecutive_errors = 0
@@ -93,6 +95,8 @@ def scan(config, store, provider, now, demo=False):
         if batches and summary["calendar_prices"] and not verified:
             summary["errors"].append("No shortlisted itinerary passed round-trip, duration and currency checks")
         summary["status"] = "expired" if not batches else "partial" if summary["errors"] else "ok"
+        summary['queued_check_status'] = int(queue_check_status(
+            store, config, scope, run_id, verified, now, summary, demo))
         if summary["status"] == "partial":
             last = store.get_meta("health_alert_at")
             if last is None or last < stamp(now - timedelta(hours=24)):

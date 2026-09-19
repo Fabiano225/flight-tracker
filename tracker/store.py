@@ -51,6 +51,9 @@ class Store:
             outbox_id TEXT REFERENCES outbox(id), scope TEXT NOT NULL, origin TEXT NOT NULL,
             departure TEXT NOT NULL, return_date TEXT NOT NULL, category TEXT NOT NULL,
             price INTEGER NOT NULL);
+          CREATE TABLE IF NOT EXISTS outbox_replies(
+            outbox_id TEXT PRIMARY KEY REFERENCES outbox(id),
+            target_id TEXT NOT NULL REFERENCES outbox(id));
           PRAGMA user_version=1;
         """)
         stored_mode = self.get_meta("mode")
@@ -86,7 +89,7 @@ class Store:
         self.db.execute("UPDATE outbox SET status='expired' WHERE status='pending' AND created<?",
                         (stamp(now - timedelta(hours=ttl_hours)),))
         if scope:
-            self.db.execute("""UPDATE outbox SET status='expired' WHERE status='pending' AND kind IN ('deal','trend')
+            self.db.execute("""UPDATE outbox SET status='expired' WHERE status='pending' AND kind IN ('deal','trend','check_status')
               AND id IN (SELECT outbox_id FROM alert_items WHERE scope<>?)""", (scope,))
 
     def enqueue(self, run_id, kind, now, text, quotes=(), scope=""):
@@ -100,9 +103,16 @@ class Store:
     def expire_outside_search(self, config):
         # Preserve compatible price history when dates change, but never deliver
         # a previously queued digest containing a now-excluded trip.
-        for message in self.db.execute("SELECT id FROM outbox WHERE status='pending' AND kind IN ('deal','trend')").fetchall():
+        for message in self.db.execute("SELECT id,kind,run_id FROM outbox WHERE status='pending' AND kind IN ('deal','trend','check_status')").fetchall():
             items=self.db.execute("SELECT origin,departure,return_date FROM alert_items WHERE outbox_id=?",(message[0],)).fetchall()
             valid=bool(items)
+            if message['kind'] == 'check_status':
+                run = self.db.execute('SELECT scope,summary FROM runs WHERE id=?', (message['run_id'],)).fetchone()
+                settings = json.loads(run['summary']).get('config', {}) if run else {}
+                valid = bool(run) and run['scope'] == config.scope(self.get_meta('mode') or 'live') and all(
+                    settings.get(k) == config.public_dict()[k] for k in
+                    ('departure_start', 'departure_end', 'min_trip_days', 'max_trip_days'))
+                valid = valid and settings.get('origins') == list(config.origins)
             for item in items:
                 try:
                     duration=(datetime.fromisoformat(item['return_date'])-datetime.fromisoformat(item['departure'])).days
