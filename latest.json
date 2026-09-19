@@ -1,6 +1,6 @@
 {
-  "run_id": "e122101f44064a9cbdabbd9922c61198",
-  "started": "2026-09-19T09:57:18+00:00",
+  "run_id": "01e5d3c9c4b94b859163a00fd3e234ab",
+  "started": "2026-09-19T11:09:00+00:00",
   "mode": "live",
   "status": "ok",
   "calendar_queries_planned": 48,
@@ -10,7 +10,7 @@
   "calendar_unknown": 72,
   "verification_searches": 18,
   "verified_quotes": 19,
-  "queued_deals": 5,
+  "queued_deals": 0,
   "http_attempts": 502,
   "errors": [],
   "config": {
@@ -51,6 +51,19 @@
     {
       "origin": "AMS",
       "departure": "2026-10-15",
+      "return_date": "2026-10-29",
+      "category": "layover",
+      "price": 50700,
+      "outbound_minutes": 980,
+      "inbound_minutes": 935,
+      "outbound_stops": 1,
+      "inbound_stops": 1,
+      "airlines": "WY",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-10-29+economy+one+adult&curr=EUR&hl=en"
+    },
+    {
+      "origin": "AMS",
+      "departure": "2026-10-15",
       "return_date": "2026-10-31",
       "category": "layover",
       "price": 50700,
@@ -64,6 +77,19 @@
     {
       "origin": "AMS",
       "departure": "2026-10-15",
+      "return_date": "2026-11-01",
+      "category": "layover",
+      "price": 50700,
+      "outbound_minutes": 980,
+      "inbound_minutes": 935,
+      "outbound_stops": 1,
+      "inbound_stops": 1,
+      "airlines": "WY",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-11-01+economy+one+adult&curr=EUR&hl=en"
+    },
+    {
+      "origin": "AMS",
+      "departure": "2026-10-15",
       "return_date": "2026-11-03",
       "category": "layover",
       "price": 50700,
@@ -73,32 +99,6 @@
       "inbound_stops": 1,
       "airlines": "WY",
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-11-03+economy+one+adult&curr=EUR&hl=en"
-    },
-    {
-      "origin": "AMS",
-      "departure": "2026-10-15",
-      "return_date": "2026-11-05",
-      "category": "layover",
-      "price": 50700,
-      "outbound_minutes": 980,
-      "inbound_minutes": 935,
-      "outbound_stops": 1,
-      "inbound_stops": 1,
-      "airlines": "WY",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-11-05+economy+one+adult&curr=EUR&hl=en"
-    },
-    {
-      "origin": "AMS",
-      "departure": "2026-10-19",
-      "return_date": "2026-11-03",
-      "category": "layover",
-      "price": 53400,
-      "outbound_minutes": 915,
-      "inbound_minutes": 960,
-      "outbound_stops": 1,
-      "inbound_stops": 1,
-      "airlines": "EY",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-19+return+2026-11-03+economy+one+adult&curr=EUR&hl=en"
     },
     {
       "origin": "FRA",
@@ -283,17 +283,17 @@
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-19+return+2026-11-02+economy+one+adult&curr=EUR&hl=en"
     },
     {
-      "origin": "AMS",
+      "origin": "DUS",
       "departure": "2026-10-15",
       "return_date": "2026-10-30",
-      "category": "nonstop",
-      "price": 87400,
-      "outbound_minutes": 680,
-      "inbound_minutes": 760,
-      "outbound_stops": 0,
-      "inbound_stops": 0,
-      "airlines": "TG",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-10-30+economy+one+adult&curr=EUR&hl=en"
+      "category": "layover",
+      "price": 95300,
+      "outbound_minutes": 1210,
+      "inbound_minutes": 945,
+      "outbound_stops": 1,
+      "inbound_stops": 1,
+      "airlines": "EY",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-15+return+2026-10-30+economy+one+adult&curr=EUR&hl=en"
     }
   ]
 }
