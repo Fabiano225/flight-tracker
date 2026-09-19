@@ -2,11 +2,11 @@ from datetime import timedelta
 import json
 import uuid
 
-from .alerts import is_drop, reason_for, digest, diverse_take
-from .config import cents
+from .alerts import is_drop, diverse_take
 from .network import ServiceError, BudgetError
 from .planner import plan
 from .store import stamp
+from .trends import load_watches, watch_searches, queue_trends
 
 
 def scan(config, store, provider, now, demo=False):
@@ -22,6 +22,8 @@ def scan(config, store, provider, now, demo=False):
     db.execute("INSERT INTO runs VALUES(?,?,?,?,?)", (run_id, stamp(now), scope, "running", json.dumps(summary)))
     store.expire(now, config.pending_ttl_hours, scope)
     store.expire_outside_search(config)
+    # Retire unsent legacy rotating overviews after switching notification policy.
+    db.execute("UPDATE outbox SET status='expired' WHERE kind='deal' AND status='pending'")
     db.commit()
     candidates = []
     consecutive_errors = 0
@@ -54,21 +56,19 @@ def scan(config, store, provider, now, demo=False):
                 print(f"Date batches {summary['calendar_queries_ok']}/{len(batches)}; "
                       f"prices {summary['calendar_prices']}; HTTP {provider.http.used}", flush=True)
         candidates.sort()
-        # Check existing alert dates too, so a further meaningful drop is not starved
-        # by previously alerted cheap dates. Unalerted dates then rotate naturally.
-        def priority(item):
-            _, price, origin, dep, ret, profile = item
-            category = "nonstop" if profile == "nonstop" else "layover"
-            prior = db.execute("""SELECT MIN(a.price) FROM alert_items a JOIN outbox o ON a.outbox_id=o.id
-                WHERE a.scope=? AND a.origin=? AND a.departure=? AND a.return_date=? AND a.category=?
-                AND o.status IN ('sent','pending')""", (scope, origin, dep, ret, category)).fetchone()[0]
-            suppressed = prior is not None and price > prior - cents(config.realert_improvement_eur)
-            return (suppressed, *item)
-        candidates.sort(key=priority)
-        selected = diverse_take(candidates, config.max_verifications_per_run, lambda x: (x[2], x[5]))
+        # Recheck stable watched dates first, including price rises. Fill the
+        # remaining budget with cheap/drop candidates, not rotating unalerted dates.
+        selected = watch_searches(load_watches(store, config, scope, now))[:config.max_verifications_per_run]
+        ranked = diverse_take(candidates, len(candidates), lambda x: (x[2], x[5]))
+        for _, _, origin, dep, ret, profile in ranked:
+            item = (origin, dep, ret, profile)
+            if len(selected) >= config.max_verifications_per_run:
+                break
+            if item not in selected:
+                selected.append(item)
         verified = {}
         verification_errors = 0
-        for _, _, origin, dep, ret, profile in selected:
+        for origin, dep, ret, profile in selected:
             summary["verification_searches"] += 1
             try:
                 quotes = provider.verify(origin, dep, ret, profile)
@@ -83,22 +83,11 @@ def scan(config, store, provider, now, demo=False):
                 key = (quote.origin, quote.departure, quote.return_date, quote.category)
                 if key not in verified or quote.price < verified[key].price:
                     verified[key] = quote
-        eligible = []
         for quote in verified.values():
-            baseline = store.previous_low("quotes", scope, quote.origin, quote.departure, quote.return_date,
-                                           quote.category, now, config.history_window_days, run_id)
-            reason = reason_for(quote.price, baseline, quote.category, config)
-            prior_alert = store.alerted_low(scope, quote)
-            if reason and (prior_alert is None or quote.price <= prior_alert - cents(config.realert_improvement_eur)):
-                eligible.append((quote, reason))
             db.execute("INSERT INTO quotes VALUES(?,?,?,?,?,?,?,?,?)", (run_id, scope, stamp(now), quote.origin,
                 quote.departure, quote.return_date, quote.category, quote.price, json.dumps(quote.to_dict())))
         summary["verified_quotes"] = len(verified)
-        eligible.sort(key=lambda item: item[0].price)
-        chosen = diverse_take(eligible, config.max_deals_per_run, lambda item: (item[0].origin, item[0].category))
-        if chosen:
-            store.enqueue(run_id, "deal", now, digest(chosen, config, now, demo), [q for q, _ in chosen], scope)
-            summary["queued_deals"] = len(chosen)
+        summary["queued_deals"] = queue_trends(store, config, scope, run_id, verified, now, demo)
         if batches and not summary["calendar_prices"]:
             summary["errors"].append("No calendar prices received; source health needs attention")
         if batches and summary["calendar_prices"] and not verified:

@@ -86,7 +86,7 @@ class Store:
         self.db.execute("UPDATE outbox SET status='expired' WHERE status='pending' AND created<?",
                         (stamp(now - timedelta(hours=ttl_hours)),))
         if scope:
-            self.db.execute("""UPDATE outbox SET status='expired' WHERE status='pending' AND kind='deal'
+            self.db.execute("""UPDATE outbox SET status='expired' WHERE status='pending' AND kind IN ('deal','trend')
               AND id IN (SELECT outbox_id FROM alert_items WHERE scope<>?)""", (scope,))
 
     def enqueue(self, run_id, kind, now, text, quotes=(), scope=""):
@@ -100,7 +100,7 @@ class Store:
     def expire_outside_search(self, config):
         # Preserve compatible price history when dates change, but never deliver
         # a previously queued digest containing a now-excluded trip.
-        for message in self.db.execute("SELECT id FROM outbox WHERE status='pending' AND kind='deal'").fetchall():
+        for message in self.db.execute("SELECT id FROM outbox WHERE status='pending' AND kind IN ('deal','trend')").fetchall():
             items=self.db.execute("SELECT origin,departure,return_date FROM alert_items WHERE outbox_id=?",(message[0],)).fetchall()
             valid=bool(items)
             for item in items:

@@ -28,7 +28,7 @@ def report(store):
         f"- Date-search batches: {summary['calendar_queries_ok']}/{summary['calendar_queries_planned']}",
         f"- Date-grid price points: {summary['calendar_prices']}/{summary['calendar_slots']} (nonstop and any-stops profiles)",
         f"- Itinerary searches: {summary['verification_searches']}; accepted quotes: {summary['verified_quotes']}",
-        f"- HTTP attempts: {summary['http_attempts']}; queued deal items: {summary['queued_deals']}", "",
+        f"- HTTP attempts: {summary['http_attempts']}; queued price-alert items: {summary['queued_deals']}", "",
         "Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.",
         "The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.", "",
         "| Origin | Departure | Return | Type | EUR | Out / back | Stops | Airlines |", "|---|---|---|---|---:|---|---|---|"]

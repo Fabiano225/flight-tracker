@@ -10,9 +10,10 @@ history were verified. Demo prices are synthetic.
 **Current departure window:** October 15-23, 2026: departure never before October 15,
 with flexibility up to three days after October 20. Every trip lasts 14-21 days.
 
-**Cost note:** this repository is private. The narrower window needs fewer searches
-than the original deployment. The flight source is free, but Actions minutes still
-consume your account allowance; the older 4,000-minute estimate no longer describes this window.
+**Cost note:** this repository is now public and uses standard `ubuntu-latest`
+GitHub-hosted runners, whose runtime is free for public repositories. Storage
+allowances still apply; earlier private usage is not erased by publication.
+See [GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
 
 ## Search rules
 
@@ -27,8 +28,38 @@ consume your account allowance; the older 4,000-minute estimate no longer descri
 | Duration limit | **1,259 minutes per direction**, including layovers; 21h excluded |
 | Good deal | ≤ €650 round-trip, separately configurable for nonstop and layover |
 | Price drop | ≥10% **and** ≥€50 below the previous 30-day observed low |
-| Repeat alert | Requires at least another €25 reduction from an already queued/sent alert |
-| Alert volume | Up to 6 deals per run, balanced across airports and actual connection types |
+| Change alert | At least €25 rise OR fall since the last notification, or crossing the €650 target |
+| Alert volume | One stable date watch per airport/category; no unchanged rotating date digests |
+
+## Telegram: Preisverlauf statt regelmäßiger Übersicht
+
+Die Suche läuft weiterhin viermal täglich. Nach **einer Startmeldung pro
+Flughafen/Flugart** bleiben unveränderte Preise still. Für jede Gruppe werden feste
+Reisedaten erneut geprüft; günstigere neue Daten lösen erst ab mindestens 25 €
+Verbesserung eine Meldung als **andere Reisedaten** aus.
+
+Jeder Preisalarm enthält:
+- **Preis gesunken / gestiegen:** Betrag vorher → jetzt, Differenz in € und % seit
+  der letzten Meldung; zusätzlich die letzte Messung derselben Daten mit Zeitstempel.
+- Das bisher beobachtete **30-Tage-Tief**, Messungsanzahl und Beginn der verfügbaren
+  Vergleichsdaten. Die aktuelle Messung zählt nicht zum bisherigen Tief.
+- **KAUF PRÜFEN:** im 650-€-Budget und weniger als 25 € über dem bisherigen Tief,
+  sofern vorhanden. Das ist eine Budgetregel, keine Marktpreis-Prognose.
+- **IM BUDGET, ABER …:** mindestens 25 € teurer als das beobachtete Tief.
+- **BEOBACHTEN:** über deiner Preisgrenze.
+- **STARKER DEAL:** mindestens 10 % UND 50 € unter dem bisherigen Tief. Auch ein
+  starker Rückgang kann noch über deinem Budget liegen.
+
+Kleine Änderungen summieren sich gegenüber der letzten Meldung; beim Über- oder
+Unterschreiten deiner Budgetgrenze gilt die 25-€-Schwelle nicht. Direktflug und
+Umstieg bleiben getrennt. Fehlende Ergebnisse sind **kein Preisanstieg**. Verglichen
+werden Suchpreise derselben Daten/Kategorie, nicht zwingend dieselbe Airline.
+Die beobachteten Tiefs sind keine historischen Gesamtmarkt-Tiefs; insbesondere zu
+Beginn ist die Datenbasis kurz. Eine spätere günstigere Buchungsmöglichkeit lässt
+sich daraus nicht garantieren. Gepäck und Tarifbedingungen vor Buchung prüfen.
+
+Bei der Umstellung bleibt die bisherige Preishistorie erhalten. Noch nicht gesendete
+alte Übersichten verfallen; die neuen Vergleichsmeldungen starten einmalig neu.
 
 “Nonstop” means **zero stops in both directions**. A trip with a connection in
 either direction is labeled “layover”; the message includes both stop counts.
@@ -71,15 +102,16 @@ account's own limits. Free data access does not imply a service-level guarantee.
    search page, not that broken endpoint. There is no paid fallback.
 2. Keep every returned calendar price, including unknown/missing slots, in SQLite.
    The any-stops calendar is **not** a layover-only calendar and is never labeled as one.
-3. Select up to **18 date/profile candidates** per run, prioritizing observed
-   calendar drops and inexpensive unalerted dates with route/profile diversity.
+3. Select up to **18 date/profile candidates** per run. Recheck the up to six
+   stable airport/category date watches first, then fill remaining slots with
+   calendar-drop and cheap candidates with route/profile diversity.
 4. Search actual outbound/return combinations for those candidates, expanding
    up to 3 outbound options each. Reject wrong routes, wrong dates, unknown/wrong
    currencies, invalid prices, and either direction of 21h or longer.
 5. Categorize accepted itineraries by actual stop counts. Store their price and
    details separately from calendar estimates. Compare only compatible verified
    itinerary histories for price-drop alerts.
-6. Queue deal and health messages, checkpoint state, deliver messages, then persist
+6. Queue price-change and health messages, checkpoint state, deliver messages, then persist
    delivery receipts.
 
 This is **full date-grid monitoring with bounded itinerary verification**, not an

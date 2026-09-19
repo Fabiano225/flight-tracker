@@ -1,5 +1,28 @@
 # Deployment and acceptance evidence
 
+## Price-change notification revision
+
+The new notification policy monitors stable dates per airport/category and reports
+rises as well as falls (EUR 25 since last notification, or crossing the configured
+budget). New dates are explicitly marked as alternatives. Verified price history
+is retained; unsent legacy overview digests expire. Telegram messages now include
+previous price, EUR/percent change, observed low and budget-based buying context.
+This is not a prediction of future prices. Local regression tests cover unchanged
+date rotations, increases, decreases, missing results, budget crossings, historical
+windows, pending delivery and watched-date verification priority. The historical
+live evidence below predates this notification revision.
+
+Validation: 62 local offline tests passed. An isolated copy of the existing live
+database (48 verified quote rows, five compatible airport/category groups) produced
+five initial group alerts, zero alerts for unchanged prices and five alerts for
+simulated EUR 100 increases. All existing quote rows were preserved. This migration
+check sent no Telegram messages and did not modify the remote state branch.
+
+The repository was subsequently made public at the user's request. Standard
+GitHub-hosted runner runtime is free for public repositories; storage limits and
+any accrued private-repository charges remain separate. Historical private cost
+estimates below describe the earlier deployment, not the current billing status.
+
 ## Current date-window revision
 
 Latest user correction on September 19: **never depart before October 15**.
@@ -51,6 +74,6 @@ The source is unofficial. Format changes, rate limits, outages or exhausted Acti
 
 GitHub scheduling is best effort, not a precise clock. The observed scheduled run began at 04:43 UTC, later than a nominal cron slot. The workflow contains four daily triggers; GitHub can delay or skip executions under load.
 
-The repository remains **private**. Successful full jobs took approximately **33-34 minutes**. At four runs every day with the initial search-window size, that projects to about **4,000 Actions minutes per 30 days**, before CI or other repositories; the date window shrinks after October 15. This can exceed the account's included allowance. No billing settings, spending limits, repository visibility, or paid subscriptions were changed. A 40-minute source budget and 45-minute job timeout bound each run.
+At the original acceptance checkpoint, the repository was **private**. Successful full jobs took approximately **33-34 minutes**. At four runs every day with the initial search-window size, that projected to about **4,000 Actions minutes per 30 days**, before CI or other repositories. This could exceed the account's included allowance. A 40-minute source budget and 45-minute job timeout bound each run. The repository has since been made public; the window is now narrower.
 
 The flight source has no API fee; private-repository Actions minutes/storage may incur charges above the included allowance depending on account settings. Check [GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions) and configure a spending budget if a strict cost cap is required. A cost cap may stop tracking when the allowance is exhausted.
