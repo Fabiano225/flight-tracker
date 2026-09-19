@@ -3,9 +3,13 @@
 Free-source flight monitoring with price history, separate nonstop/layover alerts,
 and four scheduled GitHub Actions runs per day.
 
-**Deployment evidence:** see [DEPLOYMENT.md](DEPLOYMENT.md). Real EUR date searches,
-selected outbound/return itineraries and the GitHub Telegram test have succeeded.
-Full scheduled-run acceptance is in progress. Demo prices are synthetic.
+**Deployed and live-tested:** see [DEPLOYMENT.md](DEPLOYMENT.md). Two complete live
+runs succeeded, including an automatic scheduled run; Telegram delivery and durable
+history were verified. Demo prices are synthetic.
+
+**Cost note:** this repository is private. Observed full jobs take about 33-34
+minutes, roughly 4,000 Actions minutes per 30 days at four daily full-window runs.
+The flight source is free, but Actions may exceed your included account allowance.
 
 ## Search rules
 
