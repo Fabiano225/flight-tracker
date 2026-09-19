@@ -26,13 +26,13 @@ class PlanningTests(unittest.TestCase):
         batches = plan(Config(), NOW.date())
         self.assertEqual(len(batches), 48)
         triples = {(b.origin, *p) for b in batches for p in b.pairs()}
-        self.assertEqual(len(triples), 288)
+        self.assertEqual(len(triples), 216)
         self.assertIn(("AMS", "2026-10-23", "2026-11-13"), triples)
-        self.assertIn(("DUS", "2026-10-12", "2026-10-26"), triples)
+        self.assertNotIn(("DUS", "2026-10-14", "2026-10-28"), triples)
         self.assertIn(("DUS", "2026-10-15", "2026-10-29"), triples)
-        self.assertEqual(sum(len(b.pairs()) for b in batches), 576)
+        self.assertEqual(sum(len(b.pairs()) for b in batches), 432)
         for _, dep, ret in triples:
-            self.assertTrue("2026-10-12" <= dep <= "2026-10-23")
+            self.assertTrue("2026-10-15" <= dep <= "2026-10-23")
             self.assertIn((date.fromisoformat(ret)-date.fromisoformat(dep)).days, range(14,22))
 
     def test_past_and_same_day_skipped(self):

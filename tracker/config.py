@@ -27,7 +27,7 @@ def cents(value):
 class Config:
     origins: tuple = ("DUS", "FRA", "AMS")
     destination: str = "BKK"
-    departure_start: str = "2026-10-12"
+    departure_start: str = "2026-10-15"
     departure_end: str = "2026-10-23"
     min_trip_days: int = 14
     max_trip_days: int = 21

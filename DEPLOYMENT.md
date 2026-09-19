@@ -2,9 +2,9 @@
 
 ## Current date-window revision
 
-User correction on September 19: departure October 15-20 with +/- 3 days means
-**October 12-23 inclusive**, each with **14-21 days** between departures.
-This is 288 route/date combinations and 576 profile searches. Latest return: November 13.
+Latest user correction on September 19: **never depart before October 15**.
+The current departure window is **October 15-23 inclusive**, each with
+**14-21 days** between departures: 216 route/date combinations and 432 profile searches. Latest return: November 13.
 Compatible price history is retained, but pending digests containing out-of-window
 trips expire before delivery. The original acceptance evidence and runtime figures
 below describe the previous, broader window, not the current configuration.

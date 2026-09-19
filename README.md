@@ -7,8 +7,8 @@ and four scheduled GitHub Actions runs per day.
 runs succeeded, including an automatic scheduled run; Telegram delivery and durable
 history were verified. Demo prices are synthetic.
 
-**Current departure window:** October 12-23, 2026: October 15-20 plus three days
-of flexibility on each side. Every trip lasts 14-21 days.
+**Current departure window:** October 15-23, 2026: departure never before October 15,
+with flexibility up to three days after October 20. Every trip lasts 14-21 days.
 
 **Cost note:** this repository is private. The narrower window needs fewer searches
 than the original deployment. The flight source is free, but Actions minutes still
@@ -20,7 +20,7 @@ consume your account allowance; the older 4,000-minute estimate no longer descri
 |---|---|
 | Origins | DUS, FRA, AMS — separate airport searches |
 | Destination | BKK, not DMK |
-| Outbound departure dates | 2026-10-12 through 2026-10-23, inclusive |
+| Outbound departure dates | 2026-10-15 through 2026-10-23, inclusive |
 | Trip length | 14–21 calendar days between outbound and return departures |
 | Latest return departure | 2026-11-13 |
 | Travelers / cabin / currency | 1 adult / economy / EUR |
@@ -63,8 +63,8 @@ Google Flights client. No flight API key, subscription, proxy service, or paid
 fallback is configured. GitHub Actions minutes/storage remain subject to your
 account's own limits. Free data access does not imply a service-level guarantee.
 
-1. Cover all **288 route/date pairs** in two profiles: nonstop and any number of
-   stops. This produces **576 individual date/profile searches**, grouped into
+1. Cover all **216 route/date pairs** in two profiles: nonstop and any number of
+   stops. This produces **432 individual date/profile searches**, grouped into
    48 checkpoint batches, before retries while the full window is future.
    Google's streaming calendar endpoint returned RPC error 13 in live tests.
    The adapter therefore uses the public shopping-prefetch RPC observed on the
@@ -93,7 +93,7 @@ Only selected, checked round trips are used for deal alerts. Requests are serial
 spaced by at least 1.2 seconds, bounded to 1,600 HTTP attempts and 40 minutes per
 scan. Source access denial/rate limits stop the affected search; no CAPTCHA or
 proxy handling is implemented. A full run can take tens of minutes. This approach
-uses more requests than a working calendar endpoint (69,120 date searches per
+uses more requests than a working calendar endpoint (51,840 date searches per
 30 days at the initial window size); it has no API subscription fee, but may be
 throttled or broken by upstream changes.
 
