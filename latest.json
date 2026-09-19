@@ -1,18 +1,21 @@
 {
-  "run_id": "01e5d3c9c4b94b859163a00fd3e234ab",
-  "started": "2026-09-19T11:09:00+00:00",
+  "run_id": "3c967c7bbcd94b798fc787046df94148",
+  "started": "2026-09-19T15:56:44+00:00",
   "mode": "live",
-  "status": "ok",
+  "status": "partial",
   "calendar_queries_planned": 48,
-  "calendar_queries_ok": 48,
+  "calendar_queries_ok": 46,
   "calendar_slots": 432,
-  "calendar_prices": 360,
+  "calendar_prices": 342,
   "calendar_unknown": 72,
   "verification_searches": 18,
   "verified_quotes": 19,
   "queued_deals": 0,
-  "http_attempts": 502,
-  "errors": [],
+  "http_attempts": 511,
+  "errors": [
+    "DUS/any/21d: Google Flights RPC 13 or changed response; no price data received",
+    "FRA/nonstop/21d: Google Flights RPC 13 or changed response; no price data received"
+  ],
   "config": {
     "origins": [
       "DUS",
@@ -192,6 +195,19 @@
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-23+return+2026-11-10+economy+one+adult&curr=EUR&hl=en"
     },
     {
+      "origin": "DUS",
+      "departure": "2026-10-23",
+      "return_date": "2026-11-11",
+      "category": "layover",
+      "price": 62400,
+      "outbound_minutes": 1210,
+      "inbound_minutes": 1000,
+      "outbound_stops": 1,
+      "inbound_stops": 1,
+      "airlines": "DE, EY",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-23+return+2026-11-11+economy+one+adult&curr=EUR&hl=en"
+    },
+    {
       "origin": "FRA",
       "departure": "2026-10-15",
       "return_date": "2026-11-04",
@@ -281,19 +297,6 @@
       "inbound_stops": 0,
       "airlines": "TG",
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-19+return+2026-11-02+economy+one+adult&curr=EUR&hl=en"
-    },
-    {
-      "origin": "DUS",
-      "departure": "2026-10-15",
-      "return_date": "2026-10-30",
-      "category": "layover",
-      "price": 95300,
-      "outbound_minutes": 1210,
-      "inbound_minutes": 945,
-      "outbound_stops": 1,
-      "inbound_stops": 1,
-      "airlines": "EY",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-15+return+2026-10-30+economy+one+adult&curr=EUR&hl=en"
     }
   ]
 }

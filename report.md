@@ -1,14 +1,14 @@
 # BKK flight tracker
 
-**LIVE** · 2026-09-19T11:09:00+00:00 · **ok**
+**LIVE** · 2026-09-19T15:56:44+00:00 · **partial**
 
 One adult, economy, EUR round-trip prices. Departure dates: 2026-10-15 to 2026-10-23.
 Trips last 14–21 days. Direction duration limit: 1259 minutes including layovers.
 
-- Date-search batches: 48/48
-- Date-grid price points: 360/432 (nonstop and any-stops profiles)
+- Date-search batches: 46/48
+- Date-grid price points: 342/432 (nonstop and any-stops profiles)
 - Itinerary searches: 18; accepted quotes: 19
-- HTTP attempts: 502; queued price-alert items: 0
+- HTTP attempts: 511; queued price-alert items: 0
 
 Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.
 The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.
@@ -26,6 +26,7 @@ The any-stops grid is not a layover-only grid. Actual itinerary stop counts dete
 | DUS | 2026-10-23 | 2026-11-06 | layover | 624.00 | 20h10 / 16h40 | 1/1 | DE, EY |
 | DUS | 2026-10-23 | 2026-11-09 | layover | 624.00 | 20h10 / 16h40 | 1/1 | DE, EY |
 | DUS | 2026-10-23 | 2026-11-10 | layover | 624.00 | 20h10 / 16h40 | 1/1 | DE, EY |
+| DUS | 2026-10-23 | 2026-11-11 | layover | 624.00 | 20h10 / 16h40 | 1/1 | DE, EY |
 | FRA | 2026-10-15 | 2026-11-04 | nonstop | 650.00 | 11h20 / 12h45 | 0/0 | DE |
 | FRA | 2026-10-15 | 2026-11-05 | nonstop | 680.00 | 11h20 / 12h50 | 0/0 | DE |
 | FRA | 2026-10-15 | 2026-11-02 | nonstop | 710.00 | 11h20 / 12h45 | 0/0 | DE |
@@ -33,4 +34,7 @@ The any-stops grid is not a layover-only grid. Actual itinerary stop counts dete
 | AMS | 2026-10-15 | 2026-10-29 | nonstop | 817.00 | 11h20 / 12h40 | 0/0 | TG |
 | AMS | 2026-10-18 | 2026-11-01 | nonstop | 817.00 | 11h20 / 12h40 | 0/0 | TG |
 | AMS | 2026-10-19 | 2026-11-02 | nonstop | 817.00 | 11h20 / 12h40 | 0/0 | TG |
-| DUS | 2026-10-15 | 2026-10-30 | layover | 953.00 | 20h10 / 15h45 | 1/1 | EY |
+
+## Attention
+- DUS/any/21d: Google Flights RPC 13 or changed response; no price data received
+- FRA/nonstop/21d: Google Flights RPC 13 or changed response; no price data received
