@@ -1,79 +1,112 @@
-# Deployment and acceptance evidence
+# Operations guide
 
-## Price-change notification revision
+This document describes the live deployment of the BKK flight tracker. It is
+written for the repository maintainer; the user-facing overview is in
+[README.md](README.md).
 
-The new notification policy monitors stable dates per airport/category and reports
-rises as well as falls (EUR 25 since last notification, or crossing the configured
-budget). New dates are explicitly marked as alternatives. Verified price history
-is retained; unsent legacy overview digests expire. Telegram messages now include
-previous price, EUR/percent change, observed low and budget-based buying context.
-This is not a prediction of future prices. Local regression tests cover unchanged
-date rotations, increases, decreases, missing results, budget crossings, historical
-windows, pending delivery and watched-date verification priority. The historical
-live evidence below predates this notification revision.
+## Current production configuration
 
-Validation: 62 local offline tests passed. An isolated copy of the existing live
-database (48 verified quote rows, five compatible airport/category groups) produced
-five initial group alerts, zero alerts for unchanged prices and five alerts for
-simulated EUR 100 increases. All existing quote rows were preserved. This migration
-check sent no Telegram messages and did not modify the remote state branch.
+- **Repository:** `Fabiano225/flight-tracker`
+- **Schedule:** 00:17, 06:17, 12:17 and 18:17 UTC
+- **Search window:** departures 15–23 October 2026; 14–21-day trips
+- **Routes:** DUS/FRA/AMS → BKK, one adult, economy, EUR
+- **Duration guard:** below 21 hours in each direction
+- **State branch:** `tracker-state`
+- **Runtime switch:** repository variable `TRACKER_ENABLED`
 
-The repository was subsequently made public at the user's request. Standard
-GitHub-hosted runner runtime is free for public repositories; storage limits and
-any accrued private-repository charges remain separate. Historical private cost
-estimates below describe the earlier deployment, not the current billing status.
+The current code records stable date watches and sends change alerts instead of a
+full price digest every six hours. Existing quote history is retained when the
+notification policy changes.
 
-## Current date-window revision
+## First-time deployment checklist
 
-Latest user correction on September 19: **never depart before October 15**.
-The current departure window is **October 15-23 inclusive**, each with
-**14-21 days** between departures: 216 route/date combinations and 432 profile searches. Latest return: November 13.
-Compatible price history is retained, but pending digests containing out-of-window
-trips expire before delivery. The original acceptance evidence and runtime figures
-below describe the previous, broader window, not the current configuration.
+- [ ] `TELEGRAM_BOT_TOKEN` exists as a repository Actions secret.
+- [ ] The bot has received `/start` from the intended recipient.
+- [ ] `TELEGRAM_CHAT_ID` exists as a repository Actions secret.
+- [ ] The **Test Telegram** workflow completes successfully.
+- [ ] The **Tests** workflow is green on the default branch.
+- [ ] `TRACKER_ENABLED` is absent or set to `true`.
+- [ ] The **Track flights** workflow has write permission for the `tracker-state`
+      branch (`contents: write` in the workflow).
 
-## Original deployment evidence
+## Normal run sequence
 
-Verified September 19, 2026. These observations establish the deployed behavior, not an upstream uptime guarantee.
+The tracking job intentionally follows this order:
 
-## Successful live runs
+1. Checkout code and install pinned top-level dependencies.
+2. Run offline tests.
+3. Restore the complete state database from `tracker-state`.
+4. Search calendars and verify a bounded set of round trips.
+5. Save history and pending alerts **before** sending Telegram messages.
+6. Deliver pending messages and save delivery receipts in a second state commit.
+7. Upload a seven-day recovery artifact.
 
-- [Manual acceptance run](https://github.com/Fabiano225/flight-tracker/actions/runs/35405980332): success, code `5256302`, completed September 19 at 00:04 UTC.
-- [Automatic scheduled run](https://github.com/Fabiano225/flight-tracker/actions/runs/35422068076): GitHub event `schedule`, success, started 04:43 UTC and completed 05:16 UTC.
-- Both runs completed **48/48 checkpoint batches and exactly 1,296 date/profile searches**, covering all **648 route/date pairs** with nonstop and any-stops filters.
-- Each full run recorded 1,080 quoted prices and 216 unknown/no-offer slots. Missing fares are not zero prices.
-- Each full run verified 18 selected outbound/return itineraries; both completed without recorded errors.
-- The earlier [partial attempt](https://github.com/Fabiano225/flight-tracker/actions/runs/35404770103) is retained in history, not presented as complete coverage. Longer pacing and bounded retries for transient RPC INTERNAL errors resolved the observed interruption in both subsequent full runs.
+If the source or Telegram fails, the state remains inspectable and pending messages
+are not marked as sent. A later run can retry delivery.
 
-## Requirement-by-requirement audit
+## Reading a run
 
-| Requirement | Evidence |
-|---|---|
-| DUS/FRA/AMS to BKK | Live database keys and verified itinerary endpoints; no DMK substitution |
-| October 15-November 10 departures; 14-21 days | Exact set equality against all 1,296 expected profile/date/route keys in each successful run; latest return departure December 1 |
-| Historical prices | `tracker-state` survived two restores and appended rather than replaced history: 3 runs, 3,078 date observations, 48 verified quotes |
-| Separate nonstop/layover categories | Every stored verified quote was checked: nonstop iff both stop counts are zero |
-| Exclude 21h+ | All 48 stored verified quotes have both directions strictly below 1,260 minutes, including layovers |
-| Good deals and price drops | EUR 650 separately configurable by category; prior 30-day low, 10% AND EUR 50 drop tests; initial observations do not invent a drop baseline |
-| Telegram | Repository-secret connection test plus 3 acknowledged live deal digests containing 18 deal items; 2 acknowledged health/recovery messages; no pending messages |
-| Avoid unchanged repeat alerts | Audit of all 18 sent deal items found no repeat lacking the required further EUR 25 improvement; offline tests also cover suppression and qualifying drops |
-| Persistent state integrity | SQLite quick check and foreign-key check passed; prior run/receipt rows remain present |
-| Four daily GitHub Actions triggers | Published default-branch cron: 00:17, 06:17, 12:17, 18:17 UTC; workflow active and `TRACKER_ENABLED=true`; actual `schedule` event completed successfully |
-| Automated validation | 46 offline tests passed locally and in [GitHub CI](https://github.com/Fabiano225/flight-tracker/actions/runs/35405980282), including real local Git persistence integration tests |
-| Free flight source | Public Google Flights shopping-prefetch RPC through pinned Fli/curl-cffi dependencies; no API key, subscription, proxy, or paid fallback |
+Open the [Actions page](https://github.com/Fabiano225/flight-tracker/actions) and
+inspect these steps in order:
 
-Price-drop logic is tested with controlled history; these live runs do not claim a naturally occurring qualifying market drop. Telegram API acknowledgement proves accepted delivery, not that the recipient read the messages.
+- **Run offline tests:** code and dependency regressions.
+- **Restore durable history:** state branch availability and SQLite validation.
+- **Search calendars and verify shortlisted itineraries:** source health, request
+  budget, accepted quotes and alert candidates.
+- **Checkpoint history and pending alerts:** whether the pre-delivery commit was
+  written safely.
+- **Deliver pending Telegram alerts:** Telegram response and message count.
+- **Recovery snapshot:** downloadable state files for incident recovery.
 
-## Source and coverage boundaries
+The job summary and `state/report.md` contain counts without exposing credentials.
+An unknown fare is recorded as unknown; it is never converted to zero.
 
-The streaming Google calendar endpoint returned RPC error 13 during development. The adapter uses the public shopping-prefetch RPC observed in Google's search document, querying each date/profile individually. Full date-grid coverage is not exhaustive enumeration of every airline, fare or itinerary: only 18 date/profile candidates per run have return choices expanded, with up to three outbound options each. Only checked round trips enter deal alerts. Prices remain search observations, not reservations or guaranteed bookable fares.
+## Common situations
 
-The source is unofficial. Format changes, rate limits, outages or exhausted Actions allowance can interrupt tracking. Explicit access/rate denials stop further source requests during that run; no proxy rotation or CAPTCHA handling is implemented. Partial results and errors are retained and reported rather than fabricated.
+### No Telegram message
 
-## Schedule and cost boundaries
+Check that both secret names are exact, the bot is not blocked, and the chat ID is
+the recipient's private chat ID. Run **Test Telegram**. A successful search with no
+price change is intentionally silent.
 
-GitHub scheduling is best effort, not a precise clock. The observed scheduled run began at 04:43 UTC, later than a nominal cron slot. The workflow contains four daily triggers; GitHub can delay or skip executions under load.
+### A price appears to rise
 
-At the original acceptance checkpoint, the repository was **private**. Successful full jobs took approximately **33-34 minutes**. At four runs every day with the initial search-window size, that projected to about **4,000 Actions minutes per 30 days**, before CI or other repositories. This could exceed the account's included allowance. A 40-minute source budget and 45-minute job timeout bound each run. The repository has since been made public; the window is now narrower.
+The tracker reports a rise only for the same airport, exact dates and actual flight
+type. Missing results do not produce rises. The alert shows the previous measured
+price and timestamp so the comparison can be audited.
 
-The flight source has no API fee; private-repository Actions minutes/storage may incur charges above the included allowance depending on account settings. Check [GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions) and configure a spending budget if a strict cost cap is required. A cost cap may stop tracking when the allowance is exhausted.
+### Google source errors or a partial run
+
+Treat RPC errors, consent pages and rate limits as source-health events, not as “no
+flights”. Completed batches remain in SQLite. Wait for a later scheduled run rather
+than deleting state or starting several concurrent scans.
+
+### State restore or push failure
+
+Do not delete `history.sqlite3`. Keep the recovery artifact, pause the workflow with
+`TRACKER_ENABLED=false`, inspect the state branch and resolve the Git conflict before
+resuming. The state writer rejects concurrent updates rather than overwriting them.
+
+### Pause tracking
+
+Set the repository Actions variable `TRACKER_ENABLED` to `false`. The workflow file
+can remain in place; no scheduled scan will run until the variable is removed or
+changed.
+
+## Maintenance
+
+- Review Dependabot pull requests for pinned actions and Python dependencies.
+- Disable the schedule after the October/November trip window if this repository is
+  not being reused.
+- Remove old recovery artifacts when they are no longer useful.
+- Keep secrets in GitHub Secrets only; never paste them into issues, logs or commits.
+- Run the full offline test suite before changing search or notification logic.
+
+## Verification record
+
+The public deployment was validated with the offline suite and a migration check
+against an isolated copy of the existing live state. The migration check preserved
+all existing verified quote rows, produced no alert for unchanged prices and detected
+simulated rises. The authoritative current checks are the green `Tests` workflow and
+the run summaries linked from the Actions page; historical acceptance runs remain
+available there for context.

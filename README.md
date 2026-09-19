@@ -1,254 +1,157 @@
-# DUS / FRA / AMS → Bangkok flight tracker
+# BKK Flight Price Tracker
 
-Free-source flight monitoring with price history, separate nonstop/layover alerts,
-and four scheduled GitHub Actions runs per day.
+Automated fare monitoring from **Düsseldorf (DUS), Frankfurt (FRA) and Amsterdam
+(AMS) to Bangkok (BKK)**. The tracker searches flexible dates four times per day,
+keeps a durable price history and sends Telegram messages only when a fare has
+meaningfully changed.
 
-**Deployed and live-tested:** see [DEPLOYMENT.md](DEPLOYMENT.md). Two complete live
-runs succeeded, including an automatic scheduled run; Telegram delivery and durable
-history were verified. Demo prices are synthetic.
+[![Tests](https://github.com/Fabiano225/flight-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/Fabiano225/flight-tracker/actions/workflows/tests.yml)
+[![Track flights](https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml/badge.svg)](https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml)
 
-**Current departure window:** October 15-23, 2026: departure never before October 15,
-with flexibility up to three days after October 20. Every trip lasts 14-21 days.
+> **Status:** personal, trip-specific automation for October/November 2026. The
+> upstream Google Flights interface is unofficial and may change without notice.
 
-**Cost note:** this repository is now public and uses standard `ubuntu-latest`
-GitHub-hosted runners, whose runtime is free for public repositories. Storage
-allowances still apply; earlier private usage is not erased by publication.
-See [GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+## What it does
 
-## Search rules
+- Searches departures from **15–23 October 2026** (never earlier than 15 October).
+- Accepts trips of **14–21 days**; the latest return departure is 13 November.
+- Separates **direct flights** (zero stops in both directions) from itineraries
+  with a connection.
+- Rejects itineraries lasting **21 hours or more in either direction**.
+- Tracks one adult, economy fares in EUR and stores observations in SQLite.
+- Sends Telegram alerts for meaningful rises, falls, budget crossings and strong
+  drops. Unchanged prices stay quiet.
+- Runs at 00:17, 06:17, 12:17 and 18:17 UTC through GitHub Actions.
+
+## Telegram alerts, at a glance
+
+The first observation establishes a watch. Later messages include:
+
+| Message | Meaning |
+|---|---|
+| **PREIS GESUNKEN** / **PREIS GESTIEGEN** | Same airport, dates and flight type changed by at least €25 since the last alert. The message shows `before → now`, euros and percentage. |
+| **KAUF PRÜFEN** | Fare is at or below the €650 target and close to the observed low. |
+| **IM BUDGET, ABER …** | Fare is within €650 but at least €25 above the observed low. |
+| **BEOBACHTEN** | Fare is above the target. |
+| **STARKER DEAL** | At least 10% **and** €50 below the previous 30-day low. |
+| **GÜNSTIGERE ALTERNATIVE** | A different date pair is materially cheaper; it is not described as a drop for the old dates. |
+
+The tracker never treats a missing search result as a price increase. “Buy” is a
+budget signal, not a prediction that prices cannot fall further. Prices are search
+observations, not reservations; check baggage, fare rules and availability before
+booking.
+
+## Search configuration
 
 | Setting | Value |
 |---|---|
-| Origins | DUS, FRA, AMS — separate airport searches |
-| Destination | BKK, not DMK |
-| Outbound departure dates | 2026-10-15 through 2026-10-23, inclusive |
-| Trip length | 14–21 calendar days between outbound and return departures |
-| Latest return departure | 2026-11-13 |
-| Travelers / cabin / currency | 1 adult / economy / EUR |
-| Duration limit | **1,259 minutes per direction**, including layovers; 21h excluded |
-| Good deal | ≤ €650 round-trip, separately configurable for nonstop and layover |
-| Price drop | ≥10% **and** ≥€50 below the previous 30-day observed low |
-| Change alert | At least €25 rise OR fall since the last notification, or crossing the €650 target |
-| Alert volume | One stable date watch per airport/category; no unchanged rotating date digests |
+| Origins | DUS, FRA, AMS |
+| Destination | BKK |
+| Departures | 2026-10-15 … 2026-10-23, inclusive |
+| Trip length | 14 … 21 calendar days |
+| Passenger / cabin / currency | 1 adult / economy / EUR |
+| Maximum direction duration | 1,259 minutes (20 h 59 min) |
+| Budget | €650, configurable independently for direct and connecting flights |
+| Strong-drop rule | ≥10% **and** ≥€50 below the previous 30-day low |
+| Notification threshold | €25 since the last alert, or crossing the budget |
 
-## Telegram: Preisverlauf statt regelmäßiger Übersicht
+Edit `config.json` for a new trip. Changing dates or comparable search settings
+creates a separate history scope; it does not rewrite old observations.
 
-Die Suche läuft weiterhin viermal täglich. Nach **einer Startmeldung pro
-Flughafen/Flugart** bleiben unveränderte Preise still. Für jede Gruppe werden feste
-Reisedaten erneut geprüft; günstigere neue Daten lösen erst ab mindestens 25 €
-Verbesserung eine Meldung als **andere Reisedaten** aus.
+## Set up Telegram and GitHub Actions
 
-Jeder Preisalarm enthält:
-- **Preis gesunken / gestiegen:** Betrag vorher → jetzt, Differenz in € und % seit
-  der letzten Meldung; zusätzlich die letzte Messung derselben Daten mit Zeitstempel.
-- Das bisher beobachtete **30-Tage-Tief**, Messungsanzahl und Beginn der verfügbaren
-  Vergleichsdaten. Die aktuelle Messung zählt nicht zum bisherigen Tief.
-- **KAUF PRÜFEN:** im 650-€-Budget und weniger als 25 € über dem bisherigen Tief,
-  sofern vorhanden. Das ist eine Budgetregel, keine Marktpreis-Prognose.
-- **IM BUDGET, ABER …:** mindestens 25 € teurer als das beobachtete Tief.
-- **BEOBACHTEN:** über deiner Preisgrenze.
-- **STARKER DEAL:** mindestens 10 % UND 50 € unter dem bisherigen Tief. Auch ein
-  starker Rückgang kann noch über deinem Budget liegen.
+1. Create a bot with [@BotFather](https://t.me/BotFather) using `/newbot`.
+2. In [repository secrets](https://github.com/Fabiano225/flight-tracker/settings/secrets/actions),
+   add `TELEGRAM_BOT_TOKEN`.
+3. Send `/start` to the bot from the Telegram account that should receive alerts.
+4. Run the [Telegram setup workflow](https://github.com/Fabiano225/flight-tracker/actions/workflows/telegram-setup.yml).
+   It replies privately with the chat ID.
+5. Save that value as `TELEGRAM_CHAT_ID` (the value is never committed).
+6. Run [Test Telegram](https://github.com/Fabiano225/flight-tracker/actions/workflows/telegram-test.yml).
+7. Trigger [Track flights](https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml)
+   once manually. Scheduled runs then continue automatically.
 
-Kleine Änderungen summieren sich gegenüber der letzten Meldung; beim Über- oder
-Unterschreiten deiner Budgetgrenze gilt die 25-€-Schwelle nicht. Direktflug und
-Umstieg bleiben getrennt. Fehlende Ergebnisse sind **kein Preisanstieg**. Verglichen
-werden Suchpreise derselben Daten/Kategorie, nicht zwingend dieselbe Airline.
-Die beobachteten Tiefs sind keine historischen Gesamtmarkt-Tiefs; insbesondere zu
-Beginn ist die Datenbasis kurz. Eine spätere günstigere Buchungsmöglichkeit lässt
-sich daraus nicht garantieren. Gepäck und Tarifbedingungen vor Buchung prüfen.
+The setup workflow reads only a recent private `/start` message. It does not print
+the bot token, remove a webhook or expose the chat ID in its log.
 
-Bei der Umstellung bleibt die bisherige Preishistorie erhalten. Noch nicht gesendete
-alte Übersichten verfallen; die neuen Vergleichsmeldungen starten einmalig neu.
+## How the pipeline works
 
-“Nonstop” means **zero stops in both directions**. A trip with a connection in
-either direction is labeled “layover”; the message includes both stop counts.
-These are not interchangeable historical baselines.
+1. Build the date grid for all airports, trip lengths and two search profiles.
+2. Record calendar observations, including unknown/no-offer results.
+3. Recheck the stable date watches first, then shortlist additional candidates.
+4. Verify actual round trips, dates, currency, stop counts and both flight durations.
+5. Compare compatible verified quotes with their 30-day history.
+6. Checkpoint SQLite and pending messages before Telegram delivery; save delivery
+   receipts afterwards.
 
-Trip length is not the number of nights actually spent in Thailand: overnight
-flights and local arrival times can reduce the stay. Returns are allowed beyond
-October 23. Same-day and past outbound departures are skipped.
+The free adapter uses the [`fli`](https://github.com/punitarani/fli) Python client
+against an unofficial Google Flights shopping endpoint. It has no API key, paid
+fallback, proxy rotation or CAPTCHA handling. Verification is deliberately bounded,
+so this project is a practical monitor rather than an exhaustive fare inventory.
+See [the architecture notes](docs/ARCHITECTURE.md) for the data model and alert
+flow.
 
-## Telegram einrichten
-
-1. Bei **@BotFather** einen Bot mit `/newbot` erstellen.
-2. In [GitHub → Settings → Secrets and variables → Actions](https://github.com/Fabiano225/flight-tracker/settings/secrets/actions)
-   auf **New repository secret** klicken.
-3. `TELEGRAM_BOT_TOKEN` als Name setzen, den BotFather-Token als Wert speichern.
-4. Den eigenen Bot in Telegram öffnen und ihm **`/start`** schicken.
-5. [Actions → Telegram setup](https://github.com/Fabiano225/flight-tracker/actions/workflows/telegram-setup.yml)
-   öffnen, **Run workflow** wählen. Innerhalb von 30 Minuten nach `/start` ausführen.
-6. Der Bot antwortet privat mit deiner Chat-ID. Diese Nummer als zweites Secret
-   **`TELEGRAM_CHAT_ID`** speichern.
-7. Nach erfolgreichem Live-Datentest **Actions → Track flights → Run workflow** starten.
-
-Der Einrichtungslauf gibt keine Chat-ID und keinen Token im Log aus. Er antwortet
-auf die jüngste private `/start`-Nachricht; benutze einen eigenen, neuen Bot.
-Ein bestehender Telegram-Webhook wird nicht entfernt. Für einen bereits anderweitig
-betriebenen Bot stattdessen dessen bekannte Chat-ID verwenden.
-
-## How searches work
-
-The adapter uses [`flights` / Fli](https://github.com/punitarani/fli), an **unofficial**
-Google Flights client. No flight API key, subscription, proxy service, or paid
-fallback is configured. GitHub Actions minutes/storage remain subject to your
-account's own limits. Free data access does not imply a service-level guarantee.
-
-1. Cover all **216 route/date pairs** in two profiles: nonstop and any number of
-   stops. This produces **432 individual date/profile searches**, grouped into
-   48 checkpoint batches, before retries while the full window is future.
-   Google's streaming calendar endpoint returned RPC error 13 in live tests.
-   The adapter therefore uses the public shopping-prefetch RPC observed on the
-   search page, not that broken endpoint. There is no paid fallback.
-2. Keep every returned calendar price, including unknown/missing slots, in SQLite.
-   The any-stops calendar is **not** a layover-only calendar and is never labeled as one.
-3. Select up to **18 date/profile candidates** per run. Recheck the up to six
-   stable airport/category date watches first, then fill remaining slots with
-   calendar-drop and cheap candidates with route/profile diversity.
-4. Search actual outbound/return combinations for those candidates, expanding
-   up to 3 outbound options each. Reject wrong routes, wrong dates, unknown/wrong
-   currencies, invalid prices, and either direction of 21h or longer.
-5. Categorize accepted itineraries by actual stop counts. Store their price and
-   details separately from calendar estimates. Compare only compatible verified
-   itinerary histories for price-drop alerts.
-6. Queue price-change and health messages, checkpoint state, deliver messages, then persist
-   delivery receipts.
-
-This is **full date-grid monitoring with bounded itinerary verification**, not an
-exhaustive enumeration of every airline, fare, or return combination. It can miss
-deals outside the shortlist or the expanded outbound candidates. Calendar quotes
-alone never trigger a deal message. Each verified quote is still a search fare,
-not a reservation or guaranteed bookable price.
-
-The initial search fare is the minimum over still-unselected return choices.
-Only selected, checked round trips are used for deal alerts. Requests are serial,
-spaced by at least 1.2 seconds, bounded to 1,600 HTTP attempts and 40 minutes per
-scan. Source access denial/rate limits stop the affected search; no CAPTCHA or
-proxy handling is implemented. A full run can take tens of minutes. This approach
-uses more requests than a working calendar endpoint (51,840 date searches per
-30 days at the initial window size); it has no API subscription fee, but may be
-throttled or broken by upstream changes.
-
-The API filter requests the duration cap, and the final itinerary check enforces it
-again on both directions. Explicitly flagged self-transfer trips are rejected by
-default; unknown self-transfer metadata does not prove a protected connection.
-No baggage allowance is assumed. Check baggage and ticket conditions before purchase.
-
-### Price comparison
-
-History keys include airport, exact travel dates, actual nonstop/layover category,
-provider, currency, traveler count, cabin, duration cap and baggage filters.
-Changing comparable search settings starts a separate history namespace.
-
-The prior 30-day minimum excludes the current run. The initial observation has
-no price-drop baseline but can qualify as a good deal. Comparisons describe the
-lowest observed fare for that date/category, not the same airline or fare product.
-There is no invented or backfilled history before installation.
-
-## GitHub Actions
-
-The workflow is scheduled at **00:17, 06:17, 12:17 and 18:17 UTC**. In Berlin this is
-02:17/08:17/14:17/20:17 during summer time, and 01:17/07:17/13:17/19:17 during winter time.
-
-GitHub schedules are best effort and may run late or be skipped under load. The
-workflow must be on the repository's default branch; public repositories can have
-schedules disabled after prolonged inactivity. See [GitHub's schedule documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
-
-- `Track flights`: scheduled or manually dispatched, one persistent-state writer at a time.
-- `Telegram setup`: manually dispatched, sends the chat ID privately.
-- `Test Telegram`: manually dispatched, tests both repository secrets with one message.
-- `Tests`: offline tests on pushes and pull requests; no secrets or live searches.
-- Actions are pinned to resolved commit hashes. Dependabot proposes updates.
-- Set repository **Actions variable** `TRACKER_ENABLED` to `false` to stop tracking runs.
-- After the departure window ends, source searches stop automatically. Disable the
-  workflow afterward to avoid idle runner use; history remains available.
-
-The tracker job needs `contents: write` for its dedicated state branch. Organization
-policies or branch rules may deny the push even with this workflow permission.
-Allow the bot to update `tracker-state`; never weaken protections for the code branch.
-
-## Durable state and recovery
-
-`tracker-state` holds these files, separate from `main`:
-
-- `history.sqlite3`: all calendar observations, verified quotes, run summaries,
-  pending messages and delivery receipts.
-- `latest.json` and `latest.csv`: latest scan and verified fare details.
-- `report.md`: readable run report; also shown in the Actions job summary.
-
-History uses a Git branch, **not an expiring Actions cache**. Failed remote reads
-do not silently initialize a fresh database. Pushes never force-overwrite concurrent
-changes. Database integrity is checked on restore/save. Synthetic demo data is
-rejected by the live state publisher.
-
-Before sending Telegram messages, the workflow must successfully save pending
-alerts and history. A second save records receipts, including partial delivery.
-Failed sends remain pending, with a 12-hour expiry to avoid stale deals.
-
-Delivery is **at least once**, not exactly once: a timeout after Telegram accepted
-a message, or a crash before its receipt is saved, can cause a duplicate. Ordinary
-repeated runs suppress unchanged deal alerts. Telegram errors never mark a message sent.
-
-Every run also uploads a seven-day recovery artifact. If a state push fails, retain
-that artifact before it expires. Restore the complete SQLite file only with runs
-disabled and after preserving the existing state branch. Do not delete the database
-to “fix” an error: that discards price history and alert deduplication.
-
-This trip-specific tracker keeps history indefinitely. If reused for long-running
-monitoring, plan database retention and a database service rather than allowing
-binary Git history to grow indefinitely. In a public repository the tracked routes,
-fare history and alert texts are public; tokens and chat IDs are not stored in state.
-
-## Local commands
-
-Python 3.12 and Git are required. Run from the project directory:
+## Local development
 
 ```bash
 python -m venv .venv
-# Activate .venv using the command appropriate for your shell.
+# Activate the environment for your shell
 python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 python -m tracker plan
 ```
 
-Offline end-to-end demo, using separate synthetic state:
+Run an offline synthetic demo without network access:
 
 ```bash
 python -m tracker demo --as-of 2026-09-18
 python -m tracker demo --as-of 2026-09-19 --demo-discount 100
 ```
 
-Live local commands (do not run concurrently with the GitHub writer):
+Useful commands for an already configured local environment:
 
 ```bash
-python -m tracker scan
 python -m tracker report
 python -m tracker export --output history.csv
-# Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in the process environment first.
 python -m tracker telegram-test
-python -m tracker notify
 ```
 
-Environment variables are read directly; `.env` files are not automatically loaded.
-Never commit secrets. `.gitignore` excludes state, virtual environments and `.env` files.
-Local commands do not automatically synchronize the GitHub state branch; the workflow
-uses `scripts/state_git.py restore` and `save` for that purpose.
+Do not run a local live scan while the GitHub Actions state writer is running.
 
-## Troubleshooting
+## Workflows and state
 
-- **No chat-ID message:** send a fresh `/start` directly to your bot and rerun Telegram setup.
-- **Telegram 401/403:** check the token, chat ID, bot block status, and whether you started the bot.
-- **Google RPC error / consent page / rate limit:** this is a source failure, not “no flights.”
-  No proxy rotation or CAPTCHA bypass is implemented. The run stops after repeated
-  failures, records diagnostics and sends a health alert at most once per day when
-  Telegram is configured. A later successful run sends a recovery message.
-- **No nonstop results:** the source may have no nonstop itinerary for those dates;
-  an absent calendar price is recorded as unknown, not as a €0 fare.
-- **Partial run:** completed calendar chunks are retained. Request and time budgets
-  bound the scan; the default 40-minute source budget leaves room for state persistence.
-- **Silent schedule:** inspect the Actions page and GitHub notifications. A workflow
-  that never starts has no opportunity to send its own Telegram failure alert.
+| Workflow | Purpose |
+|---|---|
+| `Track flights` | Scheduled search, verification, state checkpoint and Telegram delivery |
+| `Telegram setup` | Finds the chat ID for a recent private `/start` |
+| `Test Telegram` | Sends one connectivity test using repository secrets |
+| `Tests` | Offline unit/integration tests; no secrets and no live flight search |
 
-Sources: [Fli project](https://github.com/punitarani/fli),
-[Telegram sendMessage](https://core.telegram.org/bots/api#sendmessage),
-[Telegram getUpdates](https://core.telegram.org/bots/api#getupdates).
+The `tracker-state` branch contains SQLite history, latest CSV/JSON output and the
+human-readable report. It contains route and fare observations, never the Telegram
+token or chat ID. Set the repository variable `TRACKER_ENABLED=false` to pause
+scheduled tracking.
+
+## Costs and privacy
+
+The repository is public and uses standard GitHub-hosted Ubuntu runners. GitHub
+currently provides standard-runner runtime at no charge for public repositories;
+artifact/cache limits and any previously accrued private-repository usage are
+separate. See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+
+The project stores no credentials in source control. Secrets are supplied only as
+GitHub Actions secrets. The public repository and `tracker-state` branch do reveal
+the configured routes, dates, observed fares and alert text. Treat that as public
+data when adapting the project.
+
+## Limitations
+
+- GitHub schedules are best effort and can start late or be skipped.
+- Google may rate-limit or change the unofficial endpoint.
+- A calendar estimate is never sent as a deal; only verified round trips qualify.
+- The shortlist can miss an itinerary outside the bounded verification set.
+- Search prices can expire before booking and do not include an assumed baggage
+  allowance.
+
+For routine operation and troubleshooting, see [DEPLOYMENT.md](DEPLOYMENT.md).
+For contribution guidance, see [CONTRIBUTING.md](CONTRIBUTING.md).
