@@ -21,6 +21,7 @@ def scan(config, store, provider, now, demo=False):
     db = store.db
     db.execute("INSERT INTO runs VALUES(?,?,?,?,?)", (run_id, stamp(now), scope, "running", json.dumps(summary)))
     store.expire(now, config.pending_ttl_hours, scope)
+    store.expire_outside_search(config)
     db.commit()
     candidates = []
     consecutive_errors = 0

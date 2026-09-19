@@ -97,6 +97,21 @@ class Store:
             [(message_id, scope, q.origin, q.departure, q.return_date, q.category, q.price) for q in quotes])
         return message_id
 
+    def expire_outside_search(self, config):
+        # Preserve compatible price history when dates change, but never deliver
+        # a previously queued digest containing a now-excluded trip.
+        for message in self.db.execute("SELECT id FROM outbox WHERE status='pending' AND kind='deal'").fetchall():
+            items=self.db.execute("SELECT origin,departure,return_date FROM alert_items WHERE outbox_id=?",(message[0],)).fetchall()
+            valid=bool(items)
+            for item in items:
+                try:
+                    duration=(datetime.fromisoformat(item['return_date'])-datetime.fromisoformat(item['departure'])).days
+                    valid = valid and item['origin'] in config.origins and config.departure_start <= item['departure'] <= config.departure_end and config.min_trip_days <= duration <= config.max_trip_days
+                except (ValueError,TypeError):
+                    valid=False
+            if not valid:
+                self.db.execute("UPDATE outbox SET status='expired' WHERE id=?",(message[0],))
+
     def close(self):
         self.db.commit()
         self.db.close()

@@ -1,5 +1,16 @@
 # Deployment and acceptance evidence
 
+## Current date-window revision
+
+User correction on September 19: departure October 15-20 with +/- 3 days means
+**October 12-23 inclusive**, each with **14-21 days** between departures.
+This is 288 route/date combinations and 576 profile searches. Latest return: November 13.
+Compatible price history is retained, but pending digests containing out-of-window
+trips expire before delivery. The original acceptance evidence and runtime figures
+below describe the previous, broader window, not the current configuration.
+
+## Original deployment evidence
+
 Verified September 19, 2026. These observations establish the deployed behavior, not an upstream uptime guarantee.
 
 ## Successful live runs

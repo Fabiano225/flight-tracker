@@ -26,16 +26,18 @@ class PlanningTests(unittest.TestCase):
         batches = plan(Config(), NOW.date())
         self.assertEqual(len(batches), 48)
         triples = {(b.origin, *p) for b in batches for p in b.pairs()}
-        self.assertEqual(len(triples), 648)
-        self.assertIn(("AMS", "2026-11-10", "2026-12-01"), triples)
+        self.assertEqual(len(triples), 288)
+        self.assertIn(("AMS", "2026-10-23", "2026-11-13"), triples)
+        self.assertIn(("DUS", "2026-10-12", "2026-10-26"), triples)
         self.assertIn(("DUS", "2026-10-15", "2026-10-29"), triples)
-        self.assertEqual(sum(len(b.pairs()) for b in batches), 1296)
+        self.assertEqual(sum(len(b.pairs()) for b in batches), 576)
         for _, dep, ret in triples:
+            self.assertTrue("2026-10-12" <= dep <= "2026-10-23")
             self.assertIn((date.fromisoformat(ret)-date.fromisoformat(dep)).days, range(14,22))
 
     def test_past_and_same_day_skipped(self):
         self.assertTrue(all(dep > "2026-10-20" for b in plan(Config(), date(2026,10,20)) for dep,_ in b.pairs()))
-        self.assertEqual(plan(Config(), date(2026,11,10)), [])
+        self.assertEqual(plan(Config(), date(2026,10,23)), [])
 
     def test_config_isolation(self):
         c = Config()
@@ -200,6 +202,16 @@ class DeliveryTests(unittest.TestCase):
         sender=NS(send=Mock())
         self.assertEqual(deliver(self.store,Config(),NOW,sender),0)
         sender.send.assert_not_called()
+
+    def test_old_window_pending_digest_is_not_delivered(self):
+        valid=Quote("FRA","2026-10-15","2026-10-29","nonstop",60000,700,750,0,0,"TG","")
+        outside=replace(valid,departure="2026-10-24",return_date="2026-11-07")
+        self.store.enqueue("r","deal",NOW,"mixed old digest",[valid,outside],Config().scope())
+        self.store.enqueue("r","deal",NOW,"valid new digest",[valid],Config().scope())
+        sender=NS(send=Mock(return_value="123"))
+        self.assertEqual(deliver(self.store,Config(),NOW,sender),1)
+        sender.send.assert_called_once_with("valid new digest")
+        self.assertEqual(self.store.db.execute("SELECT status FROM outbox WHERE text='mixed old digest'").fetchone()[0],"expired")
 
     def test_telegram_body_and_success(self):
         http=NS(get_json=Mock(return_value={"ok":True,"result":{"message_id":42}}))

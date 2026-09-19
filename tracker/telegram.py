@@ -25,6 +25,7 @@ class Telegram:
 
 def deliver(store, config, now, sender):
     store.expire(now, config.pending_ttl_hours, config.scope())
+    store.expire_outside_search(config)
     store.db.commit()
     sent = 0
     for row in store.db.execute("SELECT * FROM outbox WHERE status='pending' ORDER BY created,id").fetchall():

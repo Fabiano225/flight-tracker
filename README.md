@@ -7,9 +7,12 @@ and four scheduled GitHub Actions runs per day.
 runs succeeded, including an automatic scheduled run; Telegram delivery and durable
 history were verified. Demo prices are synthetic.
 
-**Cost note:** this repository is private. Observed full jobs take about 33-34
-minutes, roughly 4,000 Actions minutes per 30 days at four daily full-window runs.
-The flight source is free, but Actions may exceed your included account allowance.
+**Current departure window:** October 12-23, 2026: October 15-20 plus three days
+of flexibility on each side. Every trip lasts 14-21 days.
+
+**Cost note:** this repository is private. The narrower window needs fewer searches
+than the original deployment. The flight source is free, but Actions minutes still
+consume your account allowance; the older 4,000-minute estimate no longer describes this window.
 
 ## Search rules
 
@@ -17,9 +20,9 @@ The flight source is free, but Actions may exceed your included account allowanc
 |---|---|
 | Origins | DUS, FRA, AMS — separate airport searches |
 | Destination | BKK, not DMK |
-| Outbound departure dates | 2026-10-15 through 2026-11-10, inclusive |
+| Outbound departure dates | 2026-10-12 through 2026-10-23, inclusive |
 | Trip length | 14–21 calendar days between outbound and return departures |
-| Latest return departure | 2026-12-01 |
+| Latest return departure | 2026-11-13 |
 | Travelers / cabin / currency | 1 adult / economy / EUR |
 | Duration limit | **1,259 minutes per direction**, including layovers; 21h excluded |
 | Good deal | ≤ €650 round-trip, separately configurable for nonstop and layover |
@@ -33,7 +36,7 @@ These are not interchangeable historical baselines.
 
 Trip length is not the number of nights actually spent in Thailand: overnight
 flights and local arrival times can reduce the stay. Returns are allowed beyond
-November 10. Same-day and past outbound departures are skipped.
+October 23. Same-day and past outbound departures are skipped.
 
 ## Telegram einrichten
 
@@ -60,8 +63,8 @@ Google Flights client. No flight API key, subscription, proxy service, or paid
 fallback is configured. GitHub Actions minutes/storage remain subject to your
 account's own limits. Free data access does not imply a service-level guarantee.
 
-1. Cover all **648 route/date pairs** in two profiles: nonstop and any number of
-   stops. This produces **1,296 individual date/profile searches**, grouped into
+1. Cover all **288 route/date pairs** in two profiles: nonstop and any number of
+   stops. This produces **576 individual date/profile searches**, grouped into
    48 checkpoint batches, before retries while the full window is future.
    Google's streaming calendar endpoint returned RPC error 13 in live tests.
    The adapter therefore uses the public shopping-prefetch RPC observed on the
@@ -90,7 +93,7 @@ Only selected, checked round trips are used for deal alerts. Requests are serial
 spaced by at least 1.2 seconds, bounded to 1,600 HTTP attempts and 40 minutes per
 scan. Source access denial/rate limits stop the affected search; no CAPTCHA or
 proxy handling is implemented. A full run can take tens of minutes. This approach
-uses more requests than a working calendar endpoint (155,520 date searches per
+uses more requests than a working calendar endpoint (69,120 date searches per
 30 days at the initial window size); it has no API subscription fee, but may be
 throttled or broken by upstream changes.
 
