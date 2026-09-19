@@ -1,19 +1,19 @@
 origin,departure,return_date,category,price_eur,outbound_minutes,inbound_minutes,outbound_stops,inbound_stops,airlines,link
-AMS,2026-11-10,2026-11-24,layover,495.00,915,935,1,1,WY,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-11-10+return+2026-11-24+economy+one+adult&curr=EUR&hl=en
-AMS,2026-10-29,2026-11-12,layover,507.00,915,935,1,1,WY,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-29+return+2026-11-12+economy+one+adult&curr=EUR&hl=en
 AMS,2026-10-29,2026-11-19,layover,507.00,915,935,1,1,WY,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-29+return+2026-11-19+economy+one+adult&curr=EUR&hl=en
 AMS,2026-10-29,2026-11-15,layover,518.00,915,935,1,1,WY,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-29+return+2026-11-15+economy+one+adult&curr=EUR&hl=en
-FRA,2026-10-24,2026-11-10,layover,555.00,880,945,1,1,"EY, T5",https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-24+return+2026-11-10+economy+one+adult&curr=EUR&hl=en
-FRA,2026-10-24,2026-11-11,layover,555.00,880,945,1,1,"EY, T5",https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-24+return+2026-11-11+economy+one+adult&curr=EUR&hl=en
+AMS,2026-10-15,2026-11-01,layover,553.00,980,900,1,1,"SK, WY",https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-11-01+economy+one+adult&curr=EUR&hl=en
 FRA,2026-10-24,2026-11-14,layover,555.00,880,945,1,1,"EY, T5",https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-24+return+2026-11-14+economy+one+adult&curr=EUR&hl=en
 FRA,2026-10-27,2026-11-17,layover,566.00,1005,1195,1,1,CZ,https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-27+return+2026-11-17+economy+one+adult&curr=EUR&hl=en
-DUS,2026-10-25,2026-11-09,layover,604.00,895,1000,1,1,"DE, EY",https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-25+return+2026-11-09+economy+one+adult&curr=EUR&hl=en
-DUS,2026-10-25,2026-11-10,layover,604.00,895,1000,1,1,"DE, EY",https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-25+return+2026-11-10+economy+one+adult&curr=EUR&hl=en
-DUS,2026-10-25,2026-11-11,layover,604.00,895,1000,1,1,"DE, EY",https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-25+return+2026-11-11+economy+one+adult&curr=EUR&hl=en
-DUS,2026-10-25,2026-11-12,layover,604.00,895,1000,1,1,"DE, EY",https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-25+return+2026-11-12+economy+one+adult&curr=EUR&hl=en
-FRA,2026-10-15,2026-11-04,nonstop,650.00,680,765,0,0,DE,https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-15+return+2026-11-04+economy+one+adult&curr=EUR&hl=en
+FRA,2026-10-28,2026-11-17,layover,566.00,1005,1195,1,1,CZ,https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-28+return+2026-11-17+economy+one+adult&curr=EUR&hl=en
+AMS,2026-10-24,2026-11-09,layover,625.00,950,1040,1,1,QR,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-24+return+2026-11-09+economy+one+adult&curr=EUR&hl=en
 FRA,2026-10-15,2026-11-05,nonstop,680.00,680,770,0,0,DE,https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-15+return+2026-11-05+economy+one+adult&curr=EUR&hl=en
 FRA,2026-10-25,2026-11-10,nonstop,680.00,665,770,0,0,DE,https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-25+return+2026-11-10+economy+one+adult&curr=EUR&hl=en
-AMS,2026-10-15,2026-10-29,nonstop,817.00,680,760,0,0,TG,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-10-29+economy+one+adult&curr=EUR&hl=en
-AMS,2026-10-18,2026-11-01,nonstop,817.00,680,760,0,0,TG,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-18+return+2026-11-01+economy+one+adult&curr=EUR&hl=en
-AMS,2026-10-19,2026-11-02,nonstop,817.00,680,760,0,0,TG,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-19+return+2026-11-02+economy+one+adult&curr=EUR&hl=en
+FRA,2026-10-25,2026-11-11,nonstop,680.00,665,770,0,0,DE,https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-25+return+2026-11-11+economy+one+adult&curr=EUR&hl=en
+DUS,2026-11-01,2026-11-21,layover,809.00,1065,955,1,1,AY,https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-11-01+return+2026-11-21+economy+one+adult&curr=EUR&hl=en
+DUS,2026-11-01,2026-11-22,layover,809.00,1065,955,1,1,AY,https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-11-01+return+2026-11-22+economy+one+adult&curr=EUR&hl=en
+DUS,2026-11-02,2026-11-21,layover,809.00,955,955,1,1,AY,https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-11-02+return+2026-11-21+economy+one+adult&curr=EUR&hl=en
+AMS,2026-10-15,2026-11-01,nonstop,873.00,680,760,0,0,TG,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-11-01+economy+one+adult&curr=EUR&hl=en
+AMS,2026-10-18,2026-11-02,nonstop,873.00,680,760,0,0,TG,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-18+return+2026-11-02+economy+one+adult&curr=EUR&hl=en
+AMS,2026-10-18,2026-11-05,nonstop,873.00,680,760,0,0,TG,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-18+return+2026-11-05+economy+one+adult&curr=EUR&hl=en
+AMS,2026-10-18,2026-11-07,nonstop,873.00,680,760,0,0,TG,https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-18+return+2026-11-07+economy+one+adult&curr=EUR&hl=en
+DUS,2026-10-16,2026-11-02,layover,895.00,1210,945,1,1,EY,https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-16+return+2026-11-02+economy+one+adult&curr=EUR&hl=en
