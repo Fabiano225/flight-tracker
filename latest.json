@@ -1,6 +1,6 @@
 {
-  "run_id": "a88ae09ce2024bd2a20d012ed545e88c",
-  "started": "2026-09-20T16:14:09+00:00",
+  "run_id": "93d36ca4b0c440178f3b0a7af48755f2",
+  "started": "2026-09-20T20:54:37+00:00",
   "mode": "live",
   "status": "ok",
   "calendar_queries_planned": 48,
@@ -10,8 +10,8 @@
   "calendar_unknown": 72,
   "verification_searches": 18,
   "verified_quotes": 18,
-  "queued_deals": 2,
-  "http_attempts": 508,
+  "queued_deals": 0,
+  "http_attempts": 502,
   "errors": [],
   "config": {
     "origins": [
@@ -47,7 +47,7 @@
     "http_attempts": 3,
     "request_interval_seconds": 1.2
   },
-  "queued_check_status": 0,
+  "queued_check_status": 1,
   "quotes": [
     {
       "origin": "AMS",
@@ -102,19 +102,6 @@
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-11-05+economy+one+adult&curr=EUR&hl=en"
     },
     {
-      "origin": "AMS",
-      "departure": "2026-10-19",
-      "return_date": "2026-11-03",
-      "category": "layover",
-      "price": 53400,
-      "outbound_minutes": 915,
-      "inbound_minutes": 960,
-      "outbound_stops": 1,
-      "inbound_stops": 1,
-      "airlines": "EY",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-19+return+2026-11-03+economy+one+adult&curr=EUR&hl=en"
-    },
-    {
       "origin": "FRA",
       "departure": "2026-10-15",
       "return_date": "2026-11-02",
@@ -152,6 +139,19 @@
       "inbound_stops": 1,
       "airlines": "EY",
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-15+return+2026-11-04+economy+one+adult&curr=EUR&hl=en"
+    },
+    {
+      "origin": "FRA",
+      "departure": "2026-10-15",
+      "return_date": "2026-11-05",
+      "category": "layover",
+      "price": 59300,
+      "outbound_minutes": 1215,
+      "inbound_minutes": 945,
+      "outbound_stops": 1,
+      "inbound_stops": 1,
+      "airlines": "EY",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-15+return+2026-11-05+economy+one+adult&curr=EUR&hl=en"
     },
     {
       "origin": "FRA",
@@ -219,19 +219,6 @@
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-15+return+2026-11-05+economy+one+adult&curr=EUR&hl=en"
     },
     {
-      "origin": "DUS",
-      "departure": "2026-10-23",
-      "return_date": "2026-11-06",
-      "category": "layover",
-      "price": 69900,
-      "outbound_minutes": 1210,
-      "inbound_minutes": 1000,
-      "outbound_stops": 1,
-      "inbound_stops": 1,
-      "airlines": "DE, EY",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-23+return+2026-11-06+economy+one+adult&curr=EUR&hl=en"
-    },
-    {
       "origin": "FRA",
       "departure": "2026-10-15",
       "return_date": "2026-11-02",
@@ -243,6 +230,19 @@
       "inbound_stops": 0,
       "airlines": "DE",
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-15+return+2026-11-02+economy+one+adult&curr=EUR&hl=en"
+    },
+    {
+      "origin": "FRA",
+      "departure": "2026-10-15",
+      "return_date": "2026-11-03",
+      "category": "nonstop",
+      "price": 71000,
+      "outbound_minutes": 680,
+      "inbound_minutes": 765,
+      "outbound_stops": 0,
+      "inbound_stops": 0,
+      "airlines": "DE",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-15+return+2026-11-03+economy+one+adult&curr=EUR&hl=en"
     },
     {
       "origin": "AMS",
