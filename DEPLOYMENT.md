@@ -97,6 +97,37 @@ changed.
 
 ## Maintenance
 
+### GitHub Pages dashboard
+
+Pages uses **GitHub Actions** as its publishing source. `Publish dashboard` runs
+after `Track flights` completes (including failed scans), on website/config changes,
+or on manual dispatch. It reads the latest trusted `main` and `tracker-state`
+branches, not workflow artifacts or pull-request code.
+
+`scripts/build_site.py` exports only configuration, scan counts and verified fare
+history. The deployment artifact contains static assets and `data.json` only: no
+SQLite database, `.git`, Telegram messages, message IDs, chat IDs or tokens.
+The UI does not call a private API, store cookies or start additional flight searches.
+Its refresh button reloads the published snapshot; it does not trigger a new scan.
+
+If publication fails, inspect the `Publish dashboard` workflow. Existing data stays
+online and becomes visibly stale after 12 hours without a fresh scan. A failed scan
+with no verified quotes can retain the last available offers, explicitly labelled
+with their original timestamp. Turning off tracking does not remove the dashboard.
+
+To preview locally, use Python 3.12 with an existing **live** state database and an
+empty output directory:
+
+```bash
+python scripts/build_site.py --state state/history.sqlite3 --output _site
+python -m http.server 8765 --directory _site --bind 127.0.0.1
+```
+
+Synthetic demo state is deliberately rejected by the public exporter. Website
+logic tests run with `node --test tests/site_model.test.mjs` (Node.js 22+).
+
+### Routine maintenance
+
 - Review Dependabot pull requests for pinned actions and Python dependencies.
 - Disable the schedule after the October/November trip window if this repository is
   not being reused.

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Dein Preisradar für Bangkok: Flüge ab Düsseldorf, Frankfurt und Amsterdam, mit Preisverlauf und transparentem Suchstatus.">
+  <meta name="theme-color" content="#173d32">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <title>Bangkok im Blick · Flightwatch</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg"><link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#angebote">Zu den Angeboten</a>
+  <header class="header wrap">
+    <a class="brand" href="./" aria-label="Flightwatch Startseite"><span class="brand-mark">↗</span>flightwatch<span class="brand-tag">BKK EDITION</span></a>
+    <nav aria-label="Hauptnavigation"><a href="#angebote">Flüge</a><a href="#verlauf">Preisverlauf</a><a href="https://github.com/Fabiano225/flight-tracker" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
+  </header>
+  <main class="wrap">
+    <section class="hero" aria-labelledby="hero-title">
+      <div><p class="eyebrow"><span class="dot"></span> DEIN PREISRADAR FÜR THAILAND</p>
+        <h1 id="hero-title">Bangkok im Blick.<br><em>Den Preis auch.</em></h1>
+        <p class="intro">Weniger suchen. Besser vergleichen. Deine Flüge nach Bangkok – mit echten Preisverläufen statt Bauchgefühl.</p>
+        <div class="route"><span>DUS</span><span>FRA</span><span>AMS</span><span class="route-line" aria-hidden="true">──── ↗</span><strong>BKK</strong></div>
+      </div>
+      <aside class="trip-card" aria-label="Reiseprofil">
+        <div class="ticket-top"><span>DEIN REISEFENSTER</span><span class="ticket-icon" aria-hidden="true">↗</span></div>
+        <div class="ticket-city">Bangkok<span>THAILAND / BKK</span></div>
+        <div class="ticket-stamp" aria-hidden="true">BKK<br><small>LET’S GO</small></div>
+        <div class="ticket-bottom"><div><span>ABFLUG</span><strong id="trip-dates">15.–23. Okt. 2026</strong></div><div><span>REISEDAUER</span><strong id="trip-days">14–21 Tage</strong></div></div>
+        <p>1 Person · Economy · Hin- und Rückflug</p>
+      </aside>
+    </section>
+    <div class="status-bar" role="status" aria-live="polite"><span id="status-label"><span class="dot"></span> Daten werden geladen …</span><span id="last-check">Vier Suchläufe pro Tag</span><button id="reload" type="button">Aktualisieren ↻</button></div>
+    <div id="warning" class="warning" role="alert" hidden></div>
+    <noscript><p class="warning">Bitte JavaScript aktivieren, um die gespeicherten Flugdaten zu sehen. Die <a href="https://github.com/Fabiano225/flight-tracker/tree/tracker-state">Berichte auf GitHub</a> sind auch ohne JavaScript verfügbar.</p></noscript>
+    <section class="stats" aria-label="Preisübersicht">
+      <article><span class="stat-label">MIT UMSTIEG <span>↗</span></span><strong id="best-layover">—</strong><p id="best-layover-info">Warte auf Preisdaten</p></article>
+      <article><span class="stat-label">DIREKTFLUG <span>↗</span></span><strong id="best-nonstop">—</strong><p id="best-nonstop-info">Beide Richtungen ohne Stopp</p></article>
+      <article><span class="stat-label">DEIN PREISZIEL <span>◎</span></span><strong id="budget-value">650 €</strong><p id="budget-note">pro Person · Hin und zurück</p></article>
+      <article><span class="stat-label">IM LETZTEN PREISSTAND <span>≋</span></span><strong id="offer-count">—</strong><p>geprüfte Datums-Kombinationen</p></article>
+    </section>
+    <section id="angebote" class="offers-section" aria-labelledby="offers-title">
+      <div class="section-heading"><div><p class="eyebrow">DEINE OPTIONEN</p><h2 id="offers-title">Gute Reise. Guter Preis.</h2></div><p id="offer-timestamp" class="muted">Nur geprüfte Hin- und Rückflüge</p></div>
+      <form class="filters" id="filters" aria-label="Angebote filtern">
+        <label>Abflughafen<select id="origin" name="origin"><option value="">Alle Flughäfen</option></select></label>
+        <label>Verbindung<select id="category" name="category"><option value="">Alle Verbindungen</option><option value="nonstop">Nur Direktflüge</option><option value="layover">Mit Umstieg</option></select></label>
+        <label>Hinflug<select id="departure" name="departure"><option value="">Alle Abflugtage</option></select></label>
+        <label>Reisedauer<select id="days" name="days"><option value="">Alle Reisedauern</option></select></label>
+        <button type="reset" class="reset">Zurücksetzen</button>
+      </form>
+      <div class="table-scroll"><table><caption id="results-count">Angebote werden geladen</caption><thead><tr><th>Route & Verbindung</th><th>Deine Reisedaten</th><th>Flugdauer</th><th>Preis & Veränderung</th><th>Einordnung</th><th><span class="sr-only">Aktionen</span></th></tr></thead><tbody id="offers-body"></tbody></table></div>
+      <p id="empty" class="empty" hidden>Keine Angebote für diese Auswahl. Probiere einen anderen Filter.</p>
+      <p class="footnote">Veränderung gegenüber der vorherigen Messung derselben Route, Daten und Flugart. Die Airline kann wechseln. Fehlende Ergebnisse bedeuten nicht, dass es keine Flüge gibt.</p>
+    </section>
+    <section id="verlauf" class="history-layout" aria-labelledby="chart-heading">
+      <article class="chart-card"><div class="section-heading"><div><p class="eyebrow">DIE ENTWICKLUNG</p><h2 id="chart-heading">Preise mit Perspektive.</h2></div><span class="period">30 TAGE</span></div>
+        <label class="chart-select-label" for="history-select">Flugvergleich auswählen</label><select id="history-select"></select>
+        <div class="chart-summary"><strong id="chart-price">—</strong><span id="chart-change" class="muted">Noch kein Vergleich gewählt</span></div>
+        <div id="chart" class="chart" aria-live="polite"></div>
+        <div class="chart-legend"><span><i></i> Beobachteter Preis</span><span><i class="budget-line"></i> Dein Preisziel</span></div>
+        <p id="chart-note" class="footnote">Keine rückwirkend ergänzten Preise. Ein einzelner Punkt ist noch kein Trend.</p>
+      </article>
+      <aside class="guide-card"><p class="eyebrow">BUCHEN ODER WARTEN?</p><h2>Eine Orientierung.<br>Keine Glaskugel.</h2>
+        <div class="guide-row"><span class="guide-dot green"></span><div><strong>Kauf prüfen</strong><p>Im Budget und weniger als 25 € über dem bisherigen beobachteten Tief.</p></div></div>
+        <div class="guide-row"><span class="guide-dot amber"></span><div><strong>Im Budget, über Tief</strong><p>Dein Preisziel ist erreicht, aber es wurde schon mindestens 25 € günstiger beobachtet.</p></div></div>
+        <div class="guide-row"><span class="guide-dot gray"></span><div><strong>Beobachten</strong><p>Noch über deinem Preisziel. Ein fallender Preis allein macht noch keinen guten Deal.</p></div></div>
+        <p class="guide-footer">Bei wenig Historie zählt vor allem deine Budgetgrenze. Preise können später steigen oder fallen. Gepäck und Tarifbedingungen vor der Buchung prüfen.</p>
+      </aside>
+    </section>
+    <section class="about-strip"><div><span class="eyebrow">IM HINTERGRUND</span><h3>Dein Tracker bleibt dran.</h3></div><p>Suche etwa alle 6 Stunden. Geprüfte Flugzeiten unter 21 Stunden je Richtung. Preisalarme und kurze Statusmeldungen über deinen Telegram-Bot.</p><a href="https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml" target="_blank" rel="noopener noreferrer">Suchläufe ansehen ↗</a></section>
+  </main>
+  <footer class="wrap"><span class="footer-brand">flightwatch <span>/ Bangkok edition</span></span><p>Privates Reiseprojekt · Unabhängig von Google und den Airlines.<br>Öffentliche Suchpreise, keine Buchungsplattform. Ohne Tracking-Cookies.</p><a href="https://github.com/Fabiano225/flight-tracker#costs-and-privacy">Projekt & Datenschutz ↗</a></footer>
+</body>
+</html>

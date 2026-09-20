@@ -1,5 +1,11 @@
 # BKK Flight Price Tracker
 
+**[Open the flight dashboard ↗](https://fabiano225.github.io/flight-tracker/)**
+
+Mobile-friendly price tables, date and duration filters, separate direct/connecting
+fares, and real price-history charts. Data updates automatically after each tracker
+workflow. The dashboard explicitly labels incomplete searches and stale observations.
+
 Automated fare monitoring from **Düsseldorf (DUS), Frankfurt (FRA) and Amsterdam
 (AMS) to Bangkok (BKK)**. The tracker searches flexible dates four times per day,
 keeps a durable price history and sends Telegram price alerts plus short check
@@ -138,6 +144,7 @@ Do not run a local live scan while the GitHub Actions state writer is running.
 | `Telegram setup` | Finds the chat ID for a recent private `/start` |
 | `Test Telegram` | Sends one connectivity test using repository secrets |
 | `Tests` | Offline unit/integration tests; no secrets and no live flight search |
+| `Publish dashboard` | Builds an allowlisted public price snapshot and deploys GitHub Pages |
 
 The `tracker-state` branch contains SQLite history, latest CSV/JSON output and the
 human-readable report. It contains route and fare observations, never the Telegram

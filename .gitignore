@@ -8,3 +8,4 @@ state/
 demo-state/
 *.sqlite3*
 .state-parent
+_site/

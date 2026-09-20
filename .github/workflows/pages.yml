@@ -1,0 +1,67 @@
+name: Publish dashboard
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'scripts/build_site.py'
+      - 'tests/test_site.py'
+      - 'tests/site_model.test.mjs'
+      - 'config.json'
+      - 'tracker/config.py'
+      - '.github/workflows/pages.yml'
+  workflow_run:
+    workflows: ['Track flights']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    # Only trusted default-branch code/state; never consume run artifacts or PR code.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: tracker-state
+          path: state
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Test public data export and dashboard logic
+        run: |
+          python -m unittest discover -s tests -p test_site.py -v
+          node --test tests/site_model.test.mjs
+      - name: Build allowlisted static files
+        env:
+          PUBLIC_TRACK_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+        run: python scripts/build_site.py
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy dashboard
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
