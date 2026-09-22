@@ -79,6 +79,17 @@ class CheckStatusTests(unittest.TestCase):
         self.queue(missing=True)
         self.assertIn('Prüfung unvollständig',self.text())
 
+    def test_window_expansion_recovers_reply_and_same_date_comparison(self):
+        self.store.db.execute('INSERT INTO quotes VALUES(?,?,?,?,?,?,?,?,?)',
+            ('old', self.scope, stamp(NOW-timedelta(hours=6)), self.q.origin, self.q.departure,
+             self.q.return_date, self.q.category, self.q.price, json.dumps(self.q.to_dict())))
+        wrong = replace(self.q, departure='2026-10-14', return_date='2026-10-28')
+        self.store.set_meta(watch_key(self.config,self.scope), json.dumps({'FRA:layover':wrong.to_dict()}))
+        self.queue()
+        self.assertIn('Keine Preisänderung', self.text())
+        self.assertNotIn('Prüfung unvollständig', self.text())
+        self.assertEqual(self.store.db.execute('SELECT target_id FROM outbox_replies').fetchone()[0], self.old)
+
     def test_price_alert_or_expired_window_has_no_extra_status(self):
         self.assertFalse(self.queue(summary={**self.summary,'queued_deals':1}))
         self.assertFalse(self.queue(summary={**self.summary,'status':'expired'}))

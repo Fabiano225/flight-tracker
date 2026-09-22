@@ -1,5 +1,6 @@
 from dataclasses import replace
 from datetime import timedelta
+import json
 import tempfile
 import unittest
 
@@ -7,7 +8,7 @@ from tracker.config import Config
 from tracker.provider import Quote, DemoProvider
 from tracker.service import scan
 from tracker.store import Store, stamp
-from tracker.trends import queue_trends, load_watches
+from tracker.trends import queue_trends, load_watches, watch_key, watch_searches
 from test_tracker import NOW
 
 
@@ -34,7 +35,8 @@ class TrendTests(unittest.TestCase):
         count = queue_trends(self.store, self.config, self.scope, run, verified, now)
         for q in quotes:
             self.store.db.execute('INSERT INTO quotes VALUES(?,?,?,?,?,?,?,?,?)',
-                (run, self.scope, stamp(now), q.origin, q.departure, q.return_date, q.category, q.price, '{}'))
+                (run, self.scope, stamp(now), q.origin, q.departure, q.return_date, q.category, q.price,
+                 json.dumps(q.to_dict())))
         texts = [r[0] for r in self.store.db.execute('SELECT text FROM outbox WHERE run_id=?', (run,))]
         self.store.db.execute("UPDATE outbox SET status='sent' WHERE status='pending'")
         return count, '\n'.join(texts)
@@ -148,6 +150,34 @@ class TrendTests(unittest.TestCase):
         self.store.expire_outside_search(config)
         self.assertEqual(self.store.db.execute('SELECT status FROM outbox').fetchone()[0], 'expired')
         self.assertEqual(load_watches(self.store, config, self.scope, NOW), {})
+
+    def test_expanded_window_preserves_notified_dates_and_checks_new_deals(self):
+        self.config = replace(self.config, departure_start='2026-10-15')
+        self.run_quotes([self.quote])
+        self.config = replace(self.config, departure_start='2026-10-14')
+        watches = load_watches(self.store, self.config, self.scope, NOW)
+        self.assertEqual(watch_searches(watches), [('FRA', '2026-10-15', '2026-10-29', 'any')])
+        earlier = replace(self.quote, departure='2026-10-14', return_date='2026-10-28')
+        self.assertEqual(self.run_quotes([self.quote, earlier])[0], 0)
+        count, text = self.run_quotes([self.quote, replace(earlier, price=57000)])
+        self.assertEqual(count, 1)
+        self.assertIn('GUENSTIGERE ALTERNATIVE', text)
+        self.assertEqual(load_watches(self.store, self.config, self.scope, NOW)['FRA:layover']['departure'],
+                         '2026-10-14')
+
+    def test_repairs_already_saved_unannounced_date_switch(self):
+        self.run_quotes([self.quote])
+        wrong = replace(self.quote, departure='2026-10-14', return_date='2026-10-28')
+        self.store.set_meta(watch_key(self.config, self.scope), json.dumps({'FRA:layover': wrong.to_dict()}))
+        self.assertEqual(load_watches(self.store, self.config, self.scope, NOW)['FRA:layover'],
+                         self.quote.to_dict())
+
+    def test_window_recovery_never_imports_another_scope_or_removed_airport(self):
+        self.run_quotes([self.quote])
+        changed = replace(self.config, checked_bags=1)
+        self.assertEqual(load_watches(self.store, changed, changed.scope(), NOW), {})
+        changed = replace(self.config, origins=('AMS',))
+        self.assertEqual(load_watches(self.store, changed, self.scope, NOW), {})
 
     def test_telegram_length_limit_and_all_six_groups(self):
         quotes = [replace(self.quote, origin=origin, category=category)

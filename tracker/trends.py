@@ -1,5 +1,5 @@
 """Stable date watches: new date combinations alone must not cause deal spam."""
-from datetime import timedelta
+from datetime import date, timedelta
 import hashlib
 import json
 
@@ -17,7 +17,39 @@ def watch_key(config, scope):
 
 def load_watches(store, config, scope, now):
     watches = json.loads(store.get_meta(watch_key(config, scope)) or "{}")
-    return {key: value for key, value in watches.items() if value["departure"] > now.date().isoformat()}
+    watches = {key: value for key, value in watches.items()
+               if value['origin'] in config.origins
+               and config.departure_start <= value['departure'] <= config.departure_end
+               and value['departure'] > now.date().isoformat()
+               and config.min_trip_days <= (date.fromisoformat(value['return_date']) -
+                   date.fromisoformat(value['departure'])).days <= config.max_trip_days}
+    # The search window is part of the metadata key, but expanding it must not
+    # reset the dates behind an existing price notification. Recover the latest
+    # eligible notification per group, also repairing pre-fix unannounced moves.
+    alerts = store.db.execute("""SELECT a.* FROM alert_items a
+        JOIN outbox o ON o.id=a.outbox_id
+        WHERE a.scope=? AND o.kind='trend' AND o.status IN ('pending','sent')
+        AND a.departure BETWEEN ? AND ? AND a.departure>?
+        AND julianday(a.return_date)-julianday(a.departure) BETWEEN ? AND ?
+        ORDER BY o.created DESC, o.rowid DESC""",
+        (scope, config.departure_start, config.departure_end, now.date().isoformat(),
+         config.min_trip_days, config.max_trip_days)).fetchall()
+    seen = set()
+    for alert in alerts:
+        key = alert['origin'] + ':' + alert['category']
+        if alert['origin'] not in config.origins or key in seen:
+            continue
+        seen.add(key)
+        old = watches.get(key)
+        if old and (old['departure'], old['return_date']) == (alert['departure'], alert['return_date']):
+            continue
+        row = store.db.execute("""SELECT details FROM quotes WHERE scope=? AND origin=?
+            AND departure=? AND return_date=? AND category=?
+            ORDER BY observed DESC, rowid DESC LIMIT 1""",
+            (scope, alert['origin'], alert['departure'], alert['return_date'], alert['category'])).fetchone()
+        if row:
+            watches[key] = json.loads(row['details'])
+    return watches
 
 
 def watch_searches(watches):
