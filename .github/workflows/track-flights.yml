@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '17 0,6,12,18 * * *'
   workflow_dispatch:
+    inputs:
+      baggage_only:
+        description: 'Only refresh website baggage comparisons; no Telegram delivery'
+        type: boolean
+        default: false
 permissions:
   contents: write
 concurrency:
@@ -12,7 +17,7 @@ jobs:
   track:
     if: vars.TRACKER_ENABLED != 'false'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -29,6 +34,7 @@ jobs:
         run: python scripts/state_git.py restore
       - name: Search calendars and verify shortlisted itineraries
         id: scan
+        if: inputs.baggage_only != true
         continue-on-error: true
         run: python -m tracker scan
       - name: Checkpoint history and pending alerts BEFORE delivery
@@ -46,6 +52,15 @@ jobs:
       - name: Persist delivery receipts even after a partial failure
         id: receipts
         if: always() && steps.checkpoint.outcome == 'success'
+        run: python scripts/state_git.py save
+      - name: Website baggage comparisons
+        id: baggage
+        if: always() && ((steps.receipts.outcome == 'success' && steps.scan.outcome == 'success') || (inputs.baggage_only == true && steps.restore.outcome == 'success'))
+        continue-on-error: true
+        timeout-minutes: 12
+        run: python scripts/scan_baggage.py
+      - name: Persist website baggage observations
+        if: always() && steps.baggage.outcome != 'skipped' && steps.restore.outcome == 'success' && (steps.receipts.outcome == 'success' || inputs.baggage_only == true)
         run: python scripts/state_git.py save
       - name: Recovery snapshot
         if: always() && steps.restore.outcome == 'success'

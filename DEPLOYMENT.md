@@ -126,7 +126,30 @@ python -m http.server 8765 --directory _site --bind 127.0.0.1
 Synthetic demo state is deliberately rejected by the public exporter. Website
 logic tests run with `node --test tests/site_model.test.mjs` (Node.js 22+).
 
-### Routine maintenance
+### Website baggage follow-up
+
+After base prices and Telegram delivery receipts have been saved, the tracking
+workflow runs `python scripts/scan_baggage.py`. It interleaves three baggage variants
+for at most 18 shortlisted date/category searches. All variants share a paced
+360-request / 600-second extra budget; no extra full calendar sweeps are run.
+The step has a 12-minute timeout and the overall job a 60-minute timeout.
+Partial bag observations are checkpointed separately and never enqueue Telegram
+messages or modify the base quote/history tables. A failed baggage step does not
+turn the base notification run into a failure; inspect the step and per-profile
+website status for baggage coverage.
+
+For a website-only refresh, manually dispatch **Track flights** with
+`baggage_only` enabled. This restores the existing state and refreshes baggage
+views only; no base calendar scan or Telegram delivery is performed. A recent
+base scan (under 12 hours old) is required. Scheduled runs use the full pipeline.
+
+The SQLite tables `baggage_runs` and `baggage_quotes` are created additively; old
+databases export empty bag views until their first follow-up. Public export uses
+explicit fields only. No raw responses, booking tokens, chat IDs or secrets are
+published. Profiles have separate history identifiers. Weight/allowance fields
+remain unknown until a future validated source decoder can establish them.
+
+### Routine maintenance checklist
 
 - Review Dependabot pull requests for pinned actions and Python dependencies.
 - Disable the schedule after the October/November trip window if this repository is

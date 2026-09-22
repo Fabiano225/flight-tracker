@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,freshness,safeFlightLink} from '../website/model.mjs';
+import {filteredOffers,comparison,freshness,safeFlightLink,baggageView,matchingBase} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -34,4 +34,19 @@ test('stale and partial scans never look healthy',()=>{
 test('flight links reject script, wrong domain and protocol',()=>{
   for(const u of ['javascript:alert(1)','https://evil.example/travel/flights','http://www.google.com/travel/flights'])assert.equal(safeFlightLink(u),null);
   assert.ok(safeFlightLink('https://www.google.com/travel/flights?q=FRA'));
+});
+test('baggage switching never substitutes base prices and keeps histories separate',()=>{
+  const root={config,offers:[offer],histories:{base:[]},baggage_profiles:{cabin:{offers:[{...offer,price:63000}],histories:{cabin:[]}}}};
+  assert.equal(baggageView(root,'base'),root);
+  assert.equal(baggageView(root,'cabin').offers[0].price,63000);
+  assert.deepEqual(baggageView(root,'cabin').histories,{cabin:[]});
+  assert.deepEqual(baggageView(root,'both').offers,[]);
+});
+test('base comparison requires exact itinerary and matching baseline timestamp',()=>{
+  const q={...offer,itinerary_id:'abc',return_date:'2026-10-29'};
+  const root={offers:[q]},view={base_at:q.at};
+  assert.equal(matchingBase({...q,price:65000},root,view),q);
+  assert.equal(matchingBase({...q,itinerary_id:null},root,view),null);
+  assert.equal(matchingBase({...q,itinerary_id:'different'},root,view),null);
+  assert.equal(matchingBase(q,root,{base_at:'yesterday'}),null);
 });

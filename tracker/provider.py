@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from copy import deepcopy
 from urllib.parse import parse_qs, urlsplit, urlencode
 import json
+import hashlib
 import threading
 import time
 
@@ -24,6 +25,7 @@ class Quote:
     inbound_stops: int
     airlines: str
     link: str
+    itinerary_id: str | None = None
 
     def to_dict(self):
         return asdict(self)
@@ -222,6 +224,20 @@ class FreeProvider:
         self.http.close()
 
 
+def itinerary_id(pair):
+    """Compare actual flight legs, never merely dates or airline names."""
+    legs = []
+    for direction in pair:
+        group = []
+        for leg in direction.legs:
+            if not getattr(leg, 'flight_number', None):
+                return None
+            group.append([leg.airline.name, leg.flight_number, leg.departure_airport.name,
+                          leg.arrival_airport.name, leg.departure_datetime.isoformat()])
+        legs.append(group)
+    return hashlib.sha256(json.dumps(legs).encode()).hexdigest()
+
+
 def normalize_pairs(pairs, origin, departure, return_date, profile, config, make_link):
     best = {}
     for pair in pairs:
@@ -251,7 +267,7 @@ def normalize_pairs(pairs, origin, departure, return_date, profile, config, make
             continue
         airlines = ", ".join(sorted({leg.airline.name for x in pair for leg in x.legs}))
         quote = Quote(origin, departure, return_date, category, price, outbound.duration, inbound.duration,
-                      outbound.stops, inbound.stops, airlines, make_link(pair))
+                      outbound.stops, inbound.stops, airlines, make_link(pair), itinerary_id(pair))
         if category not in best or price < best[category].price:
             best[category] = quote
     return list(best.values())

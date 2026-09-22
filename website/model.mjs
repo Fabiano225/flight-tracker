@@ -26,3 +26,17 @@ export function safeFlightLink(url) {
   try { const u = new URL(url); return u.protocol === 'https:' && u.hostname === 'www.google.com'
     && u.pathname === '/travel/flights' ? u.href : null; } catch { return null; }
 }
+
+export const baggageLabels = {base:'Basispreis', cabin:'1 Kabinenkoffer', checked:'1 Aufgabegepäckstück', both:'Kabinenkoffer + Aufgabegepäck'};
+export function baggageView(root, profile) {
+  if(profile==='base')return root;
+  const selected=root.baggage_profiles?.[profile];
+  return {...(selected || {scan:null,offers_as_of:null,offers:[],histories:{}}),config:root.config,
+    workflow_conclusion:root.workflow_conclusion};
+}
+export function matchingBase(offer, root, view) {
+  if(!offer.itinerary_id || !view.base_at)return null;
+  return root.offers.find(q=>q.itinerary_id===offer.itinerary_id && q.origin===offer.origin
+    && q.departure===offer.departure && q.return_date===offer.return_date && q.category===offer.category
+    && q.at===view.base_at) || null;
+}

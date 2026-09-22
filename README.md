@@ -6,6 +6,25 @@ Mobile-friendly price tables, date and duration filters, separate direct/connect
 fares, and real price-history charts. Data updates automatically after each tracker
 workflow. The dashboard explicitly labels incomplete searches and stale observations.
 
+### Baggage price views (website only)
+
+Use **Gepäck im Suchpreis** to switch between the base search, one cabin suitcase,
+one checked bag, or both. Each view has its own prices, sorting and history.
+The base search imposes no extra baggage requirement: it does **not** mean bags
+are excluded. A cabin suitcase is distinct from a small personal item under the seat.
+
+These are Google search prices with the corresponding baggage filter requested,
+not independently confirmed fare allowances. The current adapter exposes neither
+kilogram limits nor a reliable included/paid baggage breakdown; these remain
+**unknown**, even when two prices are equal. Check both directions and the selected
+fare with the booking provider. Research links do not guarantee the baggage filter
+is retained. A price difference is shown only for matching flight legs and the
+same base-scan snapshot, and is not labelled a confirmed baggage fee.
+
+Only the existing shortlist is rechecked, not every possible trip under every bag
+profile. Missing results never inherit a base price or silently reuse an older bag
+snapshot. Telegram alerts and its original price profile are unchanged.
+
 Automated fare monitoring from **Düsseldorf (DUS), Frankfurt (FRA) and Amsterdam
 (AMS) to Bangkok (BKK)**. The tracker searches flexible dates four times per day,
 keeps a durable price history and sends Telegram price alerts plus short check
