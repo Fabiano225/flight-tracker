@@ -1,6 +1,6 @@
 {
-  "run_id": "20c74a26f93147df951039035ec2ed7f",
-  "started": "2026-09-22T11:02:19+00:00",
+  "run_id": "53c71a218b4f49ee915b718a5e5291a0",
+  "started": "2026-09-22T11:47:54+00:00",
   "mode": "live",
   "status": "ok",
   "calendar_queries_planned": 48,
@@ -11,7 +11,7 @@
   "verification_searches": 18,
   "verified_quotes": 18,
   "queued_deals": 1,
-  "http_attempts": 564,
+  "http_attempts": 556,
   "errors": [],
   "config": {
     "origins": [
@@ -77,29 +77,29 @@
     },
     {
       "origin": "AMS",
-      "departure": "2026-10-15",
-      "return_date": "2026-11-03",
+      "departure": "2026-10-19",
+      "return_date": "2026-11-02",
       "category": "layover",
-      "price": 50700,
-      "outbound_minutes": 980,
-      "inbound_minutes": 935,
+      "price": 54100,
+      "outbound_minutes": 915,
+      "inbound_minutes": 970,
       "outbound_stops": 1,
       "inbound_stops": 1,
-      "airlines": "WY",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-11-03+economy+one+adult&curr=EUR&hl=en"
+      "airlines": "EY",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-19+return+2026-11-02+economy+one+adult&curr=EUR&hl=en"
     },
     {
       "origin": "AMS",
-      "departure": "2026-10-15",
-      "return_date": "2026-11-05",
+      "departure": "2026-10-18",
+      "return_date": "2026-11-02",
       "category": "layover",
-      "price": 50700,
-      "outbound_minutes": 980,
-      "inbound_minutes": 935,
+      "price": 54900,
+      "outbound_minutes": 915,
+      "inbound_minutes": 970,
       "outbound_stops": 1,
       "inbound_stops": 1,
-      "airlines": "WY",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-11-05+economy+one+adult&curr=EUR&hl=en"
+      "airlines": "EY",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-18+return+2026-11-02+economy+one+adult&curr=EUR&hl=en"
     },
     {
       "origin": "FRA",
