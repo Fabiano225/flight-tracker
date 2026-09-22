@@ -8,7 +8,7 @@ written for the repository maintainer; the user-facing overview is in
 
 - **Repository:** `Fabiano225/flight-tracker`
 - **Schedule:** 00:17, 06:17, 12:17 and 18:17 UTC
-- **Search window:** departures 15–23 October 2026; 14–21-day trips
+- **Search window:** departures 14–23 October 2026; 14–21-day trips
 - **Routes:** DUS/FRA/AMS → BKK, one adult, economy, EUR
 - **Duration guard:** below 21 hours in each direction
 - **State branch:** `tracker-state`

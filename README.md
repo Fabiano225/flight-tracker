@@ -19,7 +19,7 @@ receipts when no alert threshold was reached.
 
 ## What it does
 
-- Searches departures from **15–23 October 2026** (never earlier than 15 October).
+- Searches departures from **14–23 October 2026** (never earlier than 14 October).
 - Accepts trips of **14–21 days**; the latest return departure is 13 November.
 - Separates **direct flights** (zero stops in both directions) from itineraries
   with a connection.
@@ -64,7 +64,7 @@ booking.
 |---|---|
 | Origins | DUS, FRA, AMS |
 | Destination | BKK |
-| Departures | 2026-10-15 … 2026-10-23, inclusive |
+| Departures | 2026-10-14 … 2026-10-23, inclusive |
 | Trip length | 14 … 21 calendar days |
 | Passenger / cabin / currency | 1 adult / economy / EUR |
 | Maximum direction duration | 1,259 minutes (20 h 59 min) |

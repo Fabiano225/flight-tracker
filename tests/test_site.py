@@ -73,12 +73,19 @@ class SiteTests(unittest.TestCase):
     def test_scope_dates_duration_and_history_window_filtered(self):
         self.record('old',NOW-timedelta(days=31),50000)
         self.record('wrongscope',NOW,50000,scope='wrong')
-        self.record('wrongdate',NOW,50000,quote=replace(self.q,departure='2026-10-14'))
+        self.record('wrongdate',NOW,50000,quote=replace(self.q,departure='2026-10-13'))
         self.record('wrongduration',NOW,50000,quote=replace(self.q,return_date='2026-11-12'))
         self.record('longflight',NOW,50000,quote=replace(self.q,outbound_minutes=1260))
         self.record('new',NOW,60000)
         data=self.data();self.assertEqual(len(data['offers']),1)
         self.assertEqual(len(next(iter(data['histories'].values()))),1)
+
+    def test_october_14_departure_is_published(self):
+        self.record('new', NOW, 60000, quote=replace(self.q, departure='2026-10-14'))
+        data = self.data()
+        self.assertEqual(data['config']['departure_start'], '2026-10-14')
+        self.assertEqual(len(data['offers']), 1)
+        self.assertEqual(data['offers'][0]['days'], 15)
 
     def test_empty_history_does_not_make_up_prices(self):
         data=self.data();self.assertEqual(data['offers'],[]);self.assertEqual(data['histories'],{})
