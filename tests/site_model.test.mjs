@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,freshness,safeFlightLink,baggageView,matchingBase} from '../website/model.mjs';
+import {filteredOffers,comparison,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -49,4 +49,12 @@ test('base comparison requires exact itinerary and matching baseline timestamp',
   assert.equal(matchingBase({...q,itinerary_id:null},root,view),null);
   assert.equal(matchingBase({...q,itinerary_id:'different'},root,view),null);
   assert.equal(matchingBase(q,root,{base_at:'yesterday'}),null);
+});
+
+test('baggage labels distinguish included paid absent and unknown without invented kg',()=>{
+  assert.equal(baggageDescription(null,'cabin'),'Kabinenkoffer: keine Angabe');
+  assert.equal(baggageDescription({cabin:{status:'chargeable'}},'cabin'),'Kabinenkoffer: gegen Aufpreis · Betrag unbekannt');
+  assert.equal(baggageDescription({checked:{status:'not_included'}},'checked'),'Aufgabegepäck: nicht enthalten');
+  assert.equal(baggageDescription({checked:{status:'included',pieces:1,kg:null}},'checked'),'Aufgabegepäck: 1 enthalten · kg: keine Angabe');
+  assert.equal(baggageDescription({cabin:{status:'included',pieces:1,kg:8}},'cabin'),'Kabinenkoffer: 1 enthalten · 8 kg');
 });

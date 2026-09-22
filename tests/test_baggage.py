@@ -7,6 +7,7 @@ import unittest
 
 from tracker.baggage import scan_baggage
 from tracker.config import Config
+from tracker.fare_baggage import SOURCE
 from tracker.network import BudgetError
 from tracker.provider import Quote
 from tracker.store import Store, stamp
@@ -23,7 +24,7 @@ class BaggageTests(unittest.TestCase):
         self.base('base',NOW)
         self.calls=[]
         self.closed=False
-        self.provider=SimpleNamespace(config=self.config,http=SimpleNamespace(used=0),verify=self.verify,close=self.close)
+        self.provider=SimpleNamespace(config=self.config,http=SimpleNamespace(used=0),baggage_offers=self.verify,close=self.close)
 
     def tearDown(self):
         self.store.close();self.temp.cleanup()
@@ -35,10 +36,16 @@ class BaggageTests(unittest.TestCase):
         self.store.db.commit()
 
     def verify(self,*args):
-        c=self.provider.config
-        self.calls.append((c.carry_on_bags,c.checked_bags,args))
+        self.calls.append(args)
         self.provider.http.used+=1
-        return [replace(self.q,price=self.q.price+1000*c.carry_on_bags+5000*c.checked_bags)]
+        def bags(cabin,checked):
+            return dict(source=SOURCE,vendor='Test Airline',whole_trip=True,
+                cabin=dict(status='included' if cabin else 'chargeable',pieces=1 if cabin else None),
+                checked=dict(status='included' if checked else 'not_included',pieces=1 if checked else 0))
+        return [replace(self.q,baggage=bags(False,False)),
+                replace(self.q,price=56000,baggage=bags(True,False)),
+                replace(self.q,price=60000,baggage=bags(False,True)),
+                replace(self.q,price=61000,baggage=bags(True,True))]
 
     def close(self):self.closed=True
 
@@ -49,7 +56,7 @@ class BaggageTests(unittest.TestCase):
         before=list(self.store.db.execute('SELECT * FROM quotes'))
         result=scan_baggage(self.config,self.store,self.provider,NOW)
         self.assertEqual(result['status'],'ok')
-        self.assertEqual([x[:2] for x in self.calls],[(1,0),(0,1),(1,1)])
+        self.assertEqual(len(self.calls),1)
         self.assertEqual(list(self.store.db.execute('SELECT * FROM quotes')),before)
         self.assertEqual(self.store.db.execute('SELECT COUNT(*) FROM outbox').fetchone()[0],0)
         self.assertTrue(self.closed)
@@ -61,9 +68,9 @@ class BaggageTests(unittest.TestCase):
         scan_baggage(self.config,self.store,self.provider,NOW)
         data=self.export('both')
         q=data['offers'][0]
-        self.assertIsNone(q['baggage']['carry_on_kg'])
-        self.assertIsNone(q['baggage']['checked_kg'])
-        self.assertFalse(q['baggage']['allowance_confirmed'])
+        self.assertIsNone(q['baggage']['cabin']['kg'])
+        self.assertIsNone(q['baggage']['checked']['kg'])
+        self.assertTrue(q['baggage']['allowance_confirmed'])
         self.assertNotIn('evil.example',json.dumps(data))
         self.assertTrue(q['id'].startswith('both:'))
         self.assertEqual(data['histories'][q['id']],[{'at':stamp(NOW),'price':61000}])
@@ -74,7 +81,7 @@ class BaggageTests(unittest.TestCase):
         later=NOW+timedelta(hours=6)
         self.base('next',later)
         def fail(*args):raise BudgetError('Stop')
-        self.provider.verify=fail
+        self.provider.baggage_offers=fail
         result=scan_baggage(self.config,self.store,self.provider,later)
         self.assertEqual(result['status'],'partial')
         data=self.export('both',later)
@@ -99,10 +106,45 @@ class BaggageTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.export('unknown')
 
     def test_invalid_duration_or_scope_filtered_from_public_baggage(self):
-        self.provider.verify=lambda *args:[replace(self.q,outbound_minutes=1260)]
+        self.provider.baggage_offers=lambda *args:[replace(self.q,outbound_minutes=1260)]
         scan_baggage(self.config,self.store,self.provider,NOW)
         self.assertEqual(self.export('both')['offers'],[])
         changed=replace(self.config,checked_bags=1)
         self.assertEqual(export_data(self.store.directory/'history.sqlite3',changed,NOW,'both')['offers'],[])
+
+    def test_base_view_includes_exact_price_itinerary_assessment_only(self):
+        scan_baggage(self.config,self.store,self.provider,NOW)
+        data=self.export(None)
+        bag=data['offers'][0]['baggage']
+        self.assertEqual(bag['cabin']['status'],'chargeable')
+        self.assertEqual(bag['checked']['status'],'not_included')
+        self.assertNotIn('evil.example',json.dumps(data))
+        self.assertIsNone(self.export(None,NOW+timedelta(hours=13))['offers'][0]['baggage'])
+
+    def test_legacy_unconfirmed_prices_are_hidden_and_not_graphed(self):
+        from tracker.baggage import initialize
+        initialize(self.store.db)
+        self.store.db.execute('INSERT INTO baggage_runs VALUES(?,?,?,?,?,?,?,?)',
+            ('base','both',self.config.scope(),stamp(NOW),'ok',1,1,0))
+        self.store.db.execute('INSERT INTO baggage_quotes VALUES(?,?,?,?,?,?,?,?,?,?)',
+            ('base','both',self.config.scope(),stamp(NOW),self.q.origin,self.q.departure,
+             self.q.return_date,self.q.category,self.q.price,json.dumps(self.q.to_dict())))
+        self.store.db.commit()
+        self.assertEqual(self.export('both')['offers'],[])
+        self.assertEqual(self.export('both')['histories'],{})
+
+    def test_unknown_and_paid_baggage_are_not_inclusive_prices(self):
+        original=self.verify
+        self.provider.baggage_offers=lambda *args:original(*args)[:1]
+        scan_baggage(self.config,self.store,self.provider,NOW)
+        for profile in ('cabin','checked','both'):
+            self.assertEqual(self.export(profile)['offers'],[])
+            self.assertEqual(self.export(profile)['scan']['status'],'ok')
+
+    def test_missing_itinerary_cannot_confirm_a_price(self):
+        original=self.verify
+        self.provider.baggage_offers=lambda *args:[replace(q,itinerary_id=None) for q in original(*args)]
+        scan_baggage(self.config,self.store,self.provider,NOW)
+        self.assertEqual(self.export('both')['offers'],[])
 
 if __name__=='__main__':unittest.main()

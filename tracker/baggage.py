@@ -1,10 +1,10 @@
 """Bounded website-only baggage searches. Never creates Telegram alerts."""
-from dataclasses import replace
 from datetime import date, timedelta
 import json
 
 from .network import BudgetError, ServiceError
 from .provider import Quote
+from .fare_baggage import covers, public_baggage
 from .store import stamp
 
 PROFILES = {'cabin': (1, 0), 'checked': (0, 1), 'both': (1, 1)}
@@ -12,6 +12,8 @@ PROFILES = {'cabin': (1, 0), 'checked': (0, 1), 'both': (1, 1)}
 
 def initialize(db):
     db.executescript('''
+        CREATE TABLE IF NOT EXISTS baggage_checks(
+            run_id TEXT, scope TEXT, observed TEXT, details TEXT);
         CREATE TABLE IF NOT EXISTS baggage_runs(
             run_id TEXT REFERENCES runs(id), variant TEXT, scope TEXT, observed TEXT,
             status TEXT, planned INTEGER, completed INTEGER, issues INTEGER,
@@ -34,10 +36,7 @@ def eligible(q, config, today):
 
 
 def scan_baggage(config, store, provider, now):
-    """Recheck shortlisted dates under three filters sharing one HTTP/time budget.
-
-    Returned prices are source-filtered search prices, not tariff confirmations.
-    """
+    """Check actual booking offers once, then project supported baggage profiles."""
     db = store.db
     initialize(db)
     run = db.execute('SELECT * FROM runs WHERE scope=? ORDER BY started DESC,rowid DESC LIMIT 1',
@@ -48,6 +47,7 @@ def scan_baggage(config, store, provider, now):
     quotes = [Quote(**json.loads(r['details'])) for r in rows]
     selected = [(q.origin,q.departure,q.return_date,'nonstop' if q.category=='nonstop' else 'any')
                 for q in quotes if eligible(q,config,now.date())][:config.max_verifications_per_run]
+    db.execute('DELETE FROM baggage_checks WHERE run_id=?',(run['id'],))
     for variant in PROFILES:
         db.execute('DELETE FROM baggage_quotes WHERE run_id=? AND variant=?',(run['id'],variant))
         db.execute('INSERT OR REPLACE INTO baggage_runs VALUES(?,?,?,?,?,?,?,?)',
@@ -56,15 +56,18 @@ def scan_baggage(config, store, provider, now):
     stopped = False
     error_streak = 0
     try:
-        # Interleave variants so the time limit does not starve one whole profile.
         for origin, dep, ret, profile in selected:
-            for variant, (carry, checked) in PROFILES.items():
-                provider.config = replace(config, carry_on_bags=carry, checked_bags=checked)
-                try:
-                    found = provider.verify(origin,dep,ret,profile)
-                    for q in found:
-                        if (not eligible(q,config,now.date()) or (q.origin,q.departure,q.return_date)!=(origin,dep,ret)
-                                or (profile=='nonstop' and q.category!='nonstop')):
+            try:
+                found = provider.baggage_offers(origin,dep,ret,profile)
+                for q in found:
+                    if (not eligible(q,config,now.date()) or (q.origin,q.departure,q.return_date)!=(origin,dep,ret)
+                            or (profile=='nonstop' and q.category!='nonstop') or not q.itinerary_id
+                            or not public_baggage(q.baggage)):
+                        continue
+                    db.execute('INSERT INTO baggage_checks VALUES(?,?,?,?)',
+                        (run['id'],config.scope(),stamp(now),json.dumps(q.to_dict())))
+                    for variant in PROFILES:
+                        if not covers(q.baggage,variant):
                             continue
                         db.execute('''INSERT INTO baggage_quotes VALUES(?,?,?,?,?,?,?,?,?,?)
                             ON CONFLICT(run_id,variant,origin,departure,return_date,category)
@@ -72,17 +75,13 @@ def scan_baggage(config, store, provider, now):
                             WHERE excluded.price<baggage_quotes.price''',
                             (run['id'],variant,config.scope(),stamp(now),q.origin,q.departure,q.return_date,
                              q.category,q.price,json.dumps(q.to_dict())))
-                    db.execute('UPDATE baggage_runs SET completed=completed+1 WHERE run_id=? AND variant=?',
-                               (run['id'],variant))
-                    error_streak = 0
-                except ServiceError as exc:
-                    db.execute('UPDATE baggage_runs SET issues=issues+1 WHERE run_id=? AND variant=?',
-                               (run['id'],variant))
-                    error_streak += 1
-                    stopped = isinstance(exc,BudgetError) or error_streak>=3
-                db.commit()
-                if stopped:
-                    break
+                db.execute('UPDATE baggage_runs SET completed=completed+1 WHERE run_id=?',(run['id'],))
+                error_streak = 0
+            except ServiceError as exc:
+                db.execute('UPDATE baggage_runs SET issues=issues+1 WHERE run_id=?',(run['id'],))
+                error_streak += 1
+                stopped = isinstance(exc,BudgetError) or error_streak>=3
+            db.commit()
             if stopped:
                 break
     finally:

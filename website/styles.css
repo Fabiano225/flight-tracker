@@ -9,3 +9,5 @@
 .baggage-panel{margin-top:24px;padding:24px;background:#eef2e4;border:1px solid var(--line);border-radius:var(--radius);display:grid;grid-template-columns:1fr 1fr;gap:12px 30px}.baggage-panel h2{margin:0}.baggage-panel .eyebrow{margin-bottom:8px}.baggage-panel label{font-size:12px;font-weight:600;align-self:center}.baggage-panel select{display:block;width:100%;margin-top:8px;padding:12px;border:1px solid #bfcdb8;border-radius:9px;background:white}.baggage-panel p.footnote{grid-column:1/-1;margin:0;line-height:1.7}.baggage-caution{padding-top:10px;border-top:1px solid #d5dfc6}.baggage-detail{white-space:normal;max-width:260px;line-height:1.5!important}.baggage-panel select{min-width:0}@media(max-width:760px){.baggage-panel{grid-template-columns:1fr;padding:19px;gap:16px}.baggage-panel label{min-width:0}.baggage-detail{font-size:10px!important;overflow-wrap:anywhere}}
 
 .baggage-unconfirmed{color:var(--amber);font-weight:650;white-space:normal}
+
+.baggage-included {color: var(--green, #27664c); font-weight: 650;}

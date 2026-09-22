@@ -1,4 +1,4 @@
-import {filteredOffers, comparison, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase} from './model.mjs';
+import {filteredOffers, comparison, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const euro = value => new Intl.NumberFormat('de-DE', {style:'currency',currency:'EUR',maximumFractionDigits: value%100 ? 2 : 0}).format(value/100);
@@ -15,7 +15,7 @@ function activateBaggage() {
   data=baggageView(rootData,profile);
   $('baggage-note').textContent=profile==='base'
     ?'Basispreis ohne zusätzliche Gepäckanforderung. Gepäck kann bereits enthalten sein.'
-    :`Angefragt: ${baggageLabels[profile]} für Hin- und Rückflug. Alle Preise, Sortierung und Verläufe unten beziehen sich auf diese Variante. Gewicht: keine Angabe.`;
+    :`Nur Angebote, deren Buchungsdetails ${baggageLabels[profile]} für die gesamte Reise als enthalten ausweisen. Preis und Verlauf gehören zu dieser Gepäckauswahl.`;
   fillSelect('departure',[...new Set(data.offers.map(q=>q.departure))].sort(),day);
   showStatus();renderSummary();renderOffers();
 }
@@ -65,7 +65,7 @@ function renderOffers() {
   body.replaceChildren();
   $('results-count').textContent=`${offers.length} von ${data.offers.length} Angeboten · nach Preis sortiert`;
   $('empty').hidden=offers.length>0;
-  $('empty').textContent=data.offers.length?'Keine Angebote für diese Auswahl. Probiere einen anderen Filter.':'Noch keine geprüften Angebote im aktuellen Suchfenster. Den Suchstatus findest du oben.';
+  $('empty').textContent=data.offers.length?'Keine Angebote für diese Auswahl. Probiere einen anderen Filter.':($('baggage').value==='base'?'Noch keine geprüften Angebote im aktuellen Suchfenster. Den Suchstatus findest du oben.':'Gepäckpreis nicht verfügbar: In der geprüften Auswahl weist bisher kein Angebot das gewünschte Gepäck als enthalten aus. Das bedeutet nicht, dass es solche Tarife generell nicht gibt.');
   const select=$('history-select');select.replaceChildren();
   offers.forEach(q=>{const o=node('option',`${q.origin} · ${q.category==='nonstop'?'Direkt':'Umstieg'} · ${day(q.departure)}–${day(q.return_date)} · ${q.days} Tage`);o.value=q.id;select.append(o);});
   if(!offers.some(q=>q.id===selectedId))selectedId=offers[0]?.id;
@@ -77,15 +77,20 @@ function renderOffers() {
     const dates=node('td');dates.append(node('strong',`${day(q.departure)} – ${day(q.return_date)}`),node('small',`${q.days} Tage · ${q.departure.slice(0,4)}`));
     const duration=node('td');duration.append(node('strong',`${hours(q.outbound_minutes)} / ${hours(q.inbound_minutes)}`),node('small',`Hin / zurück · Stopps ${q.outbound_stops}/${q.inbound_stops}`));
     const price=node('td');price.append(node('strong',euro(q.price),'price'),node('div',deltaText(c),`delta ${c.delta===null||c.delta===0?'neutral':c.delta<0?'down':'up'}`));
+    price.append(node('small',baggageDescription(q.baggage,'cabin'),'baggage-detail'));
+    price.append(node('small',baggageDescription(q.baggage,'checked'),'baggage-detail'));
+    if(q.baggage) {
+      price.append(node('small',`Anbieter: ${q.baggage.vendor} · Quelle: Google-Flights-Buchungsdetails · Hin und zurück`,'baggage-detail'));
+      if(q.baggage.checked_at)price.append(node('small',`Gepäck geprüft: ${when(q.baggage.checked_at)}`,'baggage-detail'));
+    }
     if($('baggage').value!=='base') {
-      price.append(node('small','Gepäck-Endpreis nicht bestätigt','baggage-unconfirmed'));
-      price.append(node('small',`${baggageLabels[$('baggage').value]} angefragt · kg: keine Angabe`,'baggage-detail'));
+      price.append(node('small','Gewähltes Gepäck laut Angebotsdetails enthalten','baggage-included'));
       const base=matchingBase(q,rootData,data);
       if(base) {
         const delta=q.price-base.price;
-        price.append(node('small',`Basis gleicher Flüge: ${euro(base.price)} · Differenz ${delta>0?'+':''}${euro(delta)}`,'baggage-detail'));
-        price.append(node('small','Preisdifferenz der Suchen, keine bestätigte Einzelgebühr.','baggage-detail'));
-      } else price.append(node('small','Kein direkter Basisvergleich: Flüge oder Datenstand abweichend.','baggage-detail'));
+        price.append(node('small',`Basis gleicher Flüge: ${euro(base.price)} · Angebotsdifferenz ${delta>0?'+':''}${euro(delta)}`,'baggage-detail'));
+        price.append(node('small','Ggf. anderer Anbieter oder Tarif; keine separate Gepäckgebühr.','baggage-detail'));
+      }
     }
     const verdict=node('td'), verdictLabel=$('baggage').value!=='base'?'Tarif prüfen':c.verdict;
     verdict.append(node('span',verdictLabel,`pill ${verdictLabel==='Kauf prüfen'?'good':verdictLabel==='Beobachten'?'watch':'mid'}`));

@@ -16,6 +16,7 @@ from tracker.config import Config
 from tracker.alerts import search_link
 from tracker.provider import Quote
 from tracker.baggage import PROFILES
+from tracker.fare_baggage import covers, public_baggage
 
 ASSETS = ('index.html', 'styles.css', 'app.js', 'model.mjs', 'favicon.svg', '.nojekyll')
 
@@ -46,6 +47,14 @@ def export_data(db_path, config, now=None, variant=None):
         if db.execute('PRAGMA quick_check').fetchone()[0] != 'ok':
             raise ValueError('State integrity check failed')
         scope = config.scope()
+        assessments = {}
+        if not variant and db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='baggage_checks'").fetchone():
+            for check in db.execute('SELECT * FROM baggage_checks WHERE scope=? ORDER BY rowid', (scope,)):
+                detail = json.loads(check['details'])
+                bag = public_baggage(detail.get('baggage'))
+                if bag and now-timedelta(hours=12) <= instant(check['observed']) <= now:
+                    identity = (check['run_id'],detail.get('itinerary_id'),detail.get('price'))
+                    assessments[identity] = dict(bag, checked_at=check['observed'])
         if variant:
             if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='baggage_runs'").fetchone():
                 return result
@@ -80,6 +89,9 @@ def export_data(db_path, config, now=None, variant=None):
                 continue
             observed_at = observed.isoformat(timespec='seconds')
             q = Quote(**json.loads(row['details']))
+            bag = public_baggage(q.baggage)
+            if variant and (not q.itinerary_id or not covers(bag,variant)):
+                continue  # Legacy filter prices are not confirmed baggage fares.
             days = (date.fromisoformat(q.return_date) - date.fromisoformat(q.departure)).days
             if (q.origin not in config.origins or not config.min_trip_days <= days <= config.max_trip_days
                     or q.category not in ('nonstop', 'layover') or type(q.price) is not int or q.price <= 0
@@ -88,7 +100,7 @@ def export_data(db_path, config, now=None, variant=None):
                 continue
             key = hashlib.sha256(f'{q.origin}|{q.departure}|{q.return_date}|{q.category}'.encode()).hexdigest()[:16]
             if variant:
-                key = variant + ':' + key
+                key = variant + ':tariff-v1:' + key
             result['histories'].setdefault(key, []).append(dict(at=observed_at, price=q.price))
             # No outbox, message/chat identifiers, arbitrary metadata or raw errors
             # are exported. Research URLs are rebuilt, never trusted from state.
@@ -97,9 +109,9 @@ def export_data(db_path, config, now=None, variant=None):
             item.update(id=key, days=days, at=observed_at, link=search_link(q, config.destination, config.travel_class))
             item['itinerary_id'] = q.itinerary_id if isinstance(q.itinerary_id,str) and re.fullmatch(r'[a-f0-9]{64}',q.itinerary_id) else None
             if variant:
-                # No allowance/weight claims from filter settings or equal prices.
-                item['baggage'] = dict(profile=variant,carry_on_kg=None,checked_kg=None,
-                                      allowance_confirmed=False)
+                item['baggage'] = dict(bag, profile=variant, allowance_confirmed=True, checked_at=observed_at)
+            elif q.itinerary_id:
+                item['baggage'] = assessments.get((row['run_id'],q.itinerary_id,q.price))
             by_run.setdefault(row['run_id'], []).append(item)
         if by_run:
             # A failed/empty baggage check must not silently reuse old variant prices.

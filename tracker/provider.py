@@ -26,6 +26,7 @@ class Quote:
     airlines: str
     link: str
     itinerary_id: str | None = None
+    baggage: dict | None = None
 
     def to_dict(self):
         return asdict(self)
@@ -219,6 +220,41 @@ class FreeProvider:
             lambda pair: "https://www.google.com/travel/flights?" + urlencode({"q":
                 f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} {self.config.travel_class} one adult",
                 "curr": "EUR", "hl": "en"}))
+
+    def baggage_offers(self, origin, departure, return_date, profile):
+        """Inspect actual vendor offers, not prices from a requested bag filter."""
+        from fli.models import FlightSearchFilters, SortBy
+        from .fare_baggage import booking_quotes
+        filters = FlightSearchFilters(**self.common(origin, departure, return_date, profile), sort_by=SortBy.CHEAPEST)
+        try:
+            pairs = self.flights.search(filters, top_n=self.config.outbound_candidates,
+                                        currency="EUR", language="en", country="DE") or []
+            candidates = []
+            for pair in pairs:
+                quotes = normalize_pairs([pair], origin, departure, return_date, profile, self.config,
+                    lambda _: "https://www.google.com/travel/flights?" + urlencode({"q":
+                        f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} economy one adult",
+                        "curr": "EUR", "hl": "en"}))
+                if quotes and quotes[0].itinerary_id:
+                    candidates.append((quotes[0], pair))
+            # Inspect one cheapest return per outbound first, rather than using
+            # the entire small detail budget on near-identical return options.
+            selected, departures = [], set()
+            ordered = sorted(candidates, key=lambda x: x[0].price)
+            for candidate in ordered:
+                departure_id = itinerary_id((candidate[1][0],))
+                if departure_id not in departures:
+                    departures.add(departure_id)
+                    selected.append(candidate)
+            selected += [x for x in ordered if x not in selected]
+            found = []
+            for q, pair in selected[:self.config.outbound_candidates]:
+                found.extend(booking_quotes(self.flights, self.http, pair, filters, q))
+            return found
+        except ServiceError:
+            raise
+        except Exception:
+            raise ServiceError("Baggage tariff details unavailable or changed format") from None
 
     def close(self):
         self.http.close()

@@ -40,3 +40,12 @@ export function matchingBase(offer, root, view) {
     && q.departure===offer.departure && q.return_date===offer.return_date && q.category===offer.category
     && q.at===view.base_at) || null;
 }
+
+export function baggageDescription(value, kind) {
+  const title=kind==='cabin'?'Kabinenkoffer':'Aufgabegepäck', bag=value?.[kind];
+  if(!bag || !['included','chargeable','not_included'].includes(bag.status))return `${title}: keine Angabe`;
+  if(bag.status==='chargeable')return `${title}: gegen Aufpreis · Betrag unbekannt`;
+  if(bag.status==='not_included')return `${title}: nicht enthalten`;
+  const weight=typeof bag.kg==='number' && bag.kg>0?`${bag.kg} kg`:'kg: keine Angabe';
+  return `${title}: ${bag.pieces} enthalten · ${weight}`;
+}

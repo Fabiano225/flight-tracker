@@ -13,17 +13,26 @@ one checked bag, or both. Each view has its own prices, sorting and history.
 The base search imposes no extra baggage requirement: it does **not** mean bags
 are excluded. A cabin suitcase is distinct from a small personal item under the seat.
 
-These are Google search prices with the corresponding baggage filter requested,
-not independently confirmed fare allowances. The current adapter exposes neither
-kilogram limits nor a reliable included/paid baggage breakdown; these remain
-**unknown**, even when two prices are equal. Check both directions and the selected
-fare with the booking provider. Research links do not guarantee the baggage filter
-is retained. A price difference is shown only for matching flight legs and the
-same base-scan snapshot, and is not labelled a confirmed baggage fee.
+The website now inspects **booking offers for specific outbound/return flights**.
+It distinguishes included, chargeable, not included and unknown baggage separately
+for cabin suitcases and checked bags. A baggage view contains only offers whose
+booking details explicitly include the selected bags for the whole trip. It shows
+the vendor and the time checked. Source: Google Flights booking details; always
+reconfirm the fare at checkout. Unknown weights remain **keine Angabe**.
 
-Only the existing shortlist is rechecked, not every possible trip under every bag
-profile. Missing results never inherit a base price or silently reuse an older bag
-snapshot. Telegram alerts and its original price profile are unchanged.
+This is not a general baggage fee calculator. Paid bags with no quoted inclusive
+price are omitted from baggage views rather than silently using the base price.
+We do not infer allowances from airline names or add a fixed surcharge. Airline
+fare upgrades (e.g. Condor Classic) are not automatically priced unless supplied
+by the inspected booking offers. Research links open a search; choose the stated
+vendor and recheck the itinerary and fare. An exact-flight price difference may
+include a vendor or fare change, not just baggage.
+
+Only the existing shortlist is checked, with up to three concrete itineraries per
+query; this is not an exhaustive search of every baggage-inclusive fare. Missing
+results never inherit a base price or silently reuse an older snapshot. Earlier
+unconfirmed filter-price observations are excluded from baggage views/history.
+Telegram alerts and its original price profile are unchanged.
 
 Automated fare monitoring from **Düsseldorf (DUS), Frankfurt (FRA) and Amsterdam
 (AMS) to Bangkok (BKK)**. The tracker searches flexible dates four times per day,
