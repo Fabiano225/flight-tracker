@@ -1,6 +1,6 @@
 # BKK flight tracker
 
-**LIVE** · 2026-09-21T22:02:30+00:00 · **ok**
+**LIVE** · 2026-09-22T05:07:21+00:00 · **ok**
 
 One adult, economy, EUR round-trip prices. Departure dates: 2026-10-15 to 2026-10-23.
 Trips last 14–21 days. Direction duration limit: 1259 minutes including layovers.
@@ -8,7 +8,7 @@ Trips last 14–21 days. Direction duration limit: 1259 minutes including layove
 - Date-search batches: 48/48
 - Date-grid price points: 360/432 (nonstop and any-stops profiles)
 - Itinerary searches: 18; accepted quotes: 18
-- HTTP attempts: 502; queued price-alert items: 2
+- HTTP attempts: 502; queued price-alert items: 1
 
 Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.
 The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.
@@ -16,9 +16,9 @@ The any-stops grid is not a layover-only grid. Actual itinerary stop counts dete
 | Origin | Departure | Return | Type | EUR | Out / back | Stops | Airlines |
 |---|---|---|---|---:|---|---|---|
 | AMS | 2026-10-15 | 2026-10-29 | layover | 507.00 | 16h20 / 15h35 | 1/1 | WY |
-| AMS | 2026-10-18 | 2026-11-03 | layover | 541.00 | 15h15 / 16h00 | 1/1 | EY |
-| AMS | 2026-10-18 | 2026-11-04 | layover | 541.00 | 15h15 / 16h00 | 1/1 | EY |
-| AMS | 2026-10-18 | 2026-11-05 | layover | 541.00 | 15h15 / 16h00 | 1/1 | EY |
+| AMS | 2026-10-15 | 2026-10-31 | layover | 507.00 | 16h20 / 15h35 | 1/1 | WY |
+| AMS | 2026-10-15 | 2026-11-03 | layover | 507.00 | 16h20 / 15h35 | 1/1 | WY |
+| AMS | 2026-10-15 | 2026-11-05 | layover | 512.00 | 16h20 / 15h35 | 1/1 | WY |
 | FRA | 2026-10-19 | 2026-11-02 | layover | 558.00 | 17h15 / 16h00 | 1/1 | WY |
 | FRA | 2026-10-19 | 2026-11-04 | layover | 558.00 | 17h15 / 16h00 | 1/1 | WY |
 | FRA | 2026-10-19 | 2026-11-09 | layover | 558.00 | 17h15 / 16h00 | 1/1 | WY |
