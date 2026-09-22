@@ -20,7 +20,8 @@ def report(store):
         for quote in quotes:
             item = dict(quote)
             item["price_eur"] = f"{item.pop('price') / 100:.2f}"
-            writer.writerow(item)
+            # Keep the CSV schema stable as internal quote metadata grows.
+            writer.writerow({key: item[key] for key in keys})
     config = summary["config"]
     lines = ["# BKK flight tracker", "", f"**{summary['mode'].upper()}** · {summary['started']} · **{summary['status']}**", "",
         f"One adult, {config['travel_class']}, EUR round-trip prices. Departure dates: {config['departure_start']} to {config['departure_end']}.",
