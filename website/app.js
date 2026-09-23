@@ -1,4 +1,4 @@
-import {filteredOffers, comparison, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription} from './model.mjs';
+import {filteredOffers, comparison, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const euro = value => new Intl.NumberFormat('de-DE', {style:'currency',currency:'EUR',maximumFractionDigits: value%100 ? 2 : 0}).format(value/100);
@@ -9,6 +9,23 @@ const hours = m => `${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')}`;
 const node = (tag, text, cls) => {const n=document.createElement(tag); if(text!==undefined)n.textContent=text; if(cls)n.className=cls; return n;};
 const svgNode = (tag, attrs, text) => {const n=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));if(text!==undefined)n.textContent=text;return n;};
 let data, rootData, selectedId;
+const savedFavorites=readFavorites();
+let favorites=savedFavorites.keys, favoritesStored=savedFavorites.ok;
+
+function showFavoritesStatus() {
+  const available=data?favoriteOffers(data.offers,favorites,data.config.destination,$('baggage').value).length:0;
+  $('favorites-count').textContent=`${favorites.size} gemerkt · ${available} in dieser Gepäckauswahl verfügbar`;
+  $('favorites-status').textContent=favoritesStored?'':'Browser-Speicher nicht verfügbar oder gespeicherte Auswahl beschädigt. Änderungen gelten vorerst nur in diesem geöffneten Tab.';
+}
+
+function toggleFavorite(key) {
+  if(favorites.has(key))favorites.delete(key);else favorites.add(key);
+  favoritesStored=writeFavorites(favorites);
+  renderOffers();
+  // Rendering replaces the row buttons; restore keyboard focus explicitly.
+  const button=[...document.querySelectorAll('.favorite-button')].find(b=>b.dataset.favoriteKey===key);
+  (button || $('favorites-only')).focus({preventScroll:true});
+}
 
 function activateBaggage() {
   const profile=$('baggage').value;
@@ -61,11 +78,15 @@ function deltaText(c) {
   return c.delta===null?'Erste Messung':c.delta===0?'→ Unverändert':`${c.delta<0?'↓':'↑'} ${euro(Math.abs(c.delta))} (${c.percent>0?'+':''}${c.percent.toFixed(1).replace('.',',')} %)`;
 }
 function renderOffers() {
-  const filters=Object.fromEntries(new FormData($('filters'))), offers=filteredOffers(data.offers,filters), body=$('offers-body');
+  const filters=Object.fromEntries(new FormData($('filters'))), profile=$('baggage').value;
+  const available=filters.favorites?favoriteOffers(data.offers,favorites,data.config.destination,profile):data.offers;
+  const offers=filteredOffers(available,filters), body=$('offers-body');
+  showFavoritesStatus();
   body.replaceChildren();
   $('results-count').textContent=`${offers.length} von ${data.offers.length} Angeboten · nach Preis sortiert`;
   $('empty').hidden=offers.length>0;
   $('empty').textContent=data.offers.length?'Keine Angebote für diese Auswahl. Probiere einen anderen Filter.':($('baggage').value==='base'?'Noch keine geprüften Angebote im aktuellen Suchfenster. Den Suchstatus findest du oben.':'Gepäckpreis nicht verfügbar: In der geprüften Auswahl weist bisher kein Angebot das gewünschte Gepäck als enthalten aus. Das bedeutet nicht, dass es solche Tarife generell nicht gibt.');
+  if(filters.favorites)$('empty').textContent=favorites.size?'Keine verfügbaren Favoriten für diese Filter und Gepäckauswahl. Deine gespeicherte Auswahl bleibt erhalten; fehlende Angebote sind keine aktuellen Preise.':'Noch keine Favoriten. Schalte „Nur Favoriten“ aus und merke Angebote mit dem Stern.';
   const select=$('history-select');select.replaceChildren();
   offers.forEach(q=>{const o=node('option',`${q.origin} · ${q.category==='nonstop'?'Direkt':'Umstieg'} · ${day(q.departure)}–${day(q.return_date)} · ${q.days} Tage`);o.value=q.id;select.append(o);});
   if(!offers.some(q=>q.id===selectedId))selectedId=offers[0]?.id;
@@ -73,7 +94,13 @@ function renderOffers() {
   for(const q of offers) {
     const c=comparison(q,data.histories[q.id]||[],data.config), row=node('tr'); row.dataset.id=q.id;
     if(q.id===selectedId)row.className='selected-row';
-    const route=node('td');route.append(node('strong',`${q.origin} → ${data.config.destination}`),node('small',`${category(q)} · ${q.airlines}`));
+    const route=node('td'),routeTitle=node('div',undefined,'route-title'),key=favoriteKey(q,data.config.destination,profile),marked=favorites.has(key);
+    const star=node('button',marked?'★':'☆','favorite-button');star.type='button';star.dataset.favoriteKey=key;
+    star.setAttribute('aria-pressed',String(marked));
+    star.setAttribute('aria-label',`${marked?'Favorit entfernen':'Als Favorit merken'}: ${q.origin} nach ${data.config.destination}, ${q.departure} bis ${q.return_date}, ${category(q)}, ${baggageLabels[profile]}`);
+    star.title=marked?'Favorit entfernen':'Als Favorit merken';star.addEventListener('click',()=>toggleFavorite(key));
+    routeTitle.append(node('strong',`${q.origin} → ${data.config.destination}`),star);
+    route.append(routeTitle,node('small',`${category(q)} · ${q.airlines}`));
     const dates=node('td');dates.append(node('strong',`${day(q.departure)} – ${day(q.return_date)}`),node('small',`${q.days} Tage · ${q.departure.slice(0,4)}`));
     const duration=node('td');duration.append(node('strong',`${hours(q.outbound_minutes)} / ${hours(q.inbound_minutes)}`),node('small',`Hin / zurück · Stopps ${q.outbound_stops}/${q.inbound_stops}`));
     const price=node('td');price.append(node('strong',euro(q.price),'price'),node('div',deltaText(c),`delta ${c.delta===null||c.delta===0?'neutral':c.delta<0?'down':'up'}`));
@@ -143,4 +170,10 @@ $('filters').addEventListener('reset',()=>{setTimeout(()=>{if(data)renderOffers(
 $('history-select').addEventListener('change',event=>{selectedId=event.target.value;renderChart();});
 $('reload').addEventListener('click',load);
 $('baggage').addEventListener('change',()=>{if(rootData){selectedId=null;activateBaggage();}});
+window.addEventListener('storage',event=>{
+  if(event.key!==favoritesStorageKey && event.key!==null)return;
+  const saved=readFavorites();favorites=saved.keys;favoritesStored=saved.ok;
+  if(data)renderOffers();else showFavoritesStatus();
+});
+showFavoritesStatus();
 load();

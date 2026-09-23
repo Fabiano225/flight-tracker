@@ -5,6 +5,41 @@ export function filteredOffers(offers, filters) {
     && (!filters.days || q.days === Number(filters.days)))
     .sort((a,b) => a.price-b.price || a.departure.localeCompare(b.departure));
 }
+
+export const favoritesStorageKey = 'flightwatch:flight-tracker:favorites:v1';
+// Track the same comparison as the chart, not a price/vendor that can change.
+export function favoriteKey(offer, destination, profile = 'base') {
+  return JSON.stringify([destination, offer.origin, offer.departure, offer.return_date, offer.category, profile]);
+}
+function validFavoriteKey(key) {
+  try {
+    if(typeof key !== 'string' || key.length > 160)return false;
+    const v=JSON.parse(key);
+    return Array.isArray(v) && v.length===6 && v.every(x=>typeof x==='string')
+      && /^[A-Z]{3}$/.test(v[0]) && /^[A-Z]{3}$/.test(v[1])
+      && /^\d{4}-\d{2}-\d{2}$/.test(v[2]) && /^\d{4}-\d{2}-\d{2}$/.test(v[3])
+      && ['nonstop','layover'].includes(v[4]) && ['base','cabin','checked','both'].includes(v[5]);
+  } catch {return false;}
+}
+export function readFavorites(getStorage = ()=>globalThis.localStorage) {
+  try {
+    const raw=getStorage().getItem(favoritesStorageKey);
+    if(raw===null)return {keys:new Set(),ok:true};
+    const values=JSON.parse(raw);
+    if(!Array.isArray(values) || !values.every(validFavoriteKey))throw new Error('Invalid favorites');
+    return {keys:new Set(values),ok:true};
+  } catch {return {keys:new Set(),ok:false};}
+}
+export function writeFavorites(keys, getStorage = ()=>globalThis.localStorage) {
+  try {
+    if(![...keys].every(validFavoriteKey))return false;
+    getStorage().setItem(favoritesStorageKey,JSON.stringify([...keys]));
+    return true;
+  } catch {return false;}
+}
+export function favoriteOffers(offers, keys, destination, profile) {
+  return offers.filter(q=>keys.has(favoriteKey(q,destination,profile)));
+}
 export function comparison(offer, history, config) {
   const prior = history.filter(p => Date.parse(p.at) < Date.parse(offer.at)).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
   const previous = prior.length ? prior[prior.length-1].price : null;

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription} from '../website/model.mjs';
+import {filteredOffers,comparison,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -57,4 +57,47 @@ test('baggage labels distinguish included paid absent and unknown without invent
   assert.equal(baggageDescription({checked:{status:'not_included'}},'checked'),'Aufgabegepäck: nicht enthalten');
   assert.equal(baggageDescription({checked:{status:'included',pieces:1,kg:null}},'checked'),'Aufgabegepäck: 1 enthalten · kg: keine Angabe');
   assert.equal(baggageDescription({cabin:{status:'included',pieces:1,kg:8}},'cabin'),'Kabinenkoffer: 1 enthalten · 8 kg');
+});
+
+const savedOffer={...offer,return_date:'2026-10-29'};
+test('favorite identity survives price airline and observation changes',()=>{
+  assert.equal(favoriteKey(savedOffer,'BKK'),favoriteKey({...savedOffer,price:55000,airlines:'NEW',at:'tomorrow',itinerary_id:'new'},'BKK'));
+  for(const changed of [{origin:'AMS'},{departure:'2026-10-14'},{return_date:'2026-10-30'},{category:'nonstop'}])
+    assert.notEqual(favoriteKey(savedOffer,'BKK'),favoriteKey({...savedOffer,...changed},'BKK'));
+  assert.notEqual(favoriteKey(savedOffer,'BKK'),favoriteKey(savedOffer,'HKT'));
+  assert.notEqual(favoriteKey(savedOffer,'BKK','base'),favoriteKey(savedOffer,'BKK','both'));
+});
+
+test('favorites survive reload, removal persists, storage is namespaced',()=>{
+  const memory=new Map([['unrelated','keep']]);
+  const storage=()=>({getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v)});
+  assert.deepEqual([...readFavorites(storage).keys],[]);
+  const keys=new Set([favoriteKey(savedOffer,'BKK')]);
+  assert.equal(writeFavorites(keys,storage),true);
+  assert.deepEqual(readFavorites(storage),{keys,ok:true});
+  keys.clear();assert.equal(writeFavorites(keys,storage),true);
+  assert.equal(readFavorites(storage).keys.size,0);
+  assert.equal(memory.get('unrelated'),'keep');
+  assert.ok(memory.has(favoritesStorageKey));
+});
+
+test('favorite filter combines with other filters and does not fabricate unavailable fares',()=>{
+  const keys=new Set([favoriteKey(savedOffer,'BKK')]);
+  const offers=[savedOffer,{...savedOffer,origin:'AMS',price:50000}];
+  assert.deepEqual(filteredOffers(favoriteOffers(offers,keys,'BKK','base'),{origin:'FRA'}),[savedOffer]);
+  assert.deepEqual(filteredOffers(favoriteOffers(offers,keys,'BKK','base'),{origin:'AMS'}),[]);
+  assert.deepEqual(favoriteOffers(offers,keys,'BKK','both'),[]);
+  assert.deepEqual(favoriteOffers([],keys,'BKK','base'),[]);
+  assert.equal(keys.size,1); // A missing offer is not deleted.
+});
+
+test('blocked storage and malformed contents fail gracefully without changing in-memory favorites',()=>{
+  const blocked=()=>{throw new Error('storage denied');};
+  const keys=new Set([favoriteKey(savedOffer,'BKK')]);
+  assert.deepEqual(readFavorites(blocked),{keys:new Set(),ok:false});
+  assert.equal(writeFavorites(keys,blocked),false);assert.equal(keys.size,1);
+  assert.equal(writeFavorites(keys,()=>({setItem:()=>{throw new Error('quota');}})),false);
+  for(const raw of ['{bad','null','{}','[1]','["untrusted"]'])
+    assert.equal(readFavorites(()=>({getItem:()=>raw})).ok,false);
+  assert.equal(writeFavorites(new Set(['invalid']),()=>({setItem:()=>assert.fail()})),false);
 });

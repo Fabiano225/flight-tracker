@@ -6,6 +6,19 @@ Mobile-friendly price tables, date and duration filters, separate direct/connect
 fares, and real price-history charts. Data updates automatically after each tracker
 workflow. The dashboard explicitly labels incomplete searches and stale observations.
 
+### Favorites (website only)
+
+Use the star beside an offer to save it, and **Nur Favoriten** to filter the table
+and history selector. Favorites persist in this browser's local storage, without
+an account or device sync. Clearing site data removes them. If storage is blocked,
+the page explains that changes last only for the open tab. Filter reset does not
+delete favorites. Missing offers remain saved but are never shown as current fares.
+
+A favorite identifies route, outbound/return dates, direct/connecting category and
+baggage profile—not a fixed price, airline or vendor. It follows the current offer
+for that comparison as prices change. Baggage profiles are saved separately.
+Favorites neither start extra searches nor change Telegram alerts.
+
 ### Baggage price views (website only)
 
 Use **Gepäck im Suchpreis** to switch between the base search, one cabin suitcase,
