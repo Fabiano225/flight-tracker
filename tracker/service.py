@@ -109,6 +109,7 @@ def scan(config, store, provider, now, demo=False):
             store.enqueue(run_id, "health", now, "Flight tracker recovered: calendar searches and itinerary checks succeeded.")
             store.set_meta("unhealthy", "no")
         summary["http_attempts"] = provider.http.used
+        summary["calendar_dates_recovered"] = getattr(getattr(provider, "dates", None), "recovered_dates", 0)
         db.execute("UPDATE runs SET status=?,summary=? WHERE id=?", (summary["status"], json.dumps(summary), run_id))
         db.commit()
         return summary

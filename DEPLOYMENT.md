@@ -83,6 +83,20 @@ Treat RPC errors, consent pages and rate limits as source-health events, not as 
 flights”. Completed batches remain in SQLite. Wait for a later scheduled run rather
 than deleting state or starting several concurrent scans.
 
+An isolated Google RPC 13 (internal source error) gets the normal short retries,
+then one deferred recheck after the other dates in that batch and a 30-second
+pause. Only failed dates are repeated, at most two per batch; successful dates
+are retained in memory. Three such date failures stop that batch. The existing
+run-wide request/time limits still apply. Access/rate denials, parser errors and
+budget exhaustion do not qualify for this deferred pass. An unresolved date
+still leaves the batch incomplete and the workflow red; no error is treated as
+an empty flight result. The run summary counts dates recovered by this recheck.
+
+The final **Surface partial scans or failed deliveries** step deliberately exits
+with code 1 when the scan or delivery was incomplete. Its generic message is not
+the underlying cause: inspect the scan summary and the earlier scan/delivery
+step. A red scan can still contain valid quotes and successful Telegram delivery.
+
 ### State restore or push failure
 
 Do not delete `history.sqlite3`. Keep the recovery artifact, pause the workflow with

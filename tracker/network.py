@@ -13,6 +13,10 @@ class BudgetError(ServiceError):
     pass
 
 
+class TransientSourceError(ServiceError):
+    """A known internal source error, eligible for one bounded date recheck."""
+
+
 class NoRedirect(request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None

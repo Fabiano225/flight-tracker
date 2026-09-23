@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import Mock
 
 from tracker.config import Config
-from tracker.network import ServiceError, BudgetError
+from tracker.network import ServiceError, BudgetError, TransientSourceError
 from tracker.planner import Batch
 from tracker.provider import FreeProvider, GuardedClient, PrefetchDates
 import json
@@ -62,6 +62,24 @@ class CalendarContractTests(unittest.TestCase):
 
 
 class ClientLimitsTests(unittest.TestCase):
+    def test_exhausted_internal_error_is_typed_and_bounded(self):
+        bad = NS(status_code=200, text=")]}'\n" + json.dumps([["wrb.fr", "LqxFAb", None, None, None, [13]]]))
+        session = NS(post=Mock(return_value=bad))
+        client = GuardedClient(Config(), session=session, sleep=Mock())
+        with self.assertRaises(TransientSourceError):
+            client.post("https://www.google.com", "")
+        self.assertEqual(client.used, 3)
+
+    def test_rpc_denials_never_become_transient_errors(self):
+        for code in (7, 8, 16):
+            bad = NS(status_code=200, text=")]}'\n" + json.dumps([["wrb.fr", "LqxFAb", None, None, None, [code]]]))
+            session = NS(post=Mock(return_value=bad))
+            client = GuardedClient(Config(), session=session, sleep=Mock())
+            for _ in range(2):
+                with self.assertRaises(BudgetError):
+                    client.post("https://www.google.com", "")
+            self.assertEqual(client.used, 1)
+
     def test_internal_rpc_error_backs_off_then_recovers(self):
         bad = NS(status_code=200,text=")]}'\n"+json.dumps([["wrb.fr","LqxFAb",None,None,None,[13]]]))
         good = NS(status_code=200,text=")]}'\n"+json.dumps([["wrb.fr","LqxFAb","[]"]]))
@@ -115,6 +133,60 @@ class ClientLimitsTests(unittest.TestCase):
 
 
 class PrefetchDateTests(unittest.TestCase):
+    def recovery_provider(self, outcomes):
+        provider = FreeProvider(Config())
+        self.addCleanup(provider.close)
+        provider.http.sleep = Mock()
+        provider.dates.shopping._fetch_flights = Mock(side_effect=outcomes)
+        start = date.today() + timedelta(days=30)
+        return provider, Batch("FRA", "any", start, start + timedelta(days=2), 15)
+
+    def test_deferred_recovery_only_repeats_failed_date(self):
+        offer = [NS(price=650, currency="EUR")]
+        provider, batch = self.recovery_provider([offer, TransientSourceError("RPC 13"), offer, offer])
+        result = provider.fetch(batch)
+        self.assertEqual(list(result.values()), [65000] * 3)
+        dates = [call.args[0].flight_segments[0].travel_date
+                 for call in provider.dates.shopping._fetch_flights.call_args_list]
+        expected = [dep for dep, _ in batch.pairs()]
+        self.assertEqual(dates, expected + [expected[1]])
+        provider.http.sleep.assert_called_once_with(30)
+        self.assertEqual(provider.dates.recovered_dates, 1)
+
+    def test_failed_recheck_is_not_an_empty_calendar_or_success(self):
+        error = TransientSourceError("RPC 13")
+        provider, batch = self.recovery_provider([[], error, [], error])
+        with self.assertRaisesRegex(TransientSourceError, "persisted after deferred recheck"):
+            provider.fetch(batch)
+        self.assertEqual(provider.dates.shopping._fetch_flights.call_count, 4)
+        self.assertEqual(provider.dates.recovered_dates, 0)
+
+    def test_widespread_internal_errors_stop_without_deferred_pass(self):
+        provider, batch = self.recovery_provider([TransientSourceError("RPC 13")] * 3)
+        with self.assertRaisesRegex(TransientSourceError, "Multiple date searches"):
+            provider.fetch(batch)
+        self.assertEqual(provider.dates.shopping._fetch_flights.call_count, 3)
+        provider.http.sleep.assert_not_called()
+
+    def test_budget_or_parser_errors_abort_even_with_pending_recovery(self):
+        for error in (BudgetError("pause"), ServiceError("format changed")):
+            provider, batch = self.recovery_provider([TransientSourceError("RPC 13"), error])
+            with self.assertRaises(type(error)):
+                provider.fetch(batch)
+            self.assertEqual(provider.dates.shopping._fetch_flights.call_count, 2)
+            provider.http.sleep.assert_not_called()
+
+    def test_recheck_still_respects_transport_budget(self):
+        provider, batch = self.recovery_provider([TransientSourceError("RPC 13"), [], [], BudgetError("budget")])
+        with self.assertRaises(BudgetError):
+            provider.fetch(batch)
+        self.assertEqual(provider.dates.recovered_dates, 0)
+
+    def test_empty_recheck_stays_unknown_not_zero(self):
+        provider, batch = self.recovery_provider([TransientSourceError("RPC 13"), [], [], []])
+        self.assertEqual(list(provider.fetch(batch).values()), [None] * 3)
+        self.assertEqual(provider.dates.recovered_dates, 1)
+
     def test_each_date_pair_is_searched_and_empty_remains_unknown(self):
         provider = FreeProvider(Config())
         from fli.models import DateSearchFilters

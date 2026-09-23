@@ -9,7 +9,7 @@ import threading
 import time
 
 from .config import cents
-from .network import ServiceError, BudgetError
+from .network import ServiceError, BudgetError, TransientSourceError
 
 
 @dataclass(frozen=True)
@@ -105,6 +105,8 @@ class GuardedClient:
                     if code in {7, 8, 16}:
                         self.blocked = True
                         raise BudgetError(f"Flight source RPC {code}; pause until next run")
+                    if code == 13:
+                        raise TransientSourceError("Google Flights RPC 13; no price data received after retries")
                     raise ServiceError(f"Google Flights RPC {code if code is not None else 'error'} or changed response; no price data received")
                 return response
 
@@ -136,6 +138,7 @@ class PrefetchDates:
         from fli.search import SearchFlights
         self.shopping = SearchFlights()
         self.shopping.client = client
+        self.recovered_dates = 0
 
     def search(self, filters, **locale):
         from fli.models import FlightSearchFilters, SortBy
@@ -143,10 +146,12 @@ class PrefetchDates:
         current = date.fromisoformat(filters.from_date)
         end = date.fromisoformat(filters.to_date)
         rows = []
-        while current <= end:
-            returning = current + timedelta(days=filters.duration)
+        pending = []
+
+        def fetch_day(day):
+            returning = day + timedelta(days=filters.duration)
             segments = deepcopy(filters.flight_segments)
-            segments[0].travel_date = current.isoformat()
+            segments[0].travel_date = day.isoformat()
             segments[1].travel_date = returning.isoformat()
             search = FlightSearchFilters(trip_type=filters.trip_type, passenger_info=filters.passenger_info,
                 flight_segments=segments, stops=filters.stops, seat_type=filters.seat_type,
@@ -156,9 +161,30 @@ class PrefetchDates:
                 raise ServiceError("Date-search currency is missing or differs from EUR")
             prices = [offer.price for offer in offers if offer.price is not None and offer.price > 0]
             if prices:
-                rows.append(DatePrice(date=(datetime.combine(current, datetime.min.time()),
+                rows.append(DatePrice(date=(datetime.combine(day, datetime.min.time()),
                     datetime.combine(returning, datetime.min.time())), price=min(prices), currency="EUR"))
+
+        while current <= end:
+            try:
+                fetch_day(current)
+            except TransientSourceError as exc:
+                # Keep successful dates in memory. Only isolated INTERNAL errors
+                # qualify; denials, malformed data and budget errors propagate.
+                pending.append(current)
+                if len(pending) >= 3:
+                    raise TransientSourceError("Multiple date searches returned RPC 13; stopping this batch") from exc
             current += timedelta(days=1)
+
+        if pending:
+            # One deferred pass, at most two dates per batch. All requests still
+            # use the same run deadline, request cap and paced transport.
+            self.shopping.client.sleep(30)
+            for day in pending:
+                try:
+                    fetch_day(day)
+                except TransientSourceError as exc:
+                    raise TransientSourceError(f"{day.isoformat()}: RPC 13 persisted after deferred recheck") from exc
+                self.recovered_dates += 1
         return rows
 
 
