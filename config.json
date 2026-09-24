@@ -5,7 +5,7 @@
     "AMS"
   ],
   "destination": "BKK",
-  "departure_start": "2026-10-14",
+  "departure_start": "2026-10-20",
   "departure_end": "2026-10-23",
   "min_trip_days": 14,
   "max_trip_days": 21,
