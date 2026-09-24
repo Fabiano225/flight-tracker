@@ -1,6 +1,6 @@
 {
-  "run_id": "3d2580c376074c74b239d816a36bb052",
-  "started": "2026-09-24T17:18:00+00:00",
+  "run_id": "0a737c983f89484eb5591c5cf1cf7ad1",
+  "started": "2026-09-24T21:35:39+00:00",
   "mode": "live",
   "status": "ok",
   "calendar_queries_planned": 48,
@@ -10,7 +10,7 @@
   "calendar_unknown": 32,
   "verification_searches": 18,
   "verified_quotes": 18,
-  "queued_deals": 2,
+  "queued_deals": 0,
   "http_attempts": 264,
   "errors": [],
   "config": {
@@ -47,7 +47,7 @@
     "http_attempts": 3,
     "request_interval_seconds": 1.2
   },
-  "queued_check_status": 0,
+  "queued_check_status": 1,
   "calendar_dates_recovered": 0,
   "quotes": [
     {
