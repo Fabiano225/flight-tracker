@@ -1,6 +1,6 @@
 {
-  "run_id": "d25e2f9da20a4c8f8079af29da3d375a",
-  "started": "2026-09-24T11:40:51+00:00",
+  "run_id": "cb0ee60c941b4cdfbef01b96674d3ef6",
+  "started": "2026-09-24T12:04:37+00:00",
   "mode": "live",
   "status": "ok",
   "calendar_queries_planned": 48,
@@ -10,8 +10,8 @@
   "calendar_unknown": 80,
   "verification_searches": 18,
   "verified_quotes": 19,
-  "queued_deals": 2,
-  "http_attempts": 559,
+  "queued_deals": 1,
+  "http_attempts": 576,
   "errors": [],
   "config": {
     "origins": [
@@ -157,6 +157,21 @@
     },
     {
       "origin": "FRA",
+      "departure": "2026-10-16",
+      "return_date": "2026-11-06",
+      "category": "layover",
+      "price": 61100,
+      "outbound_minutes": 1215,
+      "inbound_minutes": 965,
+      "outbound_stops": 1,
+      "inbound_stops": 1,
+      "airlines": "DE, EY",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-16+return+2026-11-06+economy+one+adult&curr=EUR&hl=en",
+      "itinerary_id": "90b72eb3f4831c221d2b7581cd3c08c53b2aec2e412a62150506e6be021c9c8f",
+      "baggage": null
+    },
+    {
+      "origin": "FRA",
       "departure": "2026-10-14",
       "return_date": "2026-11-04",
       "category": "nonstop",
@@ -213,21 +228,6 @@
       "airlines": "DE",
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-10-20+return+2026-11-04+economy+one+adult&curr=EUR&hl=en",
       "itinerary_id": "c4f896dc85cd154bdd8a4d3bb25be222b0fab93c728f46e67180afd84b4b35da",
-      "baggage": null
-    },
-    {
-      "origin": "AMS",
-      "departure": "2026-10-15",
-      "return_date": "2026-10-29",
-      "category": "layover",
-      "price": 69600,
-      "outbound_minutes": 1245,
-      "inbound_minutes": 960,
-      "outbound_stops": 1,
-      "inbound_stops": 1,
-      "airlines": "EY",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-15+return+2026-10-29+economy+one+adult&curr=EUR&hl=en",
-      "itinerary_id": "55f1a5f78ff9a13162833cc2004c7a3f88d71ea290eff17678f723beb80f1330",
       "baggage": null
     },
     {
