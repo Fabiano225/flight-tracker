@@ -52,6 +52,19 @@
         <label>Verbindung<select id="category" name="category"><option value="">Alle Verbindungen</option><option value="nonstop">Nur Direktflüge</option><option value="layover">Mit Umstieg</option></select></label>
         <label>Hinflug<select id="departure" name="departure"><option value="">Alle Abflugtage</option></select></label>
         <label>Reisedauer<select id="days" name="days"><option value="">Alle Reisedauern</option></select></label>
+        <details class="airline-filter" id="airline-filter">
+          <summary><span class="airline-summary-copy"><span class="airline-eyebrow">AIRLINES</span><strong id="airline-summary">Alle Airlines</strong></span><span class="airline-chevron" aria-hidden="true"></span></summary>
+          <div class="airline-popover">
+            <div class="airline-popover-head"><div><strong>Airlines filtern</strong><span id="airline-choice-count">Airlines im aktuellen Preisstand</span></div><button id="airline-clear" type="button" class="airline-clear" disabled>Auswahl löschen</button></div>
+            <fieldset class="airline-mode"><legend>Was soll mit den ausgewählten Airlines passieren?</legend>
+              <label><input id="airline-mode-include" type="radio" name="airline-mode" value="include" checked><span>Nur diese anzeigen</span></label>
+              <label><input id="airline-mode-exclude" type="radio" name="airline-mode" value="exclude"><span>Diese ausblenden</span></label>
+            </fieldset>
+            <div id="airline-options" class="airline-options" role="group" aria-label="Airlines auswählen"></div>
+            <p id="airline-empty" class="airline-empty" hidden>Für diese Ansicht liegen keine Airline-Angaben vor.</p>
+            <p class="airline-hint">Bei mehreren Airlines in einem Angebot genügt eine ausgewählte Airline, damit der Flug bei „Nur diese anzeigen“ bleibt.</p>
+          </div>
+        </details>
         <button type="reset" class="reset">Zurücksetzen</button>
         <div class="favorite-filter"><label><input id="favorites-only" name="favorites" type="checkbox" value="only"> Nur Favoriten</label><span id="favorites-count" aria-live="polite">0 gemerkt</span></div>
       </form>

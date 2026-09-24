@@ -1,4 +1,4 @@
-import {filteredOffers, comparison, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey} from './model.mjs';
+import {filteredOffers, comparison, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const euro = value => new Intl.NumberFormat('de-DE', {style:'currency',currency:'EUR',maximumFractionDigits: value%100 ? 2 : 0}).format(value/100);
@@ -9,6 +9,7 @@ const hours = m => `${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')}`;
 const node = (tag, text, cls) => {const n=document.createElement(tag); if(text!==undefined)n.textContent=text; if(cls)n.className=cls; return n;};
 const svgNode = (tag, attrs, text) => {const n=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));if(text!==undefined)n.textContent=text;return n;};
 let data, rootData, selectedId;
+let selectedAirlines=new Set(),airlineMode='include';
 const savedFavorites=readFavorites();
 let favorites=savedFavorites.keys, favoritesStored=savedFavorites.ok;
 
@@ -30,11 +31,41 @@ function toggleFavorite(key) {
 function activateBaggage() {
   const profile=$('baggage').value;
   data=baggageView(rootData,profile);
+  renderAirlineOptions();
   $('baggage-note').textContent=profile==='base'
     ?'Basispreis ohne zusätzliche Gepäckanforderung. Gepäck kann bereits enthalten sein.'
     :`Nur Angebote, deren Buchungsdetails ${baggageLabels[profile]} für die gesamte Reise als enthalten ausweisen. Preis und Verlauf gehören zu dieser Gepäckauswahl.`;
   fillSelect('departure',[...new Set(data.offers.map(q=>q.departure))].sort(),day);
   showStatus();renderSummary();renderOffers();
+}
+
+function renderAirlineOptions() {
+  const options=$('airline-options');options.replaceChildren();
+  const allOffers=[...rootData.offers,...Object.values(rootData.baggage_profiles||{}).flatMap(view=>view.offers||[])];
+  const choices=airlineChoices(allOffers),currentCounts=new Map(airlineChoices(data.offers).map(x=>[x.code,x.count]));
+  for(const airline of choices) {
+    const label=node('label',undefined,'airline-option');
+    const input=node('input');input.type='checkbox';input.name='airline';input.value=airline.code;
+    input.setAttribute('aria-label',airline.label);
+    input.checked=selectedAirlines.has(airline.code);
+    const name=node('span',airline.label,'airline-name');
+    const count=node('span',String(currentCounts.get(airline.code)||0),'airline-count');
+    label.append(input,name,count);options.append(label);
+  }
+  const none=options.children.length===0;
+  $('airline-empty').hidden=!none;
+  $('airline-choice-count').textContent=`${choices.length} Airlines im Tracker · ${airlineChoices(data.offers).length} hier verfügbar`;
+  $('airline-mode-include').checked=airlineMode==='include';
+  $('airline-mode-exclude').checked=airlineMode==='exclude';
+  updateAirlineSummary();
+}
+
+function updateAirlineSummary() {
+  const count=selectedAirlines.size;
+  $('airline-summary').textContent=count
+    ?`${count} gewählt · ${airlineMode==='include'?'nur anzeigen':'ausblenden'}`
+    :'Alle Airlines';
+  $('airline-clear').disabled=count===0;
 }
 
 function fillSelect(id, values, label) {
@@ -79,6 +110,7 @@ function deltaText(c) {
 }
 function renderOffers() {
   const filters=Object.fromEntries(new FormData($('filters'))), profile=$('baggage').value;
+  filters.airlines=[...selectedAirlines];filters.airlineMode=airlineMode;
   const available=filters.favorites?favoriteOffers(data.offers,favorites,data.config.destination,profile):data.offers;
   const offers=filteredOffers(available,filters), body=$('offers-body');
   showFavoritesStatus();
@@ -165,8 +197,20 @@ async function load() {
   } finally {$('reload').disabled=false;}
 }
 $('filters').addEventListener('submit',event=>event.preventDefault());
-$('filters').addEventListener('change',()=>{if(data)renderOffers();});
-$('filters').addEventListener('reset',()=>{setTimeout(()=>{if(data)renderOffers();},0);});
+$('filters').addEventListener('change',event=>{
+  if(event.target.name==='airline') {
+    if(event.target.checked)selectedAirlines.add(event.target.value);else selectedAirlines.delete(event.target.value);
+    updateAirlineSummary();
+  }
+  if(event.target.name==='airline-mode') {
+    airlineMode=event.target.value;updateAirlineSummary();
+  }
+  if(data)renderOffers();
+});
+$('airline-clear').addEventListener('click',()=>{
+  selectedAirlines.clear();renderAirlineOptions();if(data)renderOffers();
+});
+$('filters').addEventListener('reset',()=>{setTimeout(()=>{selectedAirlines.clear();airlineMode='include';renderAirlineOptions();if(data)renderOffers();},0);});
 $('history-select').addEventListener('change',event=>{selectedId=event.target.value;renderChart();});
 $('reload').addEventListener('click',load);
 $('baggage').addEventListener('change',()=>{if(rootData){selectedId=null;activateBaggage();}});

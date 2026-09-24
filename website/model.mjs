@@ -1,9 +1,24 @@
 export function filteredOffers(offers, filters) {
+  const selectedAirlines=Array.isArray(filters.airlines)?filters.airlines:[];
   return offers.filter(q => (!filters.origin || q.origin === filters.origin)
     && (!filters.category || q.category === filters.category)
     && (!filters.departure || q.departure === filters.departure)
-    && (!filters.days || q.days === Number(filters.days)))
+    && (!filters.days || q.days === Number(filters.days))
+    && (!selectedAirlines.length || (filters.airlineMode==='exclude'
+      ? !airlineCodes(q).some(code=>selectedAirlines.includes(code))
+      : airlineCodes(q).some(code=>selectedAirlines.includes(code)))))
     .sort((a,b) => a.price-b.price || a.departure.localeCompare(b.departure));
+}
+
+export const airlineNames={DE:'Condor',EY:'Etihad Airways',QR:'Qatar Airways',TG:'Thai Airways',WY:'Oman Air'};
+export function airlineCodes(offer) {
+  return [...new Set(String(offer?.airlines||'').split(',').map(code=>code.trim().toUpperCase()).filter(Boolean))];
+}
+export function airlineChoices(offers) {
+  const counts=new Map();
+  for(const offer of offers)for(const code of airlineCodes(offer))counts.set(code,(counts.get(code)||0)+1);
+  return [...counts].map(([code,count])=>({code,count,label:airlineNames[code]?`${airlineNames[code]} (${code})`:code}))
+    .sort((a,b)=>a.label.localeCompare(b.label,'de'));
 }
 
 export const favoritesStorageKey = 'flightwatch:flight-tracker:favorites:v1';

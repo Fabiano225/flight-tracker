@@ -6,6 +6,13 @@ Mobile-friendly price tables, date and duration filters, separate direct/connect
 fares, and real price-history charts. Data updates automatically after each tracker
 workflow. The dashboard explicitly labels incomplete searches and stale observations.
 
+Use the **Airlines** filter to keep selected carriers in the results or hide them.
+Airline names are shown with their carrier code. For connections involving several
+carriers, the inclusion filter keeps an offer when at least one selected carrier
+operates a leg; the exclusion filter hides an offer when any selected carrier is
+involved. Airline filters combine with the airport, date, trip-length and favorite
+filters. The available list reflects the current published prices.
+
 ### Favorites (website only)
 
 Use the star beside an offer to save it, and **Nur Favoriten** to filter the table
