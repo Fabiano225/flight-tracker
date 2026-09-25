@@ -1,18 +1,20 @@
 {
-  "run_id": "319e52c5cc814098802ad31aaee67368",
-  "started": "2026-09-25T05:04:37+00:00",
+  "run_id": "6ba0d280970f48f9abc0d6dc7482c141",
+  "started": "2026-09-25T11:57:51+00:00",
   "mode": "live",
-  "status": "ok",
+  "status": "partial",
   "calendar_queries_planned": 48,
   "calendar_queries_ok": 48,
   "calendar_slots": 192,
   "calendar_prices": 160,
   "calendar_unknown": 32,
   "verification_searches": 18,
-  "verified_quotes": 18,
+  "verified_quotes": 17,
   "queued_deals": 0,
-  "http_attempts": 263,
-  "errors": [],
+  "http_attempts": 287,
+  "errors": [
+    "Verify AMS/2026-10-20/2026-11-08/any: Google Flights RPC 13; no price data received after retries"
+  ],
   "config": {
     "origins": [
       "DUS",
@@ -48,7 +50,7 @@
     "request_interval_seconds": 1.2
   },
   "queued_check_status": 1,
-  "calendar_dates_recovered": 0,
+  "calendar_dates_recovered": 1,
   "quotes": [
     {
       "origin": "AMS",
@@ -93,21 +95,6 @@
       "airlines": "WY",
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-20+return+2026-11-07+economy+one+adult&curr=EUR&hl=en",
       "itinerary_id": "462c0f74c9d39180ac9d03d910a84519000cf14dac59019b035f9ef994c098b4",
-      "baggage": null
-    },
-    {
-      "origin": "AMS",
-      "departure": "2026-10-20",
-      "return_date": "2026-11-08",
-      "category": "layover",
-      "price": 51100,
-      "outbound_minutes": 980,
-      "inbound_minutes": 935,
-      "outbound_stops": 1,
-      "inbound_stops": 1,
-      "airlines": "WY",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-20+return+2026-11-08+economy+one+adult&curr=EUR&hl=en",
-      "itinerary_id": "9cc6abb19afef65fd09136fd4329a601e66187676365796497fd3b4348fbfdab",
       "baggage": null
     },
     {
