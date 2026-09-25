@@ -1,20 +1,18 @@
 {
-  "run_id": "6ba0d280970f48f9abc0d6dc7482c141",
-  "started": "2026-09-25T11:57:51+00:00",
+  "run_id": "35d8388ac7fe40b99e4f5b40199e9867",
+  "started": "2026-09-25T17:18:09+00:00",
   "mode": "live",
-  "status": "partial",
+  "status": "ok",
   "calendar_queries_planned": 48,
   "calendar_queries_ok": 48,
   "calendar_slots": 192,
   "calendar_prices": 160,
   "calendar_unknown": 32,
   "verification_searches": 18,
-  "verified_quotes": 17,
+  "verified_quotes": 18,
   "queued_deals": 0,
-  "http_attempts": 287,
-  "errors": [
-    "Verify AMS/2026-10-20/2026-11-08/any: Google Flights RPC 13; no price data received after retries"
-  ],
+  "http_attempts": 264,
+  "errors": [],
   "config": {
     "origins": [
       "DUS",
@@ -50,7 +48,7 @@
     "request_interval_seconds": 1.2
   },
   "queued_check_status": 1,
-  "calendar_dates_recovered": 1,
+  "calendar_dates_recovered": 0,
   "quotes": [
     {
       "origin": "AMS",
@@ -95,6 +93,21 @@
       "airlines": "WY",
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-20+return+2026-11-07+economy+one+adult&curr=EUR&hl=en",
       "itinerary_id": "462c0f74c9d39180ac9d03d910a84519000cf14dac59019b035f9ef994c098b4",
+      "baggage": null
+    },
+    {
+      "origin": "AMS",
+      "departure": "2026-10-20",
+      "return_date": "2026-11-08",
+      "category": "layover",
+      "price": 51100,
+      "outbound_minutes": 980,
+      "inbound_minutes": 935,
+      "outbound_stops": 1,
+      "inbound_stops": 1,
+      "airlines": "WY",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-10-20+return+2026-11-08+economy+one+adult&curr=EUR&hl=en",
+      "itinerary_id": "9cc6abb19afef65fd09136fd4329a601e66187676365796497fd3b4348fbfdab",
       "baggage": null
     },
     {
@@ -204,17 +217,32 @@
     },
     {
       "origin": "DUS",
+      "departure": "2026-10-23",
+      "return_date": "2026-11-07",
+      "category": "layover",
+      "price": 69900,
+      "outbound_minutes": 1210,
+      "inbound_minutes": 980,
+      "outbound_stops": 1,
+      "inbound_stops": 1,
+      "airlines": "DE, EY",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-23+return+2026-11-07+economy+one+adult&curr=EUR&hl=en",
+      "itinerary_id": "60ae957f52cdaf1dcabbf4791cf431336424f2919d9464c7abcb77f035cc48db",
+      "baggage": null
+    },
+    {
+      "origin": "DUS",
       "departure": "2026-10-22",
       "return_date": "2026-11-05",
       "category": "layover",
       "price": 71100,
-      "outbound_minutes": 1040,
+      "outbound_minutes": 965,
       "inbound_minutes": 1045,
       "outbound_stops": 1,
       "inbound_stops": 1,
       "airlines": "EK",
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-22+return+2026-11-05+economy+one+adult&curr=EUR&hl=en",
-      "itinerary_id": "88511c5eccfa510316cf8bae3f4ad3a1bd2d759250ea4e0835d0a3df07c97603",
+      "itinerary_id": "a35a603cd46fecc68ddf4d7d058149c9200162cea36ad10325ce51fb2a439640",
       "baggage": null
     },
     {
@@ -223,28 +251,13 @@
       "return_date": "2026-11-06",
       "category": "layover",
       "price": 71100,
-      "outbound_minutes": 1040,
+      "outbound_minutes": 965,
       "inbound_minutes": 1045,
       "outbound_stops": 1,
       "inbound_stops": 1,
       "airlines": "EK",
       "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-22+return+2026-11-06+economy+one+adult&curr=EUR&hl=en",
-      "itinerary_id": "750ff71497efc07519b686e77a827a9e9f3b8eb066b257f813a7c170bdab6cca",
-      "baggage": null
-    },
-    {
-      "origin": "DUS",
-      "departure": "2026-10-22",
-      "return_date": "2026-11-09",
-      "category": "layover",
-      "price": 71100,
-      "outbound_minutes": 1040,
-      "inbound_minutes": 1045,
-      "outbound_stops": 1,
-      "inbound_stops": 1,
-      "airlines": "EK",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+BKK+2026-10-22+return+2026-11-09+economy+one+adult&curr=EUR&hl=en",
-      "itinerary_id": "4db96af63a8e7e79b9f20355035e7593f68c98170b8690da41f6c1aa6ba58980",
+      "itinerary_id": "3b7239851270d457d9d52d7135d0e73b8937f3128829c1e5813aa0aa31461c9e",
       "baggage": null
     },
     {
