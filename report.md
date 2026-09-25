@@ -1,6 +1,6 @@
 # BKK flight tracker
 
-**LIVE** · 2026-09-25T17:18:09+00:00 · **ok**
+**LIVE** · 2026-09-25T21:39:38+00:00 · **ok**
 
 One adult, economy, EUR round-trip prices. Departure dates: 2026-10-20 to 2026-10-23.
 Trips last 14–21 days. Direction duration limit: 1259 minutes including layovers.
@@ -9,7 +9,7 @@ Trips last 14–21 days. Direction duration limit: 1259 minutes including layove
 - Dates recovered by deferred recheck: 0
 - Date-grid price points: 160/192 (nonstop and any-stops profiles)
 - Itinerary searches: 18; accepted quotes: 18
-- HTTP attempts: 264; queued price-alert items: 0
+- HTTP attempts: 263; queued price-alert items: 0
 
 Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.
 The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.
@@ -27,9 +27,9 @@ The any-stops grid is not a layover-only grid. Actual itinerary stop counts dete
 | FRA | 2026-10-20 | 2026-11-04 | nonstop | 670.00 | 11h20 / 12h45 | 0/0 | DE |
 | FRA | 2026-10-20 | 2026-11-05 | nonstop | 670.00 | 11h20 / 12h50 | 0/0 | DE |
 | FRA | 2026-10-20 | 2026-11-09 | nonstop | 670.00 | 11h20 / 12h50 | 0/0 | DE |
-| DUS | 2026-10-23 | 2026-11-07 | layover | 699.00 | 20h10 / 16h20 | 1/1 | DE, EY |
 | DUS | 2026-10-22 | 2026-11-05 | layover | 711.00 | 16h05 / 17h25 | 1/1 | EK |
 | DUS | 2026-10-22 | 2026-11-06 | layover | 711.00 | 16h05 / 17h25 | 1/1 | EK |
+| DUS | 2026-10-22 | 2026-11-09 | layover | 711.00 | 16h05 / 17h25 | 1/1 | EK |
 | DUS | 2026-10-23 | 2026-11-09 | layover | 721.00 | 18h00 / 17h10 | 1/1 | QR |
 | AMS | 2026-10-20 | 2026-11-03 | nonstop | 819.00 | 11h20 / 12h40 | 0/0 | TG |
 | AMS | 2026-10-21 | 2026-11-04 | nonstop | 819.00 | 11h20 / 12h40 | 0/0 | TG |
