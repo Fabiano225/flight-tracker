@@ -1,6 +1,6 @@
 {
-  "run_id": "9766c4eab9354f85b5faad9afa739d45",
-  "started": "2026-09-26T11:32:29+00:00",
+  "run_id": "11f0ff9e75364907a9f8c32e94f4ed84",
+  "started": "2026-09-26T16:29:43+00:00",
   "mode": "live",
   "status": "ok",
   "calendar_queries_planned": 48,
@@ -11,7 +11,7 @@
   "verification_searches": 18,
   "verified_quotes": 19,
   "queued_deals": 0,
-  "http_attempts": 298,
+  "http_attempts": 266,
   "errors": [],
   "config": {
     "origins": [
@@ -48,7 +48,7 @@
     "request_interval_seconds": 1.2
   },
   "queued_check_status": 1,
-  "calendar_dates_recovered": 3,
+  "calendar_dates_recovered": 0,
   "quotes": [
     {
       "origin": "AMS",

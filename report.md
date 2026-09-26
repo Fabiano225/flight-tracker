@@ -1,15 +1,15 @@
 # BKK flight tracker
 
-**LIVE** · 2026-09-26T11:32:29+00:00 · **ok**
+**LIVE** · 2026-09-26T16:29:43+00:00 · **ok**
 
 One adult, economy, EUR round-trip prices. Departure dates: 2026-10-20 to 2026-10-23.
 Trips last 14–21 days. Direction duration limit: 1259 minutes including layovers.
 
 - Date-search batches: 48/48
-- Dates recovered by deferred recheck: 3
+- Dates recovered by deferred recheck: 0
 - Date-grid price points: 160/192 (nonstop and any-stops profiles)
 - Itinerary searches: 18; accepted quotes: 19
-- HTTP attempts: 298; queued price-alert items: 0
+- HTTP attempts: 266; queued price-alert items: 0
 
 Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.
 The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.
