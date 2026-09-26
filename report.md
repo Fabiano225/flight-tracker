@@ -1,6 +1,6 @@
 # BKK flight tracker
 
-**LIVE** · 2026-09-25T21:39:38+00:00 · **ok**
+**LIVE** · 2026-09-26T05:07:34+00:00 · **ok**
 
 One adult, economy, EUR round-trip prices. Departure dates: 2026-10-20 to 2026-10-23.
 Trips last 14–21 days. Direction duration limit: 1259 minutes including layovers.
@@ -30,7 +30,7 @@ The any-stops grid is not a layover-only grid. Actual itinerary stop counts dete
 | DUS | 2026-10-22 | 2026-11-05 | layover | 711.00 | 16h05 / 17h25 | 1/1 | EK |
 | DUS | 2026-10-22 | 2026-11-06 | layover | 711.00 | 16h05 / 17h25 | 1/1 | EK |
 | DUS | 2026-10-22 | 2026-11-09 | layover | 711.00 | 16h05 / 17h25 | 1/1 | EK |
-| DUS | 2026-10-23 | 2026-11-09 | layover | 721.00 | 18h00 / 17h10 | 1/1 | QR |
-| AMS | 2026-10-20 | 2026-11-03 | nonstop | 819.00 | 11h20 / 12h40 | 0/0 | TG |
-| AMS | 2026-10-21 | 2026-11-04 | nonstop | 819.00 | 11h20 / 12h40 | 0/0 | TG |
-| AMS | 2026-10-22 | 2026-11-05 | nonstop | 819.00 | 11h20 / 12h40 | 0/0 | TG |
+| DUS | 2026-10-23 | 2026-11-09 | layover | 742.00 | 18h00 / 17h10 | 1/1 | QR |
+| AMS | 2026-10-20 | 2026-11-03 | nonstop | 820.00 | 11h20 / 12h40 | 0/0 | TG |
+| AMS | 2026-10-21 | 2026-11-04 | nonstop | 820.00 | 11h20 / 12h40 | 0/0 | TG |
+| AMS | 2026-10-22 | 2026-11-05 | nonstop | 820.00 | 11h20 / 12h40 | 0/0 | TG |
