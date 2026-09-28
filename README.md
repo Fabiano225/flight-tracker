@@ -52,11 +52,11 @@ Only the existing shortlist is checked, with up to three concrete itineraries pe
 query; this is not an exhaustive search of every baggage-inclusive fare. Missing
 results never inherit a base price or silently reuse an older snapshot. Earlier
 unconfirmed filter-price observations are excluded from baggage views/history.
-Telegram alerts and its original price profile are unchanged.
+Notification alerts keep their original base-price profile.
 
 Automated fare monitoring from **Düsseldorf (DUS), Frankfurt (FRA) and Amsterdam
 (AMS) to Bangkok (BKK)**. The tracker searches flexible dates four times per day,
-keeps a durable price history and sends Telegram price alerts plus short check
+keeps a durable price history and sends Discord or Telegram price alerts plus short check
 receipts when no alert threshold was reached.
 
 [![Tests](https://github.com/Fabiano225/flight-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/Fabiano225/flight-tracker/actions/workflows/tests.yml)
@@ -73,11 +73,11 @@ receipts when no alert threshold was reached.
   with a connection.
 - Rejects itineraries lasting **21 hours or more in either direction**.
 - Tracks one adult, economy fares in EUR and stores observations in SQLite.
-- Sends Telegram alerts for meaningful rises, falls, budget crossings and strong
+- Sends Discord alerts (or Telegram, if selected) for meaningful rises, falls, budget crossings and strong
   drops. Checks without a new alert send a short status rather than repeating fares.
 - Runs at 00:17, 06:17, 12:17 and 18:17 UTC through GitHub Actions.
 
-## Telegram alerts, at a glance
+## Price alerts, at a glance
 
 The first observation establishes a watch. Later messages include:
 
@@ -87,7 +87,12 @@ changes show the current price and euro difference against the previous price al
 Incomplete scans or missing comparisons are explicitly labelled incomplete, never
 unchanged. Expired trip windows do not generate check receipts.
 
-In the private bot chat, the receipt is a native Telegram reply to the latest
+In Discord, colour-coded cards show prices, changes, buying signals and search links.
+Check receipts link to the associated Discord price message. When switching channels,
+that reference is copied once as an explicitly **historical price snapshot**, not
+as a new deal or a newly verified offer.
+
+In the Telegram private bot chat, the receipt is a native reply to the latest
 applicable delivered price alert: tap the quoted message to jump back to it.
 It does not link to an intervening status or health message. If the original was
 deleted, delivery continues without the reply. No chat ID is written to state.
@@ -124,7 +129,32 @@ Edit `config.json` for a new trip. Changing dates or comparable search settings
 resets the date watches as appropriate; compatible dated observations are retained.
 Changing comparability filters creates a separate history scope.
 
-## Set up Telegram and GitHub Actions
+## Set up Discord (preferred)
+
+1. In a Discord **server text channel**, open **Edit Channel → Integrations →
+   Webhooks → New Webhook** and copy its webhook URL. A bot application is not needed.
+2. In [repository Actions secrets](https://github.com/Fabiano225/flight-tracker/settings/secrets/actions),
+   add **`DISCORD_WEBHOOK_URL`** with that URL as its value. Treat it as a password;
+   never paste it into issues, commits or logs.
+3. Run [Test Discord](https://github.com/Fabiano225/flight-tracker/actions/workflows/discord-test.yml)
+   to receive a clearly labelled connection test (no flight searches).
+4. The next **Track flights** run sends its notifications to Discord automatically.
+   Existing Telegram secrets can stay in place; it does not send to both channels.
+
+The optional Actions **variable** `NOTIFICATION_CHANNEL` selects the transport:
+
+| Value | Behaviour |
+|---|---|
+| absent / `auto` | Discord if its webhook secret exists; otherwise Telegram |
+| `discord` | Require Discord, even if its secret is missing |
+| `telegram` | Keep using the existing Telegram bot |
+
+A failed Discord send stays pending; it does **not** silently fall back to Telegram.
+Use a regular server text channel, not a DM, forum, media channel or thread.
+Check Discord channel/server notification settings if messages arrive without a
+push notification. The tracker deliberately sends no `@everyone` or role mentions.
+
+## Optional: set up Telegram
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) using `/newbot`.
 2. In [repository secrets](https://github.com/Fabiano225/flight-tracker/settings/secrets/actions),
@@ -147,7 +177,7 @@ the bot token, remove a webhook or expose the chat ID in its log.
 3. Recheck the stable date watches first, then shortlist additional candidates.
 4. Verify actual round trips, dates, currency, stop counts and both flight durations.
 5. Compare compatible verified quotes with their 30-day history.
-6. Checkpoint SQLite and pending messages before Telegram delivery; save delivery
+6. Checkpoint SQLite and pending messages before notification delivery; save delivery
    receipts afterwards.
 
 The free adapter uses the [`fli`](https://github.com/punitarani/fli) Python client
@@ -179,6 +209,7 @@ Useful commands for an already configured local environment:
 ```bash
 python -m tracker report
 python -m tracker export --output history.csv
+python -m tracker discord-test
 python -m tracker telegram-test
 ```
 
@@ -188,15 +219,16 @@ Do not run a local live scan while the GitHub Actions state writer is running.
 
 | Workflow | Purpose |
 |---|---|
-| `Track flights` | Scheduled search, verification, state checkpoint and Telegram delivery |
+| `Track flights` | Scheduled search, verification, state checkpoint and notification delivery |
 | `Telegram setup` | Finds the chat ID for a recent private `/start` |
+| `Test Discord` | Sends a formatted connection test using the webhook secret |
 | `Test Telegram` | Sends one connectivity test using repository secrets |
 | `Tests` | Offline unit/integration tests; no secrets and no live flight search |
 | `Publish dashboard` | Builds an allowlisted public price snapshot and deploys GitHub Pages |
 
 The `tracker-state` branch contains SQLite history, latest CSV/JSON output and the
-human-readable report. It contains route and fare observations, never the Telegram
-token or chat ID. Set the repository variable `TRACKER_ENABLED=false` to pause
+human-readable report. It contains route and fare observations, never the webhook URL, tokens, Telegram chat ID or Discord channel/server IDs.
+Delivery receipts include message IDs and an opaque destination fingerprint. Set the repository variable `TRACKER_ENABLED=false` to pause
 scheduled tracking.
 
 ## Costs and privacy

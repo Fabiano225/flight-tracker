@@ -1,7 +1,6 @@
 import json
 import os
 from .network import JsonHttp, ServiceError
-from .store import stamp
 
 
 class Telegram:
@@ -27,21 +26,5 @@ class Telegram:
         return str(data["result"]["message_id"])
 
 
-def deliver(store, config, now, sender):
-    store.expire(now, config.pending_ttl_hours, config.scope())
-    store.expire_outside_search(config)
-    store.db.commit()
-    sent = 0
-    for row in store.db.execute("SELECT * FROM outbox WHERE status='pending' ORDER BY created,id").fetchall():
-        target = store.db.execute("""SELECT o.message_id FROM outbox_replies r
-            JOIN outbox o ON o.id=r.target_id WHERE r.outbox_id=? AND o.status='sent'""",
-            (row["id"],)).fetchone()
-        if target and target[0]:
-            message_id = sender.send(row["text"], reply_to_message_id=target[0])
-        else:
-            message_id = sender.send(row["text"])
-        store.db.execute("UPDATE outbox SET status='sent',sent=?,message_id=? WHERE id=?",
-                         (stamp(now), message_id, row["id"]))
-        store.db.commit()
-        sent += 1
-    return sent
+# Backwards-compatible import for callers of the original delivery module.
+from .notifications import deliver  # noqa: E402,F401

@@ -12,12 +12,14 @@ from .provider import FreeProvider, DemoProvider
 from .report import report, export_history
 from .service import scan
 from .store import Store, utcnow
-from .telegram import Telegram, deliver
+from .telegram import Telegram
+from .discord import Discord
+from .notifications import configured_sender, deliver
 
 
 def main():
     parser = argparse.ArgumentParser(description="Free BKK flight tracker; dates refer to departure dates")
-    parser.add_argument("command", choices=["plan", "scan", "demo", "notify", "telegram-test", "report", "export"])
+    parser.add_argument("command", choices=["plan", "scan", "demo", "notify", "telegram-test", "discord-test", "report", "export"])
     parser.add_argument("--config", default="config.json")
     parser.add_argument("--state-dir")
     parser.add_argument("--as-of", help="YYYY-MM-DD; only offline plan/demo")
@@ -42,6 +44,10 @@ def main():
         Telegram().send("Flight tracker Telegram connection OK. Live deals require successful flight searches.")
         print("Telegram test message delivered")
         return 0
+    if args.command == "discord-test":
+        Discord().send("Discord verbunden\nDer Flight Tracker sendet Preisalarme und Suchstatus künftig in diesen Kanal.\nDies ist ein Verbindungstest, kein Flugangebot.")
+        print("Discord test message delivered")
+        return 0
     demo = args.command == "demo"
     directory = args.state_dir or ("demo-state" if demo else "state")
     with Store(directory, "demo" if demo else "live") as store:
@@ -54,10 +60,10 @@ def main():
                 with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
                     f.write(text)
             if demo:
-                print("DEMO ONLY - no network or Telegram messages. Outbox contains synthetic alerts.")
+                print("DEMO ONLY - no network or notification messages. Outbox contains synthetic alerts.")
             return 1 if summary["status"] == "partial" else 0
         if args.command == "notify":
-            print(f"Delivered {deliver(store, config, now, Telegram())} messages")
+            print(f"Delivered {deliver(store, config, now, configured_sender())} messages")
         elif args.command == "report":
             print(report(store))
         elif args.command == "export":

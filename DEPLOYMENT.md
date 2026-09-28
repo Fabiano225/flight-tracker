@@ -20,10 +20,11 @@ notification policy changes.
 
 ## First-time deployment checklist
 
-- [ ] `TELEGRAM_BOT_TOKEN` exists as a repository Actions secret.
-- [ ] The bot has received `/start` from the intended recipient.
-- [ ] `TELEGRAM_CHAT_ID` exists as a repository Actions secret.
-- [ ] The **Test Telegram** workflow completes successfully.
+- [ ] `DISCORD_WEBHOOK_URL` exists as a repository Actions secret for a server text channel.
+- [ ] The **Test Discord** workflow completes successfully and its message arrives.
+- [ ] `NOTIFICATION_CHANNEL` is absent / `auto` (or explicitly `discord`).
+- [ ] For Telegram instead: set `NOTIFICATION_CHANNEL=telegram`, configure
+      `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`, send `/start` and run **Test Telegram**.
 - [ ] The **Tests** workflow is green on the default branch.
 - [ ] `TRACKER_ENABLED` is absent or set to `true`.
 - [ ] The **Track flights** workflow has write permission for the `tracker-state`
@@ -37,11 +38,11 @@ The tracking job intentionally follows this order:
 2. Run offline tests.
 3. Restore the complete state database from `tracker-state`.
 4. Search calendars and verify a bounded set of round trips.
-5. Save history and pending alerts **before** sending Telegram messages.
+5. Save history and pending alerts **before** sending notifications.
 6. Deliver pending messages and save delivery receipts in a second state commit.
 7. Upload a seven-day recovery artifact.
 
-If the source or Telegram fails, the state remains inspectable and pending messages
+If the source or notification service fails, the state remains inspectable and pending messages
 are not marked as sent. A later run can retry delivery.
 
 ## Reading a run
@@ -55,7 +56,7 @@ inspect these steps in order:
   budget, accepted quotes and alert candidates.
 - **Checkpoint history and pending alerts:** whether the pre-delivery commit was
   written safely.
-- **Deliver pending Telegram alerts:** Telegram response and message count.
+- **Deliver pending notifications:** Discord/Telegram acknowledgement and message count.
 - **Recovery snapshot:** downloadable state files for incident recovery.
 
 The job summary and `state/report.md` contain counts without exposing credentials.
@@ -63,7 +64,26 @@ An unknown fare is recorded as unknown; it is never converted to zero.
 
 ## Common situations
 
-### No Telegram message
+### No Discord message
+
+Confirm the secret is named exactly `DISCORD_WEBHOOK_URL` and that
+`NOTIFICATION_CHANNEL` is absent, `auto` or `discord`. Run **Test Discord**.
+If the test fails with HTTP 401/403/404, recreate the webhook in the desired server
+text channel and replace the secret. No webhook URL or response body is logged.
+Rate limits are retried with the server's requested delay; long delays defer to the
+next run. A valid webhook with a failed send never falls back to Telegram.
+
+The next scan delivers either price updates or a concise check receipt. A receipt
+links to its associated price message; when changing channels, that historical
+reference is copied once and explicitly labelled with its original observation time.
+If Discord's optional channel-metadata lookup fails, the status still arrives with
+an explanation that its message link is unavailable. A deleted reference can leave
+a dead link, but does not block delivery. Notification scheduling is unchanged.
+
+If the message is visible but there is no phone notification, check Discord's
+server/channel mute and notification settings. There are no mass mentions.
+
+### No Telegram message (when Telegram is selected)
 
 Check that both secret names are exact, the bot is not blocked, and the chat ID is
 the recipient's private chat ID. Run **Test Telegram**. A successful search with no
@@ -95,7 +115,7 @@ an empty flight result. The run summary counts dates recovered by this recheck.
 The final **Surface partial scans or failed deliveries** step deliberately exits
 with code 1 when the scan or delivery was incomplete. Its generic message is not
 the underlying cause: inspect the scan summary and the earlier scan/delivery
-step. A red scan can still contain valid quotes and successful Telegram delivery.
+step. A red scan can still contain valid quotes and successful notification delivery.
 
 ### State restore or push failure
 
@@ -120,7 +140,7 @@ branches, not workflow artifacts or pull-request code.
 
 `scripts/build_site.py` exports only configuration, scan counts and verified fare
 history. The deployment artifact contains static assets and `data.json` only: no
-SQLite database, `.git`, Telegram messages, message IDs, chat IDs or tokens.
+SQLite database, `.git`, notification messages, message IDs, channel/chat IDs or tokens.
 The UI does not call a private API, store cookies or start additional flight searches.
 Its refresh button reloads the published snapshot; it does not trigger a new scan.
 
@@ -142,21 +162,21 @@ logic tests run with `node --test tests/site_model.test.mjs` (Node.js 22+).
 
 ### Website baggage follow-up
 
-After base prices and Telegram delivery receipts have been saved, the tracking
+After base prices and notification delivery receipts have been saved, the tracking
 workflow runs `python scripts/scan_baggage.py`. It searches at most 18 shortlisted date/category combinations and inspects up to
 three concrete itineraries per query through booking details. Included-bag
 profiles are derived from those vendor offers, not separate bag-filter searches.
 All detail requests share a paced
 360-request / 600-second extra budget; no extra full calendar sweeps are run.
 The step has a 12-minute timeout and the overall job a 60-minute timeout.
-Partial bag observations are checkpointed separately and never enqueue Telegram
+Partial bag observations are checkpointed separately and never enqueue notification
 messages or modify the base quote/history tables. A failed baggage step does not
 turn the base notification run into a failure; inspect the step and per-profile
 website status for baggage coverage.
 
 For a website-only refresh, manually dispatch **Track flights** with
 `baggage_only` enabled. This restores the existing state and refreshes baggage
-views only; no base calendar scan or Telegram delivery is performed. A recent
+views only; no base calendar scan or notification delivery is performed. A recent
 base scan (under 12 hours old) is required. Scheduled runs use the full pipeline.
 
 The SQLite tables `baggage_runs`, `baggage_quotes` and `baggage_checks` are created additively; old

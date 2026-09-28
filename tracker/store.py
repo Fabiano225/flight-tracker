@@ -54,6 +54,10 @@ class Store:
           CREATE TABLE IF NOT EXISTS outbox_replies(
             outbox_id TEXT PRIMARY KEY REFERENCES outbox(id),
             target_id TEXT NOT NULL REFERENCES outbox(id));
+          CREATE TABLE IF NOT EXISTS delivery_receipts(
+            outbox_id TEXT REFERENCES outbox(id), destination TEXT NOT NULL,
+            message_id TEXT NOT NULL, sent TEXT NOT NULL,
+            PRIMARY KEY(outbox_id,destination));
           PRAGMA user_version=1;
         """)
         stored_mode = self.get_meta("mode")

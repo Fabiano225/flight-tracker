@@ -13,7 +13,7 @@ GitHub Actions cron
                    checkpoint before delivery
                               |
                               v
-                       Telegram Bot API
+                       Discord webhook / Telegram Bot API
                               |
                    save delivery receipt
 ```
@@ -41,9 +41,10 @@ The SQLite database stores:
 - `calendar`: date-grid observations, including unknown prices;
 - `quotes`: verified round trips and their details;
 - `runs`: configuration and health summaries;
-- `outbox`: pending/sent Telegram messages;
+- `outbox`: pending/sent transport-neutral messages;
 - `alert_items`: the quote rows represented by each message;
 - `outbox_replies`: references from check receipts to delivered price alerts (no chat IDs);
+- `delivery_receipts`: message IDs per outbox item and opaque destination; no webhook or channel metadata;
 - `meta`: the current stable date watches and health markers.
 
 `tracker/trends.py` keeps one stable watch per airport and actual flight category.
@@ -65,11 +66,28 @@ including airport, dates, cabin, currency, baggage filters and duration cap.
 
 ## Delivery guarantees
 
-The workflow checkpoints pending alerts before Telegram delivery and records the
-Telegram message ID afterwards. This gives at-least-once delivery: a network timeout
-after Telegram accepts a message can result in a duplicate on retry. Failed sends
+The workflow checkpoints pending alerts before notification delivery and records the
+transport message ID afterwards. This gives at-least-once delivery: a network timeout
+after the service accepts a message can result in a duplicate on retry. Failed sends
 remain pending. Pending messages expire after their configured TTL and are filtered
 when a date window changes.
+
+Discord uses the [webhook API](https://docs.discord.com/developers/resources/webhook)
+with `wait=true` and checks the returned message ID before recording success.
+Embeds preserve the outbox's prices and disclaimers; mentions are disabled. Only
+`https://discord.com/api/[vN/]webhooks/ID/TOKEN` URLs are accepted, without query
+parameters or redirects. HTTP failures are sanitized. Discord `retry_after` values,
+including fractional seconds, share the bounded HTTP retry policy.
+
+The selected sender is `NOTIFICATION_CHANNEL` (`auto`, `discord`, `telegram`). Auto
+prefers an existing Discord secret. There is no failover on delivery failure and no
+dual delivery. Telegram is unchanged unless a channel switch requires a new reference.
+Legacy untyped receipts are Telegram-only. Discord destination fingerprints isolate
+webhooks; switching channels never uses another transport's message ID. A missing
+reference is copied once with an explicit historical label and saved before the
+status send. This does not change the price baseline or observation timestamp.
+Discord channel/server IDs are obtained only in memory for message links and are
+never added to public state. Public dashboard exports exclude all delivery metadata.
 
 ## Failure boundaries
 

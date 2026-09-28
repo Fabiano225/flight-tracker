@@ -62,6 +62,7 @@ class JsonHttp:
                 try:
                     detail = json.loads(exc.read(16384))
                     retry_delay = max(retry_delay, float(detail.get("parameters", {}).get("retry_after", 0)))
+                    retry_delay = max(retry_delay, float(detail.get("retry_after", 0)))
                 except (ValueError, TypeError, AttributeError):
                     pass
                 # Do not retry sooner than the server requested; defer long waits.

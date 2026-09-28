@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       baggage_only:
-        description: 'Only refresh website baggage comparisons; no Telegram delivery'
+        description: 'Only refresh website baggage comparisons; no notifications'
         type: boolean
         default: false
 permissions:
@@ -41,11 +41,13 @@ jobs:
         id: checkpoint
         if: always() && steps.restore.outcome == 'success' && steps.scan.outcome != 'skipped'
         run: python scripts/state_git.py save
-      - name: Deliver pending Telegram alerts
+      - name: Deliver pending notifications
         id: notify
         if: always() && steps.checkpoint.outcome == 'success'
         continue-on-error: true
         env:
+          NOTIFICATION_CHANNEL: ${{ vars.NOTIFICATION_CHANNEL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m tracker notify
