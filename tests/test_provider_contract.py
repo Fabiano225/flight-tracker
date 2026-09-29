@@ -89,7 +89,7 @@ class ClientLimitsTests(unittest.TestCase):
         sleep = Mock()
         client = GuardedClient(Config(),session=session,sleep=sleep)
         self.assertIs(client.post("https://www.google.com",""),good)
-        sleep.assert_any_call(10)
+        sleep.assert_any_call(3)
         self.assertEqual(client.used,2)
 
     def test_pacing_gap_overlaps_network_latency(self):
@@ -285,6 +285,88 @@ class PrefetchDateTests(unittest.TestCase):
         self.assertTrue(quotes)
         self.assertIn("curr=EUR",quotes[0].link)
         provider.close()
+
+
+class SearchCacheTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.path = f"{self.dir.name}/search-cache.json"
+        self.start = date.today() + timedelta(days=30)
+        self.end = self.start + timedelta(days=14)
+        self.args = ("FRA", self.start.isoformat(), self.end.isoformat(), "any")
+
+    def provider(self):
+        provider = FreeProvider(Config(), cache_path=self.path)
+        self.addCleanup(provider.close)
+        return provider
+
+    def fixture(self):
+        from fli.models import Airline, Airport, FlightLeg, FlightResult
+        def result(src, dst, day, price):
+            leg = FlightLeg(airline=Airline.TG, flight_number="921", departure_airport=src, arrival_airport=dst,
+                departure_datetime=datetime.combine(day, datetime.min.time()),
+                arrival_datetime=datetime.combine(day, datetime.min.time()) + timedelta(hours=11), duration=660)
+            return FlightResult(legs=[leg], price=price, currency="EUR", duration=660, stops=0, self_transfer=False)
+        return (result(Airport.FRA, Airport.BKK, self.start, 500), result(Airport.BKK, Airport.FRA, self.end, 640))
+
+    def scanned(self, run_id="run-1"):
+        provider = self.provider()
+        provider.flights.search = Mock(return_value=[self.fixture()])
+        provider.flights._last_session_id = "session-1"
+        self.assertTrue(provider.verify(*self.args))
+        provider.save_search_cache(run_id)
+
+    def test_scan_search_round_trips_for_same_run(self):
+        self.scanned()
+        provider = self.provider()
+        provider.load_search_cache("run-1")
+        pairs, session = provider.searches[provider.search_key(*self.args)]
+        self.assertEqual(session, "session-1")
+        self.assertEqual(pairs, [self.fixture()])
+
+    def test_other_run_stale_or_corrupt_cache_is_ignored(self):
+        self.scanned()
+        provider = self.provider()
+        provider.load_search_cache("run-2")
+        self.assertEqual(provider.searches, {})
+        with patch("tracker.provider.time.time", return_value=time.time() + 7200):
+            provider.load_search_cache("run-1")
+        self.assertEqual(provider.searches, {})
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write("{broken")
+        provider.load_search_cache("run-1")
+        self.assertEqual(provider.searches, {})
+
+    def test_baggage_reuses_cached_search_and_session(self):
+        self.scanned()
+        provider = self.provider()
+        provider.load_search_cache("run-1")
+        provider.flights.search = Mock()
+        with patch("tracker.fare_baggage.booking_quotes", return_value=["offer"]) as booking:
+            self.assertEqual(provider.baggage_offers(*self.args), ["offer"])
+        provider.flights.search.assert_not_called()
+        self.assertEqual(provider.flights._last_session_id, "session-1")
+        self.assertEqual(booking.call_count, 1)
+        self.assertEqual(provider.cache_stats, {"cached_searches": 1, "cache_fallbacks": 0})
+
+    def test_empty_or_failed_cached_offers_fall_back_to_live_search(self):
+        for outcome in ([], ServiceError("stale session")):
+            provider = self.provider()
+            provider.searches = {provider.search_key(*self.args): ([], "old")}
+            provider.booking_offers = Mock(side_effect=[outcome, ["fresh"]])
+            self.assertEqual(provider.baggage_offers(*self.args), ["fresh"])
+            self.assertEqual(provider.booking_offers.call_args_list[1].args, self.args)  # Live search, no cache.
+            self.assertEqual(provider.cache_stats["cache_fallbacks"], 1)
+
+    def test_budget_errors_are_not_retried_live(self):
+        provider = self.provider()
+        provider.searches = {provider.search_key(*self.args): ([], "old")}
+        provider.booking_offers = Mock(side_effect=BudgetError("budget"))
+        with self.assertRaises(BudgetError):
+            provider.baggage_offers(*self.args)
+        self.assertEqual(provider.booking_offers.call_count, 1)
 
 
 if __name__ == "__main__":
