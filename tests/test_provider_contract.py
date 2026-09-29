@@ -1,8 +1,10 @@
 from dataclasses import replace
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace as NS
+import threading
+import time
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from tracker.config import Config
 from tracker.network import ServiceError, BudgetError, TransientSourceError
@@ -89,6 +91,61 @@ class ClientLimitsTests(unittest.TestCase):
         self.assertIs(client.post("https://www.google.com",""),good)
         sleep.assert_any_call(10)
         self.assertEqual(client.used,2)
+
+    def test_pacing_gap_overlaps_network_latency(self):
+        good = NS(status_code=200, text=")]}'\n"+json.dumps([["wrb.fr","LqxFAb","[]"]]))
+        clock = [100.0]
+
+        def post(*args, **kwargs):
+            clock[0] += latency
+            return good
+        sleeps = []
+
+        def sleep(seconds):
+            sleeps.append(seconds)
+            clock[0] += seconds
+        with patch("tracker.provider.time.monotonic", lambda: clock[0]):
+            client = GuardedClient(Config(request_interval_seconds=0.5), session=NS(post=post), sleep=sleep)
+            latency = 0.2
+            client.post("https://www.google.com", "")
+            client.post("https://www.google.com", "")
+            self.assertAlmostEqual(sleeps.pop(), 0.3)
+            latency = 2
+            client.post("https://www.google.com", "")
+            sleeps.clear()
+            client.post("https://www.google.com", "")
+        self.assertEqual(sleeps, [])  # A slow response already covered the gap.
+        self.assertEqual(client.used, 4)
+
+    def test_parallel_requests_are_bounded(self):
+        good = NS(status_code=200, text=")]}'\n"+json.dumps([["wrb.fr","LqxFAb","[]"]]))
+        lock, active, peak = threading.Lock(), [0], [0]
+
+        def post(*args, **kwargs):
+            with lock:
+                active[0] += 1
+                peak[0] = max(peak[0], active[0])
+            time.sleep(0.05)
+            with lock:
+                active[0] -= 1
+            return good
+        client = GuardedClient(Config(request_interval_seconds=0, max_parallel_requests=2),
+                               session=NS(post=post), sleep=lambda _: None)
+        threads = [threading.Thread(target=client.post, args=("https://www.google.com", "")) for _ in range(6)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(peak[0], 2)
+        self.assertEqual(client.used, 6)
+
+    def test_internal_error_widens_pacing_for_rest_of_run(self):
+        bad = NS(status_code=200,text=")]}'\n"+json.dumps([["wrb.fr","LqxFAb",None,None,None,[13]]]))
+        good = NS(status_code=200,text=")]}'\n"+json.dumps([["wrb.fr","LqxFAb","[]"]]))
+        client = GuardedClient(Config(request_interval_seconds=0.5),
+                               session=NS(post=Mock(side_effect=[bad,good])), sleep=lambda _:None)
+        client.post("https://www.google.com","")
+        self.assertEqual(client.interval, 1.0)
 
     def test_denial_stops_all_later_requests_in_run(self):
         session = NS(post=Mock(return_value=NS(status_code=429)))

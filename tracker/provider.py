@@ -47,68 +47,93 @@ class GuardedClient:
         self.blocked = False
         self.lock = threading.Lock()
         self.deadline = time.monotonic() + config.max_run_seconds
+        # Pace request *starts*, so network latency overlaps the pacing gap
+        # instead of adding to it. A few requests (fli's return-leg worker
+        # pool) may be in flight at once; the request rate stays bounded.
+        self.interval = config.request_interval_seconds
+        self.next_start = 0.0
+        self.slots = threading.BoundedSemaphore(config.max_parallel_requests)
+
+    def reserve(self):
+        """Atomically check budgets and claim the next paced start time."""
+        with self.lock:
+            if self.blocked:
+                raise BudgetError("Flight source requested a pause; deferred to next scheduled run")
+            now = time.monotonic()
+            start = max(now, self.next_start) if self.used else now
+            if start + 1 >= self.deadline:
+                raise BudgetError("Flight scan time budget exhausted; checkpointing completed searches")
+            if self.used >= self.config.max_http_attempts_per_run:
+                raise BudgetError("Flight request budget exhausted")
+            self.used += 1
+            self.next_start = start + self.interval
+        return start - now
+
+    def slow_down(self):
+        # Transient source trouble: widen the pacing gap for the rest of the run.
+        with self.lock:
+            self.interval = max(self.interval, min(self.interval * 2 or 1.0, 5.0))
 
     def post(self, url, data, **kwargs):
-        # Calls made in fli's worker pool are deliberately serialized and paced.
-        with self.lock:
-            for attempt in range(self.config.http_attempts):
-                if self.blocked:
-                    raise BudgetError("Flight source requested a pause; deferred to next scheduled run")
-                if time.monotonic() + self.config.request_interval_seconds + 1 >= self.deadline:
-                    raise BudgetError("Flight scan time budget exhausted; checkpointing completed searches")
-                if self.used >= self.config.max_http_attempts_per_run:
-                    raise BudgetError("Flight request budget exhausted")
-                if self.used:
-                    self.sleep(self.config.request_interval_seconds)
-                self.used += 1
-                try:
-                    # The streaming named endpoint currently returns RPC error 13.
-                    # Use the public page's shopping-prefetch RPC, with the same
-                    # filter payload and locale. No cookies or API key required.
-                    if "GetShoppingResults" in url:
-                        request = json.loads(parse_qs(data)["f.req"][0])[1]
-                        query = parse_qs(urlsplit(url).query)
-                        params = {key: query[key][0] for key in ("hl", "curr", "gl") if key in query}
-                        params["rpcids"] = "LqxFAb"
-                        request_url = "https://www.google.com/_/FlightsFrontendUi/data/batchexecute?" + urlencode(params)
-                        request_data = {"f.req": json.dumps([[["LqxFAb", request, None, "generic"]]])}
-                    else:
-                        request_url, request_data = url, data
-                    response = self.session.post(request_url, data=request_data, impersonate="chrome", allow_redirects=False,
-                        timeout=min(self.config.http_timeout_seconds, max(1, self.deadline - time.monotonic())),
-                        headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"})
-                except Exception:
-                    if attempt + 1 == self.config.http_attempts:
-                        raise ServiceError("Flight source network error") from None
-                    self.sleep(2 ** attempt)
+        with self.slots:
+            return self.attempt(url, data)
+
+    def attempt(self, url, data):
+        for attempt in range(self.config.http_attempts):
+            wait = self.reserve()
+            if wait > 0:
+                self.sleep(wait)
+            try:
+                # The streaming named endpoint currently returns RPC error 13.
+                # Use the public page's shopping-prefetch RPC, with the same
+                # filter payload and locale. No cookies or API key required.
+                if "GetShoppingResults" in url:
+                    request = json.loads(parse_qs(data)["f.req"][0])[1]
+                    query = parse_qs(urlsplit(url).query)
+                    params = {key: query[key][0] for key in ("hl", "curr", "gl") if key in query}
+                    params["rpcids"] = "LqxFAb"
+                    request_url = "https://www.google.com/_/FlightsFrontendUi/data/batchexecute?" + urlencode(params)
+                    request_data = {"f.req": json.dumps([[["LqxFAb", request, None, "generic"]]])}
+                else:
+                    request_url, request_data = url, data
+                response = self.session.post(request_url, data=request_data, impersonate="chrome", allow_redirects=False,
+                    timeout=min(self.config.http_timeout_seconds, max(1, self.deadline - time.monotonic())),
+                    headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"})
+            except Exception:
+                if attempt + 1 == self.config.http_attempts:
+                    raise ServiceError("Flight source network error") from None
+                self.slow_down()
+                self.sleep(2 ** attempt)
+                continue
+            if response.status_code in {401, 403, 429}:
+                self.blocked = True
+                raise BudgetError(f"Flight source HTTP {response.status_code}; pause until next run")
+            if response.status_code in {500, 502, 503, 504} and attempt + 1 < self.config.http_attempts:
+                self.slow_down()
+                self.sleep(2 ** attempt)
+                continue
+            if response.status_code != 200:
+                raise ServiceError(f"Flight source HTTP {response.status_code}")
+            text = response.text
+            if not text.startswith(")]}'"):
+                raise ServiceError("Unexpected flight response; possible consent page or source change")
+            # Validate the envelope before the permissive upstream decoder.
+            from fli.search._wire import parse_first_wrb_payload
+            if parse_first_wrb_payload(text) is None:
+                code = rpc_error_code(text)
+                # 13 is the standard RPC INTERNAL status, not an empty fare
+                # result. Back off; never retry explicit access/rate denials.
+                if code == 13 and attempt + 1 < self.config.http_attempts:
+                    self.slow_down()
+                    self.sleep(10 * (attempt + 1))
                     continue
-                if response.status_code in {401, 403, 429}:
+                if code in {7, 8, 16}:
                     self.blocked = True
-                    raise BudgetError(f"Flight source HTTP {response.status_code}; pause until next run")
-                if response.status_code in {500, 502, 503, 504} and attempt + 1 < self.config.http_attempts:
-                    self.sleep(2 ** attempt)
-                    continue
-                if response.status_code != 200:
-                    raise ServiceError(f"Flight source HTTP {response.status_code}")
-                text = response.text
-                if not text.startswith(")]}'"):
-                    raise ServiceError("Unexpected flight response; possible consent page or source change")
-                # Validate the envelope before the permissive upstream decoder.
-                from fli.search._wire import parse_first_wrb_payload
-                if parse_first_wrb_payload(text) is None:
-                    code = rpc_error_code(text)
-                    # 13 is the standard RPC INTERNAL status, not an empty fare
-                    # result. Back off; never retry explicit access/rate denials.
-                    if code == 13 and attempt + 1 < self.config.http_attempts:
-                        self.sleep(10 * (attempt + 1))
-                        continue
-                    if code in {7, 8, 16}:
-                        self.blocked = True
-                        raise BudgetError(f"Flight source RPC {code}; pause until next run")
-                    if code == 13:
-                        raise TransientSourceError("Google Flights RPC 13; no price data received after retries")
-                    raise ServiceError(f"Google Flights RPC {code if code is not None else 'error'} or changed response; no price data received")
-                return response
+                    raise BudgetError(f"Flight source RPC {code}; pause until next run")
+                if code == 13:
+                    raise TransientSourceError("Google Flights RPC 13; no price data received after retries")
+                raise ServiceError(f"Google Flights RPC {code if code is not None else 'error'} or changed response; no price data received")
+            return response
 
     def close(self):
         self.session.close()
