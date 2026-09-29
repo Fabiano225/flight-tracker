@@ -139,13 +139,16 @@ class ClientLimitsTests(unittest.TestCase):
         self.assertEqual(peak[0], 2)
         self.assertEqual(client.used, 6)
 
-    def test_internal_error_widens_pacing_for_rest_of_run(self):
+    def test_internal_error_widens_pacing_only_until_recovery(self):
         bad = NS(status_code=200,text=")]}'\n"+json.dumps([["wrb.fr","LqxFAb",None,None,None,[13]]]))
         good = NS(status_code=200,text=")]}'\n"+json.dumps([["wrb.fr","LqxFAb","[]"]]))
         client = GuardedClient(Config(request_interval_seconds=0.5),
-                               session=NS(post=Mock(side_effect=[bad,good])), sleep=lambda _:None)
+                               session=NS(post=Mock(side_effect=[bad,bad,good,good,good])), sleep=lambda _:None)
         client.post("https://www.google.com","")
-        self.assertEqual(client.interval, 1.0)
+        self.assertEqual(client.interval, 1.0)  # Doubled twice to 2.0, halved once on success.
+        client.post("https://www.google.com","")
+        client.post("https://www.google.com","")
+        self.assertEqual(client.interval, 0.5)  # Never below the configured interval.
 
     def test_denial_stops_all_later_requests_in_run(self):
         session = NS(post=Mock(return_value=NS(status_code=429)))

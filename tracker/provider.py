@@ -70,9 +70,15 @@ class GuardedClient:
         return start - now
 
     def slow_down(self):
-        # Transient source trouble: widen the pacing gap for the rest of the run.
+        # Transient source trouble: widen the pacing gap (at most 5 s) ...
         with self.lock:
             self.interval = max(self.interval, min(self.interval * 2 or 1.0, 5.0))
+
+    def recover(self):
+        # ... and narrow it again on success, so one isolated error cannot
+        # slow down the rest of the run.
+        with self.lock:
+            self.interval = max(self.config.request_interval_seconds, self.interval / 2)
 
     def post(self, url, data, **kwargs):
         with self.slots:
@@ -133,6 +139,7 @@ class GuardedClient:
                 if code == 13:
                     raise TransientSourceError("Google Flights RPC 13; no price data received after retries")
                 raise ServiceError(f"Google Flights RPC {code if code is not None else 'error'} or changed response; no price data received")
+            self.recover()
             return response
 
     def close(self):

@@ -30,6 +30,6 @@
   "max_run_seconds": 2400,
   "http_timeout_seconds": 60,
   "http_attempts": 3,
-  "request_interval_seconds": 0.5,
+  "request_interval_seconds": 0.8,
   "max_parallel_requests": 3
 }

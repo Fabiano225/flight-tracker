@@ -52,7 +52,7 @@ class Config:
     max_run_seconds: int = 2400
     http_timeout_seconds: int = 60
     http_attempts: int = 3
-    request_interval_seconds: float = 0.5
+    request_interval_seconds: float = 0.8
     max_parallel_requests: int = 3
 
     def __post_init__(self):
