@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey} from '../website/model.mjs';
+import {filteredOffers,comparison,priceStatus,euro,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -20,6 +20,24 @@ test('no invented previous price and current observation excluded from low',()=>
   assert.equal(comparison(offer,[{at:offer.at,price:60000}],config).previous,null);
   const c=comparison(offer,[{at:'2026-09-20T06:00:00+00:00',price:70000},{at:offer.at,price:60000}],config);
   assert.equal(c.low,70000);assert.equal(c.delta,-10000);assert.equal(c.verdict,'Kauf prüfen');
+});
+test('unchanged since the last check still reports an earlier, lower price',()=>{
+  const history=[{at:'2026-09-18T06:00:00+00:00',price:58000},{at:'2026-09-19T06:00:00+00:00',price:60000},{at:offer.at,price:60000}];
+  const c=comparison(offer,history,config);
+  assert.equal(c.delta,0);assert.equal(c.low,58000);assert.equal(c.lowAt,'2026-09-18T06:00:00+00:00');
+  const s=priceStatus(c);
+  assert.equal(s.main,`↑ ${euro(2000)} über Tief`);assert.equal(s.tone,'up');
+  assert.equal(s.detail,`Tief ${euro(58000)} am 18.09. · seit letzter Messung unverändert`);
+});
+test('price status distinguishes new low, repeated low and first check',()=>{
+  const at=p=>[{at:'2026-09-18T06:00:00+00:00',price:62000},{at:'2026-09-19T06:00:00+00:00',price:p}];
+  const newLow=priceStatus(comparison(offer,at(61000),config));
+  assert.equal(newLow.main,'↓ Neues Tief');assert.equal(newLow.tone,'down');
+  assert.equal(newLow.detail,`bisher ${euro(61000)} am 19.09. · seit letzter Messung ↓ ${euro(1000)}`);
+  const repeated=priceStatus(comparison(offer,[{at:'2026-09-17T06:00:00+00:00',price:60000},{at:'2026-09-19T06:00:00+00:00',price:64000}],config));
+  assert.equal(repeated.main,'Auf Tiefstpreis');
+  assert.equal(repeated.detail,`wie am 17.09. · seit letzter Messung ↓ ${euro(4000)}`);
+  assert.deepEqual(priceStatus(comparison(offer,[],config)),{main:'Erste Messung',detail:null,tone:'neutral'});
 });
 test('budget classification and independent category thresholds',()=>{
   assert.equal(comparison({...offer,price:66000},[],config).verdict,'Beobachten');
