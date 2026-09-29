@@ -55,6 +55,32 @@ export function writeFavorites(keys, getStorage = ()=>globalThis.localStorage) {
 export function favoriteOffers(offers, keys, destination, profile) {
   return offers.filter(q=>keys.has(favoriteKey(q,destination,profile)));
 }
+export function parseFavorite(key) {
+  if(!validFavoriteKey(key))return null;
+  const [destination,origin,departure,return_date,category,profile]=JSON.parse(key);
+  return {key,destination,origin,departure,return_date,category,profile};
+}
+// Outside the configured search a favorite can never get a price again: the
+// departure has passed, or its airport, dates or trip length are no longer searched.
+export function favoriteExpired(fav, config, today) {
+  const days=(Date.parse(fav.return_date)-Date.parse(fav.departure))/86400000;
+  return fav.destination!==config.destination || !config.origins.includes(fav.origin)
+    || fav.departure<=today || fav.departure<config.departure_start || fav.departure>config.departure_end
+    || days<config.min_trip_days || days>config.max_trip_days;
+}
+export function pruneFavorites(keys, config, today) {
+  const kept=new Set(), removed=[];
+  for(const key of keys){const fav=parseFavorite(key);if(fav && !favoriteExpired(fav,config,today))kept.add(key);else removed.push(key);}
+  return {keys:kept,removed};
+}
+// Still-searchable favorites without a row in this view: not checked in the
+// latest run, or saved for another baggage selection. Listed so they can be removed.
+export function unavailableFavorites(keys, offers, destination, profile) {
+  const shown=new Set(offers.map(q=>favoriteKey(q,destination,profile)));
+  return [...keys].filter(key=>!shown.has(key)).map(parseFavorite).filter(Boolean)
+    .map(fav=>({...fav,reason:fav.profile===profile?'Derzeit kein geprüftes Angebot':'In anderer Gepäckauswahl gemerkt'}))
+    .sort((a,b)=>(a.profile!==profile)-(b.profile!==profile) || a.departure.localeCompare(b.departure) || a.return_date.localeCompare(b.return_date));
+}
 export function comparison(offer, history, config) {
   const prior = history.filter(p => Date.parse(p.at) < Date.parse(offer.at)).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
   const previous = prior.length ? prior[prior.length-1].price : null;

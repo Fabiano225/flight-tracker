@@ -68,8 +68,9 @@
         <button type="reset" class="reset">Zurücksetzen</button>
         <div class="favorite-filter"><label><input id="favorites-only" name="favorites" type="checkbox" value="only"> Nur Favoriten</label><span id="favorites-count" aria-live="polite">0 gemerkt</span></div>
       </form>
-      <p class="footnote favorites-note">☆ Mit dem Stern merken: Route, Reisedaten, Flugart und Gepäckauswahl. Der aktuelle Preis und die Airline können wechseln. Favoriten bleiben nur in diesem Browser gespeichert, ohne Konto oder Geräte-Synchronisierung. Fehlende Angebote bleiben gemerkt. Preisalarme bleiben von dieser Auswahl unberührt.</p>
+      <p class="footnote favorites-note">☆ Mit dem Stern merken: Route, Reisedaten, Flugart und Gepäckauswahl. Der aktuelle Preis und die Airline können wechseln. Favoriten bleiben nur in diesem Browser gespeichert, ohne Konto oder Geräte-Synchronisierung. Vorübergehend fehlende Angebote bleiben gemerkt und erscheinen darunter zum Entfernen; Favoriten außerhalb des Suchfensters werden automatisch entfernt. Preisalarme bleiben von dieser Auswahl unberührt.</p>
       <p id="favorites-status" class="footnote" role="status"></p>
+      <div id="favorites-missing" class="favorites-missing" hidden></div>
       <div class="table-scroll"><table><caption id="results-count">Angebote werden geladen</caption><thead><tr><th>Route & Verbindung</th><th>Deine Reisedaten</th><th>Flugdauer</th><th>Preis & Veränderung</th><th>Einordnung</th><th><span class="sr-only">Aktionen</span></th></tr></thead><tbody id="offers-body"></tbody></table></div>
       <p id="empty" class="empty" hidden>Keine Angebote für diese Auswahl. Probiere einen anderen Filter.</p>
       <p class="footnote">Vergleich mit dem tiefsten geprüften Preis der letzten 30 Tage und mit der vorherigen Messung derselben Route, Daten und Flugart. Die Airline kann wechseln. Fehlende Ergebnisse bedeuten nicht, dass es keine Flüge gibt.</p>

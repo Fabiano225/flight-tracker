@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,priceStatus,euro,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey} from '../website/model.mjs';
+import {filteredOffers,comparison,priceStatus,euro,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -38,6 +38,23 @@ test('price status distinguishes new low, repeated low and first check',()=>{
   assert.equal(repeated.main,'Auf Tiefstpreis');
   assert.equal(repeated.detail,`wie am 17.09. · seit letzter Messung ↓ ${euro(4000)}`);
   assert.deepEqual(priceStatus(comparison(offer,[],config)),{main:'Erste Messung',detail:null,tone:'neutral'});
+});
+test('favorites outside the search window are pruned, temporarily missing ones kept',()=>{
+  const cfg={destination:'BKK',origins:['DUS','FRA','AMS'],departure_start:'2026-10-20',departure_end:'2026-10-23',min_trip_days:14,max_trip_days:21};
+  const key=(origin,dep,ret,profile='base')=>JSON.stringify(['BKK',origin,dep,ret,'layover',profile]);
+  const current=key('FRA','2026-10-20','2026-11-03'), oldWindow=key('FRA','2026-10-14','2026-10-28');
+  const tooLong=key('FRA','2026-10-20','2026-11-12'), dropped=key('MUC','2026-10-20','2026-11-03');
+  const result=pruneFavorites(new Set([current,oldWindow,tooLong,dropped]),cfg,'2026-09-29');
+  assert.deepEqual([...result.keys],[current]);
+  assert.deepEqual(result.removed.sort(),[oldWindow,tooLong,dropped].sort());
+  assert.equal(pruneFavorites(new Set([current]),cfg,'2026-10-20').keys.size,0);  // Departure day reached.
+});
+test('favorites without a row are listed with a reason',()=>{
+  const q={...offer,return_date:'2026-10-29'};
+  const shown=favoriteKey(q,'BKK','base'), notChecked=JSON.stringify(['BKK','AMS','2026-10-16','2026-10-30','nonstop','base']);
+  const otherBag=JSON.stringify(['BKK','DUS','2026-10-15','2026-10-29','layover','cabin']);
+  const list=unavailableFavorites(new Set([shown,notChecked,otherBag]),[q],'BKK','base');
+  assert.deepEqual(list.map(f=>[f.key,f.reason]),[[notChecked,'Derzeit kein geprüftes Angebot'],[otherBag,'In anderer Gepäckauswahl gemerkt']]);
 });
 test('budget classification and independent category thresholds',()=>{
   assert.equal(comparison({...offer,price:66000},[],config).verdict,'Beobachten');

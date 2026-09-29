@@ -1,4 +1,4 @@
-import {filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices} from './model.mjs';
+import {filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const day = s => new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'short',timeZone:'Europe/Berlin'}).format(new Date(s+'T12:00:00Z'));
@@ -10,12 +10,36 @@ const svgNode = (tag, attrs, text) => {const n=document.createElementNS('http://
 let data, rootData, selectedId;
 let selectedAirlines=new Set(),airlineMode='include';
 const savedFavorites=readFavorites();
-let favorites=savedFavorites.keys, favoritesStored=savedFavorites.ok;
+let favorites=savedFavorites.keys, favoritesStored=savedFavorites.ok, prunedNotice='';
+const berlinToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin'}).format(new Date());
 
 function showFavoritesStatus() {
-  const available=data?favoriteOffers(data.offers,favorites,data.config.destination,$('baggage').value).length:0;
+  const profile=$('baggage').value;
+  const available=data?favoriteOffers(data.offers,favorites,data.config.destination,profile).length:0;
   $('favorites-count').textContent=`${favorites.size} gemerkt · ${available} in dieser Gepäckauswahl verfügbar`;
-  $('favorites-status').textContent=favoritesStored?'':'Browser-Speicher nicht verfügbar oder gespeicherte Auswahl beschädigt. Änderungen gelten vorerst nur in diesem geöffneten Tab.';
+  $('favorites-status').textContent=[favoritesStored?'':'Browser-Speicher nicht verfügbar oder gespeicherte Auswahl beschädigt. Änderungen gelten vorerst nur in diesem geöffneten Tab.',prunedNotice].filter(Boolean).join(' ');
+  const missing=data?unavailableFavorites(favorites,data.offers,data.config.destination,profile):[], box=$('favorites-missing');
+  box.replaceChildren();box.hidden=!missing.length;
+  if(!missing.length)return;
+  const list=node('ul');
+  for(const fav of missing){
+    const item=node('li'),text=node('span');
+    text.append(node('strong',`${fav.origin} → ${fav.destination} · ${fav.category==='nonstop'?'Direkt':'Umstieg'} · ${day(fav.departure)} – ${day(fav.return_date)}`),
+      node('small',`${baggageLabels[fav.profile]} · ${fav.reason}`));
+    const remove=node('button','Entfernen','chart-button');remove.type='button';
+    remove.setAttribute('aria-label',`Favorit entfernen: ${fav.origin} nach ${fav.destination}, ${fav.departure} bis ${fav.return_date}, ${baggageLabels[fav.profile]}`);
+    remove.addEventListener('click',()=>toggleFavorite(fav.key));
+    item.append(text,remove);list.append(item);
+  }
+  box.append(node('p','Gemerkt, aber hier ohne Angebot:'),list);
+}
+
+function pruneExpiredFavorites() {
+  if(!rootData)return;
+  const pruned=pruneFavorites(favorites,rootData.config,berlinToday());
+  if(!pruned.removed.length)return;
+  favorites=pruned.keys;favoritesStored=writeFavorites(favorites);
+  prunedNotice=`${pruned.removed.length===1?'1 Favorit wurde':pruned.removed.length+' Favoriten wurden'} entfernt: Reisedatum, Flughafen oder Reisedauer liegen nicht mehr im Suchfenster.`;
 }
 
 function toggleFavorite(key) {
@@ -185,7 +209,7 @@ async function load() {
   try {
     const response=await fetch('./data.json',{cache:'no-store'});if(!response.ok)throw new Error('Fetch failed');
     const value=await response.json();if(value.version!==1||!Array.isArray(value.offers)||!value.config||!value.histories)throw new Error('Invalid data');
-    rootData=value;fillSelect('origin',value.config.origins,v=>({DUS:'Düsseldorf (DUS)',FRA:'Frankfurt (FRA)',AMS:'Amsterdam (AMS)'})[v]||v);
+    rootData=value;pruneExpiredFavorites();fillSelect('origin',value.config.origins,v=>({DUS:'Düsseldorf (DUS)',FRA:'Frankfurt (FRA)',AMS:'Amsterdam (AMS)'})[v]||v);
     fillSelect('days',Array.from({length:value.config.max_trip_days-value.config.min_trip_days+1},(_,i)=>value.config.min_trip_days+i),v=>`${v} Tage`);
     activateBaggage();
   } catch {
@@ -214,7 +238,7 @@ $('reload').addEventListener('click',load);
 $('baggage').addEventListener('change',()=>{if(rootData){selectedId=null;activateBaggage();}});
 window.addEventListener('storage',event=>{
   if(event.key!==favoritesStorageKey && event.key!==null)return;
-  const saved=readFavorites();favorites=saved.keys;favoritesStored=saved.ok;
+  const saved=readFavorites();favorites=saved.keys;favoritesStored=saved.ok;pruneExpiredFavorites();
   if(data)renderOffers();else showFavoritesStatus();
 });
 showFavoritesStatus();
