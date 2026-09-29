@@ -47,6 +47,8 @@ def scan_baggage(config, store, provider, now):
     quotes = [Quote(**json.loads(r['details'])) for r in rows]
     selected = [(q.origin,q.departure,q.return_date,'nonstop' if q.category=='nonstop' else 'any')
                 for q in quotes if eligible(q,config,now.date())][:config.max_verifications_per_run]
+    if hasattr(provider,'load_search_cache'):
+        provider.load_search_cache(run['id'])
     db.execute('DELETE FROM baggage_checks WHERE run_id=?',(run['id'],))
     for variant in PROFILES:
         db.execute('DELETE FROM baggage_quotes WHERE run_id=? AND variant=?',(run['id'],variant))
@@ -92,4 +94,4 @@ def scan_baggage(config, store, provider, now):
         provider.close()
     stats = [dict(r) for r in db.execute('SELECT variant,status,planned,completed,issues FROM baggage_runs WHERE run_id=?',(run['id'],))]
     return {'status':'partial' if any(r['status']!='ok' for r in stats) else 'ok', 'profiles':stats,
-            'http_attempts':provider.http.used}
+            'http_attempts':provider.http.used, **getattr(provider,'cache_stats',{})}

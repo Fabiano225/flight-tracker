@@ -5,6 +5,7 @@ from copy import deepcopy
 from urllib.parse import parse_qs, urlsplit, urlencode
 import json
 import hashlib
+from pathlib import Path
 import threading
 import time
 
@@ -47,68 +48,100 @@ class GuardedClient:
         self.blocked = False
         self.lock = threading.Lock()
         self.deadline = time.monotonic() + config.max_run_seconds
+        # Pace request *starts*, so network latency overlaps the pacing gap
+        # instead of adding to it. A few requests (fli's return-leg worker
+        # pool) may be in flight at once; the request rate stays bounded.
+        self.interval = config.request_interval_seconds
+        self.next_start = 0.0
+        self.slots = threading.BoundedSemaphore(config.max_parallel_requests)
+
+    def reserve(self):
+        """Atomically check budgets and claim the next paced start time."""
+        with self.lock:
+            if self.blocked:
+                raise BudgetError("Flight source requested a pause; deferred to next scheduled run")
+            now = time.monotonic()
+            start = max(now, self.next_start) if self.used else now
+            if start + 1 >= self.deadline:
+                raise BudgetError("Flight scan time budget exhausted; checkpointing completed searches")
+            if self.used >= self.config.max_http_attempts_per_run:
+                raise BudgetError("Flight request budget exhausted")
+            self.used += 1
+            self.next_start = start + self.interval
+        return start - now
+
+    def slow_down(self):
+        # Transient source trouble: widen the pacing gap (at most 5 s) ...
+        with self.lock:
+            self.interval = max(self.interval, min(self.interval * 2 or 1.0, 5.0))
+
+    def recover(self):
+        # ... and narrow it again on success, so one isolated error cannot
+        # slow down the rest of the run.
+        with self.lock:
+            self.interval = max(self.config.request_interval_seconds, self.interval / 2)
 
     def post(self, url, data, **kwargs):
-        # Calls made in fli's worker pool are deliberately serialized and paced.
-        with self.lock:
-            for attempt in range(self.config.http_attempts):
-                if self.blocked:
-                    raise BudgetError("Flight source requested a pause; deferred to next scheduled run")
-                if time.monotonic() + self.config.request_interval_seconds + 1 >= self.deadline:
-                    raise BudgetError("Flight scan time budget exhausted; checkpointing completed searches")
-                if self.used >= self.config.max_http_attempts_per_run:
-                    raise BudgetError("Flight request budget exhausted")
-                if self.used:
-                    self.sleep(self.config.request_interval_seconds)
-                self.used += 1
-                try:
-                    # The streaming named endpoint currently returns RPC error 13.
-                    # Use the public page's shopping-prefetch RPC, with the same
-                    # filter payload and locale. No cookies or API key required.
-                    if "GetShoppingResults" in url:
-                        request = json.loads(parse_qs(data)["f.req"][0])[1]
-                        query = parse_qs(urlsplit(url).query)
-                        params = {key: query[key][0] for key in ("hl", "curr", "gl") if key in query}
-                        params["rpcids"] = "LqxFAb"
-                        request_url = "https://www.google.com/_/FlightsFrontendUi/data/batchexecute?" + urlencode(params)
-                        request_data = {"f.req": json.dumps([[["LqxFAb", request, None, "generic"]]])}
-                    else:
-                        request_url, request_data = url, data
-                    response = self.session.post(request_url, data=request_data, impersonate="chrome", allow_redirects=False,
-                        timeout=min(self.config.http_timeout_seconds, max(1, self.deadline - time.monotonic())),
-                        headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"})
-                except Exception:
-                    if attempt + 1 == self.config.http_attempts:
-                        raise ServiceError("Flight source network error") from None
-                    self.sleep(2 ** attempt)
+        with self.slots:
+            return self.attempt(url, data)
+
+    def attempt(self, url, data):
+        for attempt in range(self.config.http_attempts):
+            wait = self.reserve()
+            if wait > 0:
+                self.sleep(wait)
+            try:
+                # The streaming named endpoint currently returns RPC error 13.
+                # Use the public page's shopping-prefetch RPC, with the same
+                # filter payload and locale. No cookies or API key required.
+                if "GetShoppingResults" in url:
+                    request = json.loads(parse_qs(data)["f.req"][0])[1]
+                    query = parse_qs(urlsplit(url).query)
+                    params = {key: query[key][0] for key in ("hl", "curr", "gl") if key in query}
+                    params["rpcids"] = "LqxFAb"
+                    request_url = "https://www.google.com/_/FlightsFrontendUi/data/batchexecute?" + urlencode(params)
+                    request_data = {"f.req": json.dumps([[["LqxFAb", request, None, "generic"]]])}
+                else:
+                    request_url, request_data = url, data
+                response = self.session.post(request_url, data=request_data, impersonate="chrome", allow_redirects=False,
+                    timeout=min(self.config.http_timeout_seconds, max(1, self.deadline - time.monotonic())),
+                    headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"})
+            except Exception:
+                if attempt + 1 == self.config.http_attempts:
+                    raise ServiceError("Flight source network error") from None
+                self.slow_down()
+                self.sleep(2 ** attempt)
+                continue
+            if response.status_code in {401, 403, 429}:
+                self.blocked = True
+                raise BudgetError(f"Flight source HTTP {response.status_code}; pause until next run")
+            if response.status_code in {500, 502, 503, 504} and attempt + 1 < self.config.http_attempts:
+                self.slow_down()
+                self.sleep(2 ** attempt)
+                continue
+            if response.status_code != 200:
+                raise ServiceError(f"Flight source HTTP {response.status_code}")
+            text = response.text
+            if not text.startswith(")]}'"):
+                raise ServiceError("Unexpected flight response; possible consent page or source change")
+            # Validate the envelope before the permissive upstream decoder.
+            from fli.search._wire import parse_first_wrb_payload
+            if parse_first_wrb_payload(text) is None:
+                code = rpc_error_code(text)
+                # 13 is the standard RPC INTERNAL status, not an empty fare
+                # result. Back off; never retry explicit access/rate denials.
+                if code == 13 and attempt + 1 < self.config.http_attempts:
+                    self.slow_down()
+                    self.sleep(3 * (attempt + 1))
                     continue
-                if response.status_code in {401, 403, 429}:
+                if code in {7, 8, 16}:
                     self.blocked = True
-                    raise BudgetError(f"Flight source HTTP {response.status_code}; pause until next run")
-                if response.status_code in {500, 502, 503, 504} and attempt + 1 < self.config.http_attempts:
-                    self.sleep(2 ** attempt)
-                    continue
-                if response.status_code != 200:
-                    raise ServiceError(f"Flight source HTTP {response.status_code}")
-                text = response.text
-                if not text.startswith(")]}'"):
-                    raise ServiceError("Unexpected flight response; possible consent page or source change")
-                # Validate the envelope before the permissive upstream decoder.
-                from fli.search._wire import parse_first_wrb_payload
-                if parse_first_wrb_payload(text) is None:
-                    code = rpc_error_code(text)
-                    # 13 is the standard RPC INTERNAL status, not an empty fare
-                    # result. Back off; never retry explicit access/rate denials.
-                    if code == 13 and attempt + 1 < self.config.http_attempts:
-                        self.sleep(10 * (attempt + 1))
-                        continue
-                    if code in {7, 8, 16}:
-                        self.blocked = True
-                        raise BudgetError(f"Flight source RPC {code}; pause until next run")
-                    if code == 13:
-                        raise TransientSourceError("Google Flights RPC 13; no price data received after retries")
-                    raise ServiceError(f"Google Flights RPC {code if code is not None else 'error'} or changed response; no price data received")
-                return response
+                    raise BudgetError(f"Flight source RPC {code}; pause until next run")
+                if code == 13:
+                    raise TransientSourceError("Google Flights RPC 13; no price data received after retries")
+                raise ServiceError(f"Google Flights RPC {code if code is not None else 'error'} or changed response; no price data received")
+            self.recover()
+            return response
 
     def close(self):
         self.session.close()
@@ -189,12 +222,49 @@ class PrefetchDates:
 
 
 class FreeProvider:
-    def __init__(self, config):
+    CACHE_MAX_AGE_SECONDS = 3600
+
+    def __init__(self, config, cache_path=None):
         from fli.search import SearchFlights
         self.config = config
         self.http = GuardedClient(config)
         self.dates, self.flights = PrefetchDates(self.http), SearchFlights()
         self.flights.client = self.http
+        # Itinerary searches of this run, reused by the later baggage step so
+        # it does not repeat identical requests. Local file only; never published.
+        self.cache_path = Path(cache_path) if cache_path else None
+        self.searches = {}
+        self.cache_stats = {"cached_searches": 0, "cache_fallbacks": 0}
+
+    @staticmethod
+    def search_key(origin, departure, return_date, profile):
+        return "|".join((origin, departure, return_date, profile))
+
+    def save_search_cache(self, run_id):
+        if not self.cache_path:
+            return
+        entries = {key: {"session": session, "pairs": [[x.model_dump(mode="json") for x in pair] for pair in pairs]}
+                   for key, (pairs, session) in self.searches.items()}
+        tmp = self.cache_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"run_id": run_id, "scope": self.config.scope(), "created": time.time(),
+                                   "entries": entries}), encoding="utf-8")
+        tmp.replace(self.cache_path)
+
+    def load_search_cache(self, run_id):
+        """Accept only this run's fresh, fully decodable cache; otherwise search live."""
+        from fli.models import FlightResult
+        self.searches = {}
+        if not self.cache_path or not self.cache_path.is_file():
+            return
+        try:
+            data = json.loads(self.cache_path.read_text(encoding="utf-8"))
+            if (data["run_id"] != run_id or data["scope"] != self.config.scope()
+                    or not 0 <= time.time() - data["created"] <= self.CACHE_MAX_AGE_SECONDS):
+                return
+            self.searches = {key: ([tuple(FlightResult.model_validate(x) for x in pair) for pair in entry["pairs"]],
+                                   entry["session"]) for key, entry in data["entries"].items()}
+        except Exception:
+            self.searches = {}
 
     def common(self, origin, departure, return_date, profile):
         from fli.models import Airport, PassengerInfo, SeatType, MaxStops, BagsFilter
@@ -242,6 +312,8 @@ class FreeProvider:
             raise
         except Exception:
             raise ServiceError("Itinerary search/parser failed") from None
+        if pairs and self.flights._last_session_id:
+            self.searches[self.search_key(origin, departure, return_date, profile)] = (pairs, self.flights._last_session_id)
         return normalize_pairs(pairs or [], origin, departure, return_date, profile, self.config,
             lambda pair: "https://www.google.com/travel/flights?" + urlencode({"q":
                 f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} {self.config.travel_class} one adult",
@@ -249,12 +321,32 @@ class FreeProvider:
 
     def baggage_offers(self, origin, departure, return_date, profile):
         """Inspect actual vendor offers, not prices from a requested bag filter."""
+        cached = self.searches.pop(self.search_key(origin, departure, return_date, profile), None)
+        if cached:
+            # Reuse the base scan's search and its Google session. If that
+            # yields nothing usable, fall back to a fresh live search.
+            try:
+                found = self.booking_offers(origin, departure, return_date, profile, cached)
+            except BudgetError:
+                raise
+            except ServiceError:
+                found = []
+            if found:
+                self.cache_stats["cached_searches"] += 1
+                return found
+            self.cache_stats["cache_fallbacks"] += 1
+        return self.booking_offers(origin, departure, return_date, profile)
+
+    def booking_offers(self, origin, departure, return_date, profile, cached=None):
         from fli.models import FlightSearchFilters, SortBy
         from .fare_baggage import booking_quotes
         filters = FlightSearchFilters(**self.common(origin, departure, return_date, profile), sort_by=SortBy.CHEAPEST)
         try:
-            pairs = self.flights.search(filters, top_n=self.config.outbound_candidates,
-                                        currency="EUR", language="en", country="DE") or []
+            if cached:
+                pairs, self.flights._last_session_id = cached
+            else:
+                pairs = self.flights.search(filters, top_n=self.config.outbound_candidates,
+                                            currency="EUR", language="en", country="DE") or []
             candidates = []
             for pair in pairs:
                 quotes = normalize_pairs([pair], origin, departure, return_date, profile, self.config,

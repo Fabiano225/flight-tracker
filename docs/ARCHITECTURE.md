@@ -91,7 +91,16 @@ never added to public state. Public dashboard exports exclude all delivery metad
 
 ## Failure boundaries
 
-The source adapter has request, time and retry budgets. Repeated access denial or RPC
+The source adapter has request, time and retry budgets. Request starts are paced by
+`request_interval_seconds`, so response latency overlaps the gap; at most
+`max_parallel_requests` requests (fli's return-leg expansion) are in flight. After a
+network error, HTTP 5xx or RPC 13 the gap doubles (up to 5 s); each successful
+response halves it again, down to the configured interval.
+RPC 13 retries wait 3 s, then 6 s. The scan writes its itinerary searches and their
+Google session IDs to the local, unpublished `state/search-cache.json`; the baggage step
+reuses them for the same run (at most one hour old) instead of repeating the searches,
+and searches live again when a cached search yields no usable booking offers.
+Repeated access denial or RPC
 failure stops the affected run rather than fabricating empty or zero-priced results.
 State commits are fast-forward only and reject concurrent writers. Recovery artifacts
 are retained for seven days by the workflow.

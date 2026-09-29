@@ -52,7 +52,8 @@ def main():
     directory = args.state_dir or ("demo-state" if demo else "state")
     with Store(directory, "demo" if demo else "live") as store:
         if args.command in {"scan", "demo"}:
-            provider = DemoProvider(config, args.demo_discount) if demo else FreeProvider(config)
+            provider = DemoProvider(config, args.demo_discount) if demo else FreeProvider(
+                config, cache_path=Path(directory) / "search-cache.json")
             summary = scan(config, store, provider, now, demo)
             text = report(store)
             print(json.dumps({k: v for k, v in summary.items() if k != "config"}, indent=2))

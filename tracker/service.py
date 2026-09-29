@@ -89,6 +89,12 @@ def scan(config, store, provider, now, demo=False):
             db.execute("INSERT INTO quotes VALUES(?,?,?,?,?,?,?,?,?)", (run_id, scope, stamp(now), quote.origin,
                 quote.departure, quote.return_date, quote.category, quote.price, json.dumps(quote.to_dict())))
         summary["verified_quotes"] = len(verified)
+        save_cache = getattr(provider, "save_search_cache", None)
+        if save_cache:
+            try:
+                save_cache(run_id)
+            except Exception:
+                pass  # Optional speed-up only; the baggage step then searches live.
         summary["queued_deals"] = queue_trends(store, config, scope, run_id, verified, now, demo)
         if batches and not summary["calendar_prices"]:
             summary["errors"].append("No calendar prices received; source health needs attention")

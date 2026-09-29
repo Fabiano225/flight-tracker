@@ -19,7 +19,7 @@ if __name__ == '__main__':
     config=Config.load(args.config)
     bounded=replace(config,max_http_attempts_per_run=360,max_run_seconds=600)
     with Store(args.state_dir) as store:
-        provider=FreeProvider(bounded)
+        provider=FreeProvider(bounded,cache_path=Path(args.state_dir)/'search-cache.json')
         try:
             result=scan_baggage(config,store,provider,utcnow())
             print(json.dumps(result))
