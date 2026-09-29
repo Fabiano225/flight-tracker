@@ -1,7 +1,6 @@
-import {filteredOffers, comparison, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices} from './model.mjs';
+import {filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices} from './model.mjs';
 
 const $ = id => document.getElementById(id);
-const euro = value => new Intl.NumberFormat('de-DE', {style:'currency',currency:'EUR',maximumFractionDigits: value%100 ? 2 : 0}).format(value/100);
 const day = s => new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'short',timeZone:'Europe/Berlin'}).format(new Date(s+'T12:00:00Z'));
 const when = s => new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'}).format(new Date(s))+' Uhr';
 const category = q => q.category==='nonstop' ? 'Direkt · beide Richtungen' : 'Mit Umstieg';
@@ -105,9 +104,6 @@ function renderSummary() {
   $('trip-days').textContent=`${c.min_trip_days}–${c.max_trip_days} Tage`;
   $('offer-timestamp').textContent=data.offers_as_of?`${baggageLabels[$('baggage').value]} · ${when(data.offers_as_of)} · Berlin`:'Noch keine geprüften Preise für diese Variante';
 }
-function deltaText(c) {
-  return c.delta===null?'Erste Messung':c.delta===0?'→ Unverändert':`${c.delta<0?'↓':'↑'} ${euro(Math.abs(c.delta))} (${c.percent>0?'+':''}${c.percent.toFixed(1).replace('.',',')} %)`;
-}
 function renderOffers() {
   const filters=Object.fromEntries(new FormData($('filters'))), profile=$('baggage').value;
   filters.airlines=[...selectedAirlines];filters.airlineMode=airlineMode;
@@ -135,7 +131,8 @@ function renderOffers() {
     route.append(routeTitle,node('small',`${category(q)} · ${q.airlines}`));
     const dates=node('td');dates.append(node('strong',`${day(q.departure)} – ${day(q.return_date)}`),node('small',`${q.days} Tage · ${q.departure.slice(0,4)}`));
     const duration=node('td');duration.append(node('strong',`${hours(q.outbound_minutes)} / ${hours(q.inbound_minutes)}`),node('small',`Hin / zurück · Stopps ${q.outbound_stops}/${q.inbound_stops}`));
-    const price=node('td');price.append(node('strong',euro(q.price),'price'),node('div',deltaText(c),`delta ${c.delta===null||c.delta===0?'neutral':c.delta<0?'down':'up'}`));
+    const price=node('td'),status=priceStatus(c);price.append(node('strong',euro(q.price),'price'),node('div',status.main,`delta ${status.tone}`));
+    if(status.detail)price.append(node('small',status.detail,'delta-detail'));
     price.append(node('small',baggageDescription(q.baggage,'cabin'),'baggage-detail'));
     price.append(node('small',baggageDescription(q.baggage,'checked'),'baggage-detail'));
     if(q.baggage) {
@@ -165,8 +162,9 @@ function renderChart() {
   document.querySelectorAll('#offers-body tr').forEach(row=>row.classList.toggle('selected-row',row.dataset.id===selectedId));
   if(!q){$('chart-price').textContent='—';$('chart-change').textContent='Keine Auswahl';chart.append(node('p','Für diesen Filter sind noch keine Preisbeobachtungen verfügbar.','empty'));$('chart-note').textContent='Wähle einen anderen Filter, um vorhandene Verläufe anzuzeigen.';return;}
   const points=(data.histories[q.id]||[]).filter(p=>Date.parse(p.at)<=Date.parse(q.at)).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at)), c=comparison(q,points,data.config);
-  $('chart-price').textContent=euro(q.price);$('chart-change').textContent=deltaText(c)+' · zur vorherigen Messung';
-  $('chart-note').textContent=`${baggageLabels[$('baggage').value]} · ${points.length} Messungen${points.length?' seit '+when(points[0].at):''}. ${c.low===null?'Noch kein früherer Vergleichspreis.':'Bisheriges Tief vor dieser Messung: '+euro(c.low)+'.'} Gleiche Reisedaten, Flugart und Gepäcksuche, ggf. andere Airline.`;
+  const status=priceStatus(c);
+  $('chart-price').textContent=euro(q.price);$('chart-change').textContent=status.detail?`${status.main} · ${status.detail}`:status.main;
+  $('chart-note').textContent=`${baggageLabels[$('baggage').value]} · ${points.length} Messungen${points.length?' seit '+when(points[0].at):''}. ${c.low===null?'Noch kein früherer Vergleichspreis.':`Tief der letzten ${data.config.history_window_days} Tage vor dieser Messung: ${euro(c.low)} am ${when(c.lowAt)}.`} Gezählt werden nur tatsächlich geprüfte Preise. Gleiche Reisedaten, Flugart und Gepäcksuche, ggf. andere Airline.`;
   if(!points.length){chart.append(node('p','Noch keine Historie verfügbar.','empty'));return;}
   const width=640,height=228,left=48,right=18,top=16,bottom=35;
   const values=points.map(p=>p.price).concat(c.threshold), min=Math.floor((Math.min(...values)-2000)/2500)*2500, max=Math.ceil((Math.max(...values)+2000)/2500)*2500;

@@ -58,12 +58,30 @@ export function favoriteOffers(offers, keys, destination, profile) {
 export function comparison(offer, history, config) {
   const prior = history.filter(p => Date.parse(p.at) < Date.parse(offer.at)).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
   const previous = prior.length ? prior[prior.length-1].price : null;
+  const previousAt = prior.length ? prior[prior.length-1].at : null;
   const low = prior.length ? Math.min(...prior.map(p => p.price)) : null;
+  // Most recent observation at the low: the most relevant "it was this cheap on ...".
+  const lowAt = low === null ? null : prior.filter(p => p.price === low).at(-1).at;
   const threshold = 100 * (offer.category === 'nonstop' ? config.good_deal_nonstop_eur : config.good_deal_layover_eur);
   const delta = previous === null ? null : offer.price - previous;
   const verdict = offer.price > threshold ? 'Beobachten'
     : low !== null && offer.price-low >= config.realert_improvement_eur*100 ? 'Im Budget, über Tief' : 'Kauf prüfen';
-  return {previous, low, delta, percent: previous === null ? null : delta/previous*100, threshold, verdict};
+  return {previous, previousAt, low, lowAt, vsLow: low === null ? null : offer.price - low, delta,
+    percent: previous === null ? null : delta/previous*100, threshold, verdict};
+}
+
+export const euro = value => new Intl.NumberFormat('de-DE', {style:'currency',currency:'EUR',maximumFractionDigits: value%100 ? 2 : 0}).format(value/100);
+export const shortDate = s => new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',timeZone:'Europe/Berlin'}).format(new Date(s));
+
+// Compare with the observed low of the history window first: "unchanged since
+// the last check" alone hides that the same trip may have been cheaper days ago.
+export function priceStatus(c) {
+  if (c.low === null) return {main:'Erste Messung', detail:null, tone:'neutral'};
+  const last = c.delta === 0 ? 'seit letzter Messung unverändert'
+    : `seit letzter Messung ${c.delta < 0 ? '↓' : '↑'} ${euro(Math.abs(c.delta))}`;
+  if (c.vsLow < 0) return {main:'↓ Neues Tief', detail:`bisher ${euro(c.low)} am ${shortDate(c.lowAt)} · ${last}`, tone:'down'};
+  if (c.vsLow === 0) return {main:'Auf Tiefstpreis', detail:`wie am ${shortDate(c.lowAt)} · ${last}`, tone:'down'};
+  return {main:`↑ ${euro(c.vsLow)} über Tief`, detail:`Tief ${euro(c.low)} am ${shortDate(c.lowAt)} · ${last}`, tone:'up'};
 }
 export function freshness(data, now = Date.now()) {
   const at = Date.parse(data.scan?.at || '');
