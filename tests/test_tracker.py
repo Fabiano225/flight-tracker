@@ -130,6 +130,57 @@ class AlertTests(unittest.TestCase):
         self.assertIn("20h59",text)
 
 
+class NoNonstopProvider(DemoProvider):
+    """Demo fixture whose nonstop route has no prices until `nonstop_prices` is set."""
+    nonstop_prices = False
+    fail_nonstop = False
+
+    def fetch(self, batch):
+        if batch.profile == "nonstop" and self.fail_nonstop:
+            raise ServiceError("RPC error")
+        rows = super().fetch(batch)
+        if batch.profile == "nonstop" and not self.nonstop_prices:
+            rows = {pair: None for pair in rows}
+        return rows
+
+
+class EmptyRouteTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.store = Store(self.temp.name,"demo")
+        self.config = replace(Config(), origins=("FRA",), departure_start="2026-10-15", departure_end="2026-10-15", min_trip_days=14,max_trip_days=14)
+        self.provider = NoNonstopProvider(self.config)
+
+    def tearDown(self):
+        self.store.close()
+        self.temp.cleanup()
+
+    def run_scan(self, hours):
+        summary = scan(self.config,self.store,self.provider,NOW+timedelta(hours=hours),True)
+        return summary["calendar_queries_planned"], summary["calendar_queries_skipped"]
+
+    def test_empty_route_is_searched_daily_until_it_has_prices(self):
+        self.assertEqual(self.run_scan(0), (2, 0))    # Nonstop searched, no price found.
+        self.assertEqual(self.run_scan(6), (1, 1))    # Skipped during the day.
+        self.assertEqual(self.run_scan(18), (1, 1))
+        self.assertEqual(self.run_scan(24), (2, 0))   # Daily recheck, still empty.
+        self.provider.nonstop_prices = True
+        self.assertEqual(self.run_scan(48), (2, 0))   # Recheck finds a price ...
+        self.assertEqual(self.run_scan(54), (2, 0))   # ... so it is searched every run again.
+
+    def test_failed_search_never_marks_a_route_empty(self):
+        self.provider.fail_nonstop = True
+        self.run_scan(0)
+        self.provider.fail_nonstop = False
+        self.assertEqual(self.run_scan(6), (2, 0))
+
+    def test_changed_search_window_rechecks_immediately(self):
+        self.run_scan(0)
+        self.config = replace(self.config, departure_start="2026-10-16", departure_end="2026-10-16")
+        self.provider = NoNonstopProvider(self.config)
+        self.assertEqual(self.run_scan(6), (2, 0))
+
+
 class HistoryTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

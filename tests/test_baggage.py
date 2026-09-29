@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import timedelta
+from datetime import date, timedelta
 import json
 import tempfile
 from types import SimpleNamespace
@@ -94,6 +94,40 @@ class BaggageTests(unittest.TestCase):
         scan_baggage(self.config,self.store,self.provider,NOW+timedelta(minutes=5))
         data=self.export('both',NOW+timedelta(minutes=5))
         self.assertEqual(len(next(iter(data['histories'].values()))),1)
+
+    def test_parallel_checks_keep_error_streak_stop(self):
+        from tracker.network import ServiceError
+        for day in ('2026-10-15','2026-10-16','2026-10-17','2026-10-18','2026-10-19'):
+            q=replace(self.q,departure=day,return_date=(date.fromisoformat(day)+timedelta(days=14)).isoformat())
+            self.store.db.execute('INSERT INTO quotes VALUES(?,?,?,?,?,?,?,?,?)',
+                ('base',self.config.scope(),stamp(NOW),q.origin,q.departure,q.return_date,q.category,q.price,json.dumps(q.to_dict())))
+        self.store.db.commit()
+        def fail(*args):raise ServiceError('RPC 13')
+        self.provider.baggage_offers=fail
+        result=scan_baggage(self.config,self.store,self.provider,NOW)
+        self.assertEqual(result['status'],'partial')
+        self.assertEqual({(p['planned'],p['completed'],p['issues']) for p in result['profiles']},{(6,0,3)})
+
+    def test_parallel_results_are_recorded_in_selection_order(self):
+        import threading, time
+        second=replace(self.q,departure='2026-10-15',return_date='2026-10-29')
+        self.store.db.execute('INSERT INTO quotes VALUES(?,?,?,?,?,?,?,?,?)',
+            ('base',self.config.scope(),stamp(NOW),second.origin,second.departure,second.return_date,second.category,
+             second.price+100,json.dumps(replace(second,price=second.price+100).to_dict())))
+        self.store.db.commit()
+        original,active,peak,lock=self.verify,[0],[0],threading.Lock()
+        def slow(origin,dep,ret,profile):
+            with lock:
+                active[0]+=1;peak[0]=max(peak[0],active[0])
+            time.sleep(0.05 if dep=='2026-10-14' else 0)
+            with lock:active[0]-=1
+            return [replace(q,departure=dep,return_date=ret) for q in original(origin,dep,ret,profile)]
+        self.provider.baggage_offers=slow
+        scan_baggage(self.config,self.store,self.provider,NOW)
+        self.assertEqual(peak[0],2)
+        order=[json.loads(r[0])['departure'] for r in self.store.db.execute('SELECT details FROM baggage_checks ORDER BY rowid')]
+        self.assertEqual(order[:4],['2026-10-14']*4)
+        self.assertEqual(order[4:],['2026-10-15']*4)
 
     def test_old_or_other_scope_base_is_not_searched(self):
         self.assertEqual(scan_baggage(self.config,self.store,self.provider,NOW+timedelta(days=1))['status'],'skipped')

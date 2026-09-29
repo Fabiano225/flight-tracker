@@ -235,6 +235,24 @@ class FreeProvider:
         self.cache_path = Path(cache_path) if cache_path else None
         self.searches = {}
         self.cache_stats = {"cached_searches": 0, "cache_fallbacks": 0}
+        self.stats_lock = threading.Lock()
+        # fli keeps per-search state (session ID, swapped client), so worker
+        # threads each get their own SearchFlights over the shared paced client.
+        self.owner, self.local = threading.get_ident(), threading.local()
+
+    def searcher(self):
+        if threading.get_ident() == self.owner:
+            return self.flights
+        flights = getattr(self.local, "flights", None)
+        if flights is None:
+            from fli.search import SearchFlights
+            flights = self.local.flights = SearchFlights()
+            flights.client = self.http
+        return flights
+
+    def count(self, name):
+        with self.stats_lock:
+            self.cache_stats[name] += 1
 
     @staticmethod
     def search_key(origin, departure, return_date, profile):
@@ -305,15 +323,19 @@ class FreeProvider:
     def verify(self, origin, departure, return_date, profile):
         from fli.models import FlightSearchFilters, SortBy
         filters = FlightSearchFilters(**self.common(origin, departure, return_date, profile), sort_by=SortBy.CHEAPEST)
+        flights = self.searcher()
         try:
-            pairs = self.flights.search(filters, top_n=self.config.outbound_candidates,
-                                        currency="EUR", language="en", country="DE")
+            pairs = flights.search(filters, top_n=self.config.outbound_candidates,
+                                   currency="EUR", language="en", country="DE")
         except ServiceError:
             raise
         except Exception:
             raise ServiceError("Itinerary search/parser failed") from None
-        if pairs and self.flights._last_session_id:
-            self.searches[self.search_key(origin, departure, return_date, profile)] = (pairs, self.flights._last_session_id)
+        # Private fli field: if a library update renames it, skip caching
+        # (the baggage step then searches live) instead of failing the scan.
+        session = getattr(flights, "_last_session_id", None)
+        if pairs and isinstance(session, str) and session:
+            self.searches[self.search_key(origin, departure, return_date, profile)] = (pairs, session)
         return normalize_pairs(pairs or [], origin, departure, return_date, profile, self.config,
             lambda pair: "https://www.google.com/travel/flights?" + urlencode({"q":
                 f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} {self.config.travel_class} one adult",
@@ -332,21 +354,22 @@ class FreeProvider:
             except ServiceError:
                 found = []
             if found:
-                self.cache_stats["cached_searches"] += 1
+                self.count("cached_searches")
                 return found
-            self.cache_stats["cache_fallbacks"] += 1
+            self.count("cache_fallbacks")
         return self.booking_offers(origin, departure, return_date, profile)
 
     def booking_offers(self, origin, departure, return_date, profile, cached=None):
         from fli.models import FlightSearchFilters, SortBy
         from .fare_baggage import booking_quotes
         filters = FlightSearchFilters(**self.common(origin, departure, return_date, profile), sort_by=SortBy.CHEAPEST)
+        flights = self.searcher()
         try:
             if cached:
-                pairs, self.flights._last_session_id = cached
+                pairs, flights._last_session_id = cached
             else:
-                pairs = self.flights.search(filters, top_n=self.config.outbound_candidates,
-                                            currency="EUR", language="en", country="DE") or []
+                pairs = flights.search(filters, top_n=self.config.outbound_candidates,
+                                       currency="EUR", language="en", country="DE") or []
             candidates = []
             for pair in pairs:
                 quotes = normalize_pairs([pair], origin, departure, return_date, profile, self.config,
@@ -367,7 +390,7 @@ class FreeProvider:
             selected += [x for x in ordered if x not in selected]
             found = []
             for q, pair in selected[:self.config.outbound_candidates]:
-                found.extend(booking_quotes(self.flights, self.http, pair, filters, q))
+                found.extend(booking_quotes(flights, self.http, pair, filters, q))
             return found
         except ServiceError:
             raise
