@@ -1,4 +1,5 @@
 """Bounded website-only baggage searches. Never creates Telegram alerts."""
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 import json
 
@@ -57,10 +58,14 @@ def scan_baggage(config, store, provider, now):
     db.commit()
     stopped = False
     error_streak = 0
+    # Booking responses are slow; overlap a few checks. Results are still
+    # recorded in selection order, so the error-streak stop is unchanged.
+    workers = ThreadPoolExecutor(max_workers=config.max_parallel_requests)
+    jobs = [workers.submit(provider.baggage_offers,*item) for item in selected]
     try:
-        for origin, dep, ret, profile in selected:
+        for (origin, dep, ret, profile), job in zip(selected, jobs):
             try:
-                found = provider.baggage_offers(origin,dep,ret,profile)
+                found = job.result()
                 for q in found:
                     if (not eligible(q,config,now.date()) or (q.origin,q.departure,q.return_date)!=(origin,dep,ret)
                             or (profile=='nonstop' and q.category!='nonstop') or not q.itinerary_id
@@ -87,6 +92,9 @@ def scan_baggage(config, store, provider, now):
             if stopped:
                 break
     finally:
+        for job in jobs:
+            job.cancel()
+        workers.shutdown(wait=True)
         db.execute('''UPDATE baggage_runs SET status=CASE
             WHEN planned>0 AND completed=planned AND issues=0 THEN 'ok' ELSE 'partial' END
             WHERE run_id=?''',(run['id'],))

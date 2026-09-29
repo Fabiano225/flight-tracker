@@ -9,13 +9,36 @@ from .store import stamp
 from .check_status import queue_check_status
 from .trends import load_watches, watch_searches, queue_trends
 
+# A route (airport + nonstop/any profile) whose complete date search found no
+# price at all is searched again only about once a day, until it has prices.
+EMPTY_ROUTE_RECHECK = timedelta(hours=23)
+
+
+def route_key(scope, origin, profile):
+    return f"empty_route:{scope}:{origin}:{profile}"
+
+
+def search_window(config):
+    return [config.departure_start, config.departure_end, config.min_trip_days, config.max_trip_days]
+
+
+def quiet_route(store, config, scope, origin, profile, now):
+    value = store.get_meta(route_key(scope, origin, profile))
+    try:
+        data = json.loads(value) if value else None
+        return bool(data) and data["window"] == search_window(config) and data["at"] > stamp(now - EMPTY_ROUTE_RECHECK)
+    except (ValueError, TypeError, KeyError):
+        return False
+
 
 def scan(config, store, provider, now, demo=False):
     scope = config.scope("demo" if demo else "live")
     run_id = uuid.uuid4().hex
-    batches = plan(config, now.date())
+    planned = plan(config, now.date())
+    batches = [b for b in planned if not quiet_route(store, config, scope, b.origin, b.profile, now)]
     summary = {"run_id": run_id, "started": stamp(now), "mode": "demo" if demo else "live",
         "status": "running", "calendar_queries_planned": len(batches), "calendar_queries_ok": 0,
+        "calendar_queries_skipped": len(planned) - len(batches),
         "calendar_slots": sum(len(b.pairs()) for b in batches), "calendar_prices": 0,
         "calendar_unknown": 0, "verification_searches": 0, "verified_quotes": 0,
         "queued_deals": 0, "http_attempts": 0, "errors": [], "config": config.public_dict()}
@@ -29,11 +52,18 @@ def scan(config, store, provider, now, demo=False):
     db.commit()
     candidates = []
     consecutive_errors = 0
+    route_total, route_ok, route_prices = {}, {}, {}
+    for batch in batches:
+        route = (batch.origin, batch.profile)
+        route_total[route] = route_total.get(route, 0) + 1
+        route_ok.setdefault(route, 0)
+        route_prices.setdefault(route, 0)
     try:
         for batch in batches:
             try:
                 rows = provider.fetch(batch)
                 summary["calendar_queries_ok"] += 1
+                route_ok[(batch.origin, batch.profile)] += 1
                 consecutive_errors = 0
             except ServiceError as exc:
                 summary["errors"].append(f"{batch.origin}/{batch.profile}/{batch.duration}d: {exc}")
@@ -47,6 +77,7 @@ def scan(config, store, provider, now, demo=False):
                            (run_id, scope, stamp(now), batch.origin, dep, ret, batch.profile, price))
                 if price is not None:
                     summary["calendar_prices"] += 1
+                    route_prices[(batch.origin, batch.profile)] += 1
                     previous = store.previous_low("calendar", scope, batch.origin, dep, ret, batch.profile,
                                                   now, config.history_window_days, run_id)
                     # Drops get priority, then lowest prices within each route/profile.
@@ -57,6 +88,14 @@ def scan(config, store, provider, now, demo=False):
             if not demo:
                 print(f"Date batches {summary['calendar_queries_ok']}/{len(batches)}; "
                       f"prices {summary['calendar_prices']}; HTTP {provider.http.used}", flush=True)
+        for (origin, profile), total in route_total.items():
+            key = route_key(scope, origin, profile)
+            if route_prices[(origin, profile)]:
+                db.execute("DELETE FROM meta WHERE key=?", (key,))
+            elif route_ok[(origin, profile)] == total:
+                # Only a complete, error-free search may mark a route as empty.
+                store.set_meta(key, json.dumps({"at": stamp(now), "window": search_window(config)}))
+        db.commit()
         candidates.sort()
         # Recheck stable watched dates first, including price rises. Fill the
         # remaining budget with cheap/drop candidates, not rotating unalerted dates.
@@ -100,7 +139,7 @@ def scan(config, store, provider, now, demo=False):
             summary["errors"].append("No calendar prices received; source health needs attention")
         if batches and summary["calendar_prices"] and not verified:
             summary["errors"].append("No shortlisted itinerary passed round-trip, duration and currency checks")
-        summary["status"] = "expired" if not batches else "partial" if summary["errors"] else "ok"
+        summary["status"] = "expired" if not planned else "partial" if summary["errors"] else "ok"
         summary['queued_check_status'] = int(queue_check_status(
             store, config, scope, run_id, verified, now, summary, demo))
         if summary["status"] == "partial":

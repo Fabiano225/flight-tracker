@@ -99,7 +99,15 @@ response halves it again, down to the configured interval.
 RPC 13 retries wait 3 s, then 6 s. The scan writes its itinerary searches and their
 Google session IDs to the local, unpublished `state/search-cache.json`; the baggage step
 reuses them for the same run (at most one hour old) instead of repeating the searches,
-and searches live again when a cached search yields no usable booking offers.
+and searches live again when a cached search yields no usable booking offers. Up to
+`max_parallel_requests` baggage checks run at once; results are recorded in selection
+order, so the stop after three consecutive errors is unchanged.
+
+A route (airport plus nonstop/any profile) whose complete, error-free date search found
+no price is skipped for 23 hours and then searched again, so it is checked about once a
+day. As soon as a search finds a price for it, it is searched in every run again. A
+changed departure window or trip length rechecks it immediately. Skipped batches are
+reported as `calendar_queries_skipped` and do not count as planned.
 Repeated access denial or RPC
 failure stops the affected run rather than fabricating empty or zero-priced results.
 State commits are fast-forward only and reject concurrent writers. Recovery artifacts

@@ -26,7 +26,8 @@ def report(store):
     lines = ["# BKK flight tracker", "", f"**{summary['mode'].upper()}** · {summary['started']} · **{summary['status']}**", "",
         f"One adult, {config['travel_class']}, EUR round-trip prices. Departure dates: {config['departure_start']} to {config['departure_end']}.",
         f"Trips last {config['min_trip_days']}–{config['max_trip_days']} days. Direction duration limit: {config['max_direction_minutes']} minutes including layovers.", "",
-        f"- Date-search batches: {summary['calendar_queries_ok']}/{summary['calendar_queries_planned']}",
+        f"- Date-search batches: {summary['calendar_queries_ok']}/{summary['calendar_queries_planned']}"
+        f" (+{summary.get('calendar_queries_skipped', 0)} skipped: routes without prices, rechecked daily)",
         f"- Dates recovered by deferred recheck: {summary.get('calendar_dates_recovered', 0)}",
         f"- Date-grid price points: {summary['calendar_prices']}/{summary['calendar_slots']} (nonstop and any-stops profiles)",
         f"- Itinerary searches: {summary['verification_searches']}; accepted quotes: {summary['verified_quotes']}",

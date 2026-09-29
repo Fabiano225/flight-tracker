@@ -318,6 +318,24 @@ class SearchCacheTests(unittest.TestCase):
         self.assertTrue(provider.verify(*self.args))
         provider.save_search_cache(run_id)
 
+    def test_renamed_library_session_field_skips_cache_but_not_scan(self):
+        provider = self.provider()
+        provider.flights.search = Mock(return_value=[self.fixture()])
+        provider.flights.__dict__.pop("_last_session_id", None)
+        self.assertTrue(provider.verify(*self.args))
+        self.assertEqual(provider.searches, {})
+
+    def test_worker_threads_get_their_own_search_state(self):
+        provider = self.provider()
+        seen = []
+        worker = threading.Thread(target=lambda: seen.extend([provider.searcher(), provider.searcher()]))
+        worker.start()
+        worker.join()
+        self.assertIs(provider.searcher(), provider.flights)
+        self.assertIs(seen[0], seen[1])
+        self.assertIsNot(seen[0], provider.flights)
+        self.assertIs(seen[0].client, provider.http)
+
     def test_scan_search_round_trips_for_same_run(self):
         self.scanned()
         provider = self.provider()
