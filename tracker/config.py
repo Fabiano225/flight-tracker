@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict, fields
+from dataclasses import dataclass, asdict, field, fields
 from datetime import date
 from decimal import Decimal, InvalidOperation
 import hashlib
@@ -21,6 +21,23 @@ def cents(value):
         return result
     except InvalidOperation:
         raise ValueError("Invalid price") from None
+
+
+# Integer settings and their accepted ranges, shared with the website's settings form.
+INT_LIMITS = {
+    "min_trip_days": (1, 90), "max_trip_days": (1, 90),
+    "history_window_days": (1, 365), "max_deals_per_run": (1, 6),
+    "pending_ttl_hours": (1, 24), "max_http_attempts_per_run": (1, 2000),
+    "http_timeout_seconds": (1, 120), "http_attempts": (1, 4),
+    "carry_on_bags": (0, 1), "checked_bags": (0, 1),
+    "max_direction_minutes": (1, 1259), "max_verifications_per_run": (6, 100),
+    "outbound_candidates": (1, 10),
+    "max_run_seconds": (60, 2400), "max_parallel_requests": (1, 6),
+}
+FLOAT_LIMITS = {"drop_percent": (0.01, 100), "request_interval_seconds": (0, 30)}
+PRICE_FIELDS = ("good_deal_nonstop_eur", "good_deal_layover_eur", "drop_eur", "realert_improvement_eur")
+TRAVEL_CLASSES = ("economy", "premium_economy", "business", "first_class")
+MAX_DISPLAY_NAME = 40
 
 
 @dataclass(frozen=True)
@@ -54,6 +71,8 @@ class Config:
     http_attempts: int = 3
     request_interval_seconds: float = 0.8
     max_parallel_requests: int = 3
+    # Website and message labels only (airport code -> place name); never searched.
+    display_names: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.origins or len(set(self.origins)) != len(self.origins):
@@ -66,16 +85,7 @@ class Config:
         start, end = date.fromisoformat(self.departure_start), date.fromisoformat(self.departure_end)
         if not 0 <= (end - start).days <= 365:
             raise ValueError("Departure window must span 1 to 366 dates")
-        for name, low, high in [
-            ("min_trip_days", 1, 90), ("max_trip_days", 1, 90),
-            ("history_window_days", 1, 365), ("max_deals_per_run", 1, 6),
-            ("pending_ttl_hours", 1, 24), ("max_http_attempts_per_run", 1, 2000),
-            ("http_timeout_seconds", 1, 120), ("http_attempts", 1, 4),
-            ("carry_on_bags", 0, 1), ("checked_bags", 0, 1),
-            ("max_direction_minutes", 1, 1259), ("max_verifications_per_run", 6, 100),
-            ("outbound_candidates", 1, 10),
-            ("max_run_seconds", 60, 2400), ("max_parallel_requests", 1, 6),
-        ]:
+        for name, (low, high) in INT_LIMITS.items():
             value = getattr(self, name)
             if type(value) is not int or not low <= value <= high:
                 raise ValueError(f"Invalid {name}: expected integer {low}..{high}")
@@ -84,20 +94,31 @@ class Config:
         # A single adult removes ambiguous per-person vs party-total pricing.
         if self.adults != 1 or isinstance(self.adults, bool) or self.currency != "EUR":
             raise ValueError("This tracker supports one adult and EUR prices")
-        if self.travel_class not in {"economy", "premium_economy", "business", "first_class"}:
+        if self.travel_class not in TRAVEL_CLASSES:
             raise ValueError("Invalid travel class")
         if type(self.hide_separate_tickets) is not bool:
             raise ValueError("hide_separate_tickets must be boolean")
-        for name, low, high in (("drop_percent", 0.01, 100), ("request_interval_seconds", 0, 30)):
+        for name, (low, high) in FLOAT_LIMITS.items():
             value = getattr(self, name)
             if type(value) not in {int, float} or not math.isfinite(value) or not low <= value <= high:
                 raise ValueError(f"Invalid {name}")
-        for value in (self.good_deal_nonstop_eur, self.good_deal_layover_eur, self.drop_eur, self.realert_improvement_eur):
-            cents(value)
+        for name in PRICE_FIELDS:
+            cents(getattr(self, name))
+        if not isinstance(self.display_names, dict):
+            raise ValueError("display_names must map airport codes to names")
+        for code, name in self.display_names.items():
+            if not re.fullmatch(r"[A-Z]{3}", code):
+                raise ValueError("display_names keys must be uppercase airport codes")
+            if (not isinstance(name, str) or not 0 < len(name) <= MAX_DISPLAY_NAME
+                    or name != name.strip() or not name.isprintable()):
+                raise ValueError(f"Invalid display name for {code}")
 
     @classmethod
     def load(cls, path):
-        values = json.loads(Path(path).read_text(encoding="utf-8"))
+        return cls.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
+
+    @classmethod
+    def from_dict(cls, values):
         if not isinstance(values, dict):
             raise ValueError("Configuration must be a JSON object")
         unknown = set(values) - {f.name for f in fields(cls)}
@@ -106,7 +127,7 @@ class Config:
         if "origins" in values:
             if not isinstance(values["origins"], list):
                 raise ValueError("origins must be a list")
-            values["origins"] = tuple(values["origins"])
+            values = {**values, "origins": tuple(values["origins"])}
         return cls(**values)
 
     def scope(self, mode="live"):
@@ -119,6 +140,13 @@ class Config:
 
     def public_dict(self):
         return asdict(self)
+
+    def file_dict(self):
+        # config.json layout: field order, origins as a list, labels only when set.
+        data = {**self.public_dict(), "origins": list(self.origins)}
+        if not data["display_names"]:
+            del data["display_names"]
+        return data
 
     def threshold(self, category):
         return cents(self.good_deal_nonstop_eur if category == "nonstop" else self.good_deal_layover_eur)

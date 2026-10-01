@@ -23,7 +23,7 @@ def report(store):
             # Keep the CSV schema stable as internal quote metadata grows.
             writer.writerow({key: item[key] for key in keys})
     config = summary["config"]
-    lines = ["# BKK flight tracker", "", f"**{summary['mode'].upper()}** · {summary['started']} · **{summary['status']}**", "",
+    lines = [f"# {config.get('destination', 'BKK')} flight tracker", "", f"**{summary['mode'].upper()}** · {summary['started']} · **{summary['status']}**", "",
         f"One adult, {config['travel_class']}, EUR round-trip prices. Departure dates: {config['departure_start']} to {config['departure_end']}.",
         f"Trips last {config['min_trip_days']}–{config['max_trip_days']} days. Direction duration limit: {config['max_direction_minutes']} minutes including layovers.", "",
         f"- Date-search batches: {summary['calendar_queries_ok']}/{summary['calendar_queries_planned']}"

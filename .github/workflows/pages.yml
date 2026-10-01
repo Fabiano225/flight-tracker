@@ -7,8 +7,12 @@ on:
       - 'scripts/build_site.py'
       - 'tests/test_site.py'
       - 'tests/site_model.test.mjs'
+      - 'tests/search_model.test.mjs'
       - 'config.json'
       - 'tracker/config.py'
+      - 'tracker/places.py'
+      - 'tracker/airports.json'
+      - 'scripts/search_settings.py'
       - '.github/workflows/pages.yml'
   workflow_run:
     workflows: ['Track flights']
@@ -42,7 +46,10 @@ jobs:
       - name: Test public data export and dashboard logic
         run: |
           python -m unittest discover -s tests -p test_site.py -v
-          node --test tests/site_model.test.mjs
+          node --test tests/site_model.test.mjs tests/search_model.test.mjs
+      # Settings saved through the website form replace config.json for this build.
+      - name: Load search settings
+        run: python scripts/search_settings.py use
       - name: Build allowlisted static files
         env:
           PUBLIC_TRACK_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}

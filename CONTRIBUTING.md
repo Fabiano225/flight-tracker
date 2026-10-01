@@ -22,6 +22,9 @@ response containing personal data or local state database to a commit.
   itineraries.
 - Keep workflow actions pinned to immutable commits.
 - Update `README.md`, `DEPLOYMENT.md` or `docs/ARCHITECTURE.md` when behavior changes.
+- After upgrading `flights`, regenerate the airport list with
+  `pip install airportsdata && python scripts/make_airports.py` (needs Node.js); a test
+  checks that it matches the supported airports.
 
 ## Pull requests
 

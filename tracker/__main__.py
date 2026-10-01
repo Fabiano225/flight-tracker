@@ -18,7 +18,7 @@ from .notifications import configured_sender, deliver
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Free BKK flight tracker; dates refer to departure dates")
+    parser = argparse.ArgumentParser(description="Free flight price tracker; dates refer to departure dates")
     parser.add_argument("command", choices=["plan", "scan", "demo", "notify", "telegram-test", "discord-test", "report", "export"])
     parser.add_argument("--config", default="config.json")
     parser.add_argument("--state-dir")
@@ -45,7 +45,7 @@ def main():
         print("Telegram test message delivered")
         return 0
     if args.command == "discord-test":
-        Discord().send("Discord verbunden\nDer Flight Tracker sendet Preisalarme und Suchstatus künftig in diesen Kanal.\nDies ist ein Verbindungstest, kein Flugangebot.")
+        Discord(code=config.destination, names=config.display_names).send("Discord verbunden\nDer Flight Tracker sendet Preisalarme und Suchstatus künftig in diesen Kanal.\nDies ist ein Verbindungstest, kein Flugangebot.")
         print("Discord test message delivered")
         return 0
     demo = args.command == "demo"
@@ -64,7 +64,7 @@ def main():
                 print("DEMO ONLY - no network or notification messages. Outbox contains synthetic alerts.")
             return 1 if summary["status"] == "partial" else 0
         if args.command == "notify":
-            print(f"Delivered {deliver(store, config, now, configured_sender())} messages")
+            print(f"Delivered {deliver(store, config, now, configured_sender(config))} messages")
         elif args.command == "report":
             print(report(store))
         elif args.command == "export":

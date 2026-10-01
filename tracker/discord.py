@@ -5,6 +5,7 @@ import os
 import re
 
 from .network import JsonHttp, ServiceError
+from .places import city
 
 DASHBOARD = "https://fabiano225.github.io/flight-tracker/"
 GREEN, RED, AMBER, BLUE = 0x22C55E, 0xEF4444, 0xF59E0B, 0x5865F2
@@ -21,10 +22,14 @@ def readable(text):
     return text
 
 
-def payload_for(text, reference_url=None):
+def payload_for(text, reference_url=None, code=None, names=None):
     if not text or len(text) > 4700:
         raise ValueError("Discord notification text length is out of bounds")
     archived = text.startswith("Übernommener Preisstand")
+    # A queued message names its own destination; older ones may predate a route change.
+    kind = re.match(r"([A-Z]{3}) (Preisalarm|Suchstatus)\n", text)
+    code = kind.group(1) if kind else code
+    place = city(code, names) + " · " if code else ""
     text = readable(text)
     text = text.replace('Flight tracker needs attention.', 'Die Flugsuche braucht Aufmerksamkeit.')
     text = text.replace('No missing or unverified prices are sent as deals. Check the GitHub Actions run.',
@@ -37,7 +42,7 @@ def payload_for(text, reference_url=None):
     elif 'Letzter zugehöriger Preisalarm:' in text:
         text += '\nDer Nachrichtenverweis ist derzeit nicht verfügbar. Preise im Dashboard prüfen.'
     color = BLUE
-    title = "✈️ Bangkok · Flight Tracker"
+    title = "✈️ " + place + "Flight Tracker"
     if 'Prüfung unvollständig' in text:
         title, color = '⚠️ Prüfung unvollständig', AMBER
     elif text.startswith('Die Flugsuche braucht Aufmerksamkeit'):
@@ -54,10 +59,10 @@ def payload_for(text, reference_url=None):
     embeds = []
     # The outbox text is also the durable, human-readable audit record. Split
     # only the known price-block format; unknown/legacy messages remain intact.
-    if text.startswith('BKK Preisalarm\n') and not archived:
+    if kind and kind.group(2) == 'Preisalarm' and not archived:
         lines = text.split('\n', 2)
         sections = lines[2].split('\n\n')
-        embeds.append({'title': '✈️ Bangkok · Preisupdate', 'description': 'Neue Beobachtung · ' + lines[1],
+        embeds.append({'title': '✈️ ' + place + 'Preisupdate', 'description': 'Neue Beobachtung · ' + lines[1],
                        'color': BLUE})
         for section in sections:
             parts = section.splitlines()
@@ -86,14 +91,14 @@ def payload_for(text, reference_url=None):
     if (len(embeds) > 10 or total > 6000 or any(len(e.get('description', '')) > 4096 or
             len(e.get('title', '')) > 256 or len(e.get('footer', {}).get('text', '')) > 2048 for e in embeds)):
         raise ValueError('Discord embed limits exceeded')
-    return {'username': 'BKK Flight Tracker', 'allowed_mentions': {'parse': []},
+    return {'username': (code + ' ' if code else '') + 'Flight Tracker', 'allowed_mentions': {'parse': []},
             'content': '[Dashboard öffnen](<' + DASHBOARD + '>) · '
                        '[Suchläufe](<https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml>)',
             'embeds': embeds}
 
 
 class Discord:
-    def __init__(self, webhook_url=None, http=None):
+    def __init__(self, webhook_url=None, http=None, code=None, names=None):
         value = (webhook_url or os.environ.get('DISCORD_WEBHOOK_URL', '')).strip()
         # Pin host/path; refuse query parameters, redirects and credentials in
         # authority. A webhook token must never be sent to an arbitrary host.
@@ -104,6 +109,7 @@ class Discord:
         self.destination = 'discord:' + hashlib.sha256(value.encode()).hexdigest()
         self.http = http or JsonHttp(attempts=3, timeout=30, budget=40, interval=1)
         self.metadata = None
+        self.code, self.names = code, names
 
     def reference_url(self, message_id):
         if not str(message_id).isdigit():
@@ -121,7 +127,7 @@ class Discord:
 
     def send(self, text, reply_to_message_id=None):
         link = self.reference_url(reply_to_message_id) if reply_to_message_id else None
-        payload = payload_for(text, link)
+        payload = payload_for(text, link, self.code, self.names)
         data = self.http.get_json(self.url + '?wait=true',
             {'Content-Type': 'application/json', 'User-Agent': 'BKKFlightTracker/1.0'},
             json.dumps(payload, ensure_ascii=False).encode('utf-8'))

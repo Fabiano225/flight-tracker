@@ -125,7 +125,7 @@ function renderSummary() {
   $('budget-note').textContent=c.good_deal_layover_eur===c.good_deal_nonstop_eur?'pro Person · Hin und zurück':`Umstieg ${euro(c.good_deal_layover_eur*100)} / Direkt ${euro(c.good_deal_nonstop_eur*100)}`;
   $('offer-count').textContent=data.offers.length;
   $('trip-dates').textContent=`${day(c.departure_start)} – ${day(c.departure_end)} ${c.departure_start.slice(0,4)}`;
-  $('trip-days').textContent=`${c.min_trip_days}–${c.max_trip_days} Tage`;
+  $('trip-days').textContent=c.min_trip_days===c.max_trip_days?`${c.min_trip_days} Tag${c.min_trip_days===1?'':'e'}`:`${c.min_trip_days}–${c.max_trip_days} Tage`;
   $('offer-timestamp').textContent=data.offers_as_of?`${baggageLabels[$('baggage').value]} · ${when(data.offers_as_of)} · Berlin`:'Noch keine geprüften Preise für diese Variante';
 }
 function renderOffers() {
@@ -209,7 +209,7 @@ async function load() {
   try {
     const response=await fetch('./data.json',{cache:'no-store'});if(!response.ok)throw new Error('Fetch failed');
     const value=await response.json();if(value.version!==1||!Array.isArray(value.offers)||!value.config||!value.histories)throw new Error('Invalid data');
-    rootData=value;pruneExpiredFavorites();fillSelect('origin',value.config.origins,v=>({DUS:'Düsseldorf (DUS)',FRA:'Frankfurt (FRA)',AMS:'Amsterdam (AMS)'})[v]||v);
+    rootData=value;pruneExpiredFavorites();fillSelect('origin',value.config.origins,v=>value.places?.[v]?.city&&value.places[v].city!==v?`${value.places[v].city} (${v})`:v);
     fillSelect('days',Array.from({length:value.config.max_trip_days-value.config.min_trip_days+1},(_,i)=>value.config.min_trip_days+i),v=>`${v} Tage`);
     activateBaggage();
   } catch {

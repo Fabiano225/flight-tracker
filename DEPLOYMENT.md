@@ -12,6 +12,8 @@ written for the repository maintainer; the user-facing overview is in
 - **Routes:** DUS/FRA/AMS → BKK, one adult, economy, EUR
 - **Duration guard:** below 21 hours in each direction
 - **State branch:** `tracker-state`
+- **Search settings:** `config.json` on `main`, or the `search-config` branch once the
+  website form has been used (see below)
 - **Runtime switch:** repository variable `TRACKER_ENABLED`
 
 The current code records stable date watches and sends change alerts instead of a
@@ -139,10 +141,13 @@ or on manual dispatch. It reads the latest trusted `main` and `tracker-state`
 branches, not workflow artifacts or pull-request code.
 
 `scripts/build_site.py` exports only configuration, scan counts and verified fare
-history. The deployment artifact contains static assets and `data.json` only: no
-SQLite database, `.git`, notification messages, message IDs, channel/chat IDs or tokens.
-The UI does not call a private API, store cookies or start additional flight searches.
-Its refresh button reloads the published snapshot; it does not trigger a new scan.
+history. It fills the route texts in `index.html` (destination, country, origins,
+dates, cabin, thresholds) from the active configuration. The deployment artifact
+contains static assets, `data.json`, `search-config.json` (the public settings for the
+form) and `airports.json` only: no SQLite database, `.git`, notification messages,
+message IDs, channel/chat IDs or tokens. The UI does not call a private API, store
+cookies or start additional flight searches. Its refresh button reloads the published
+snapshot; it does not trigger a new scan.
 
 If publication fails, inspect the `Publish dashboard` workflow. Existing data stays
 online and becomes visibly stale after 12 hours without a fresh scan. A failed scan
@@ -158,7 +163,28 @@ python -m http.server 8765 --directory _site --bind 127.0.0.1
 ```
 
 Synthetic demo state is deliberately rejected by the public exporter. Website
-logic tests run with `node --test tests/site_model.test.mjs` (Node.js 22+).
+logic tests run with `node --test tests/site_model.test.mjs tests/search_model.test.mjs`
+(Node.js 22+).
+
+### Changing the search from the website
+
+The dashboard page **Suche ändern** (`suche.html`) opens a prefilled issue. The
+**Apply search settings** workflow handles only issues opened by the repository owner
+that contain the form marker. `scripts/search_settings.py apply` validates every
+setting (supported airports, ranges, a departure day from tomorrow on, the request and
+time budget), then commits `config.json` to the `search-config` branch with a normal
+fast-forward push. It replies with the changes, closes the issue and dispatches
+**Publish dashboard** and **Track flights**. Rejected settings are answered and closed
+as not planned; the running search is unchanged.
+
+`Track flights` and `Publish dashboard` run `scripts/search_settings.py use` first: if
+the `search-config` branch exists, its `config.json` replaces the checkout's copy for
+that run. Invalid stored settings stop the run instead of silently searching the old
+route. To return to `config.json` on `main`, delete the `search-config` branch. While
+the branch exists, edits to `config.json` on `main` have no effect.
+
+The workflow needs no secrets. It uses the job token with `contents`, `issues` and
+`actions` write permissions. Disabling issues on the repository disables the form.
 
 ### Website baggage follow-up
 

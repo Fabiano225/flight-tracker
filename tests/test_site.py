@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.build_site import export_data, build, ASSETS
+from scripts.build_site import export_data, build, ASSETS, GENERATED, render_page, date_range, euro_text
 from tracker.config import Config
 from tracker.provider import Quote
 from tracker.store import Store, stamp
@@ -95,8 +95,40 @@ class SiteTests(unittest.TestCase):
         self.record('new',NOW,60000)
         output=self.root/'public'
         build(self.path,output)
-        self.assertEqual({p.name for p in output.iterdir()},set(ASSETS)|{'data.json'})
+        self.assertEqual({p.name for p in output.iterdir()},set(ASSETS)|set(GENERATED))
         with self.assertRaisesRegex(ValueError,'empty'):build(self.path,output)
+        form=json.loads((output/'search-config.json').read_text(encoding='utf-8'))
+        self.assertEqual(set(form),{'version','repository','marker','config','labels','travel_classes','limits'})
+        self.assertEqual(form['config']['destination'],'BKK')
+        self.assertNotIn('{{',(output/'index.html').read_text(encoding='utf-8'))
+        self.assertEqual(json.loads((output/'data.json').read_text(encoding='utf-8'))['places']['BKK'],
+                         {'city':'Bangkok','country':'Thailand'})
+
+    def test_page_texts_follow_the_configured_route(self):
+        template=(Path(__file__).resolve().parents[1]/'website'/'index.html').read_text(encoding='utf-8')
+        page=render_page(template,Config.load(Path(__file__).resolve().parents[1]/'config.json'))
+        for text in ('<title>Bangkok im Blick · Flightwatch</title>','DEIN PREISRADAR FÜR THAILAND',
+                     'Flüge ab Düsseldorf, Frankfurt und Amsterdam,','<span>DUS</span><span>FRA</span><span>AMS</span>',
+                     'Bangkok<span>THAILAND / BKK</span>','20.–23. Okt. 2026','14–21 Tage','1 Person · Economy',
+                     'weniger als 25 € über','Flugzeiten unter 21 Stunden je Richtung','/ Bangkok edition'):
+            self.assertIn(text,page)
+        tokyo=render_page(template,Config(origins=('MUC',),destination='HND',min_trip_days=7,max_trip_days=7,
+            travel_class='business',max_direction_minutes=900,good_deal_layover_eur=900,realert_improvement_eur=12.5,
+            display_names={'HND':'Tokio <Haneda> & "Co"'}))
+        for text in ('Tokio &lt;Haneda&gt; &amp; &quot;Co&quot; im Blick','DEIN PREISRADAR FÜR JAPAN','JAPAN / HND',
+                     'Flüge ab München,','7 Tage','1 Person · Business','Getrennte Ziele','weniger als 12,50 € über',
+                     'Flugzeiten bis 15 h 00 min je Richtung'):
+            self.assertIn(text,tokyo)
+        self.assertNotIn('<Haneda>',tokyo)
+        with self.assertRaisesRegex(ValueError,'placeholder'):
+            render_page('{{unknown}}',self.config)
+
+    def test_dates_and_amounts_in_german(self):
+        self.assertEqual(date_range('2026-10-20','2026-10-20'),'20. Okt. 2026')
+        self.assertEqual(date_range('2026-10-28','2026-11-03'),'28. Okt. – 3. Nov. 2026')
+        self.assertEqual(date_range('2026-12-28','2027-01-03'),'28. Dez. 2026 – 3. Jan. 2027')
+        self.assertEqual(euro_text(1250),'1.250 €')
+        self.assertEqual(euro_text(1250.5),'1.250,50 €')
 
 
 if __name__=='__main__':unittest.main()

@@ -173,7 +173,7 @@ def queue_trends(store, config, scope, run_id, verified, now, demo=False):
         if changed:
             eligible.append((selected, block(selected, history, prior, config)))
     store.set_meta(watch_key(config, scope), json.dumps(watches))
-    header = ("DEMO - synthetische Preise\n" if demo else "BKK Preisalarm\n") + stamp(now) + "\n"
+    header = ("DEMO - synthetische Preise\n" if demo else f"{config.destination} Preisalarm\n") + stamp(now) + "\n"
     footer = ("\n\nEUR pro Person, Hin/Rueck. Beobachtete Suchpreise, keine Preisprognose. "
               "Gleiche Daten/Kategorie, ggf. andere Airline. Begrenzte Auswahl. "
               "Preis, Gepaeck und Bedingungen vor Buchung pruefen.")

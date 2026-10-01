@@ -96,6 +96,18 @@ class DiscordTests(unittest.TestCase):
         self.assertEqual(payload_for(rise)['embeds'][1]['color'], RED)
         self.assertIn('Keine Preisprognose', str(payload))
 
+    def test_titles_name_the_destination_of_each_message(self):
+        legacy = payload_for('BKK Preisalarm\n' + stamp(NOW) + '\n\nKeine Preisprognose.', code='HND')
+        self.assertEqual((legacy['username'], legacy['embeds'][0]['title']), ('BKK Flight Tracker', '✈️ Bangkok · Preisupdate'))
+        tokyo = payload_for('HND Preisalarm\n' + stamp(NOW) + '\n\nx', code='HND', names={'HND': 'Tokio Haneda'})
+        self.assertEqual((tokyo['username'], tokyo['embeds'][0]['title']), ('HND Flight Tracker', '✈️ Tokio Haneda · Preisupdate'))
+        other = payload_for('Hinweis', code='HND')
+        self.assertEqual(other['embeds'][0]['title'], '✈️ Tokio · Flight Tracker')
+        self.assertEqual(payload_for('Hinweis')['embeds'][0]['title'], '✈️ Flight Tracker')
+        with patch.dict(os.environ, {'DISCORD_WEBHOOK_URL': WEBHOOK}, clear=True):
+            sender = configured_sender(Config(destination='HND', display_names={'HND': 'Tokio Haneda'}))
+        self.assertEqual((sender.code, sender.names), ('HND', {'HND': 'Tokio Haneda'}))
+
     def test_partial_is_amber_and_historical_not_a_new_deal(self):
         self.assertEqual(payload_for('BKK Suchstatus\nPrüfung unvollständig')['embeds'][0]['color'], AMBER)
         card = payload_for('Übernommener Preisstand – KEIN neuer Preisalarm.\nHistorische Meldung')['embeds'][0]

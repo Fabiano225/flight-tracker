@@ -30,7 +30,7 @@ def queue_check_status(store, config, scope, run_id, verified, now, summary, dem
         if delta:
             changes.append(f"{label}: {current.price / 100:.2f} EUR ({delta / 100:+.2f} EUR seit Preisalarm)")
     incomplete = summary['status'] != 'ok' or bool(missing) or not compared
-    lines = ['DEMO - synthetischer Suchstatus' if demo else 'BKK Suchstatus', stamp(now)]
+    lines = ['DEMO - synthetischer Suchstatus' if demo else f'{config.destination} Suchstatus', stamp(now)]
     if incomplete:
         lines.append('Prüfung unvollständig – unveränderte Preise sind nicht für alle Angebote bestätigt.')
         lines.append(f"Suchblöcke: {summary['calendar_queries_ok']}/{summary['calendar_queries_planned']}; "

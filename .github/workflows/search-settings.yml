@@ -1,0 +1,57 @@
+name: Apply search settings
+# The website form opens a prefilled issue. Only the repository owner's issues are
+# applied; everyone else's are ignored. Settings are stored on the search-config
+# branch, so the protected main branch is never written.
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+concurrency:
+  group: search-settings
+  cancel-in-progress: false
+jobs:
+  apply:
+    if: github.event.issue.user.login == github.repository_owner && contains(github.event.issue.body, '<!-- flightwatch-search-settings -->')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write  # push the search-config branch
+      issues: write    # reply on and close the settings issue
+      actions: write   # start Track flights and Publish dashboard
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Validate and store the new search
+        id: apply
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: python scripts/search_settings.py apply --reply "$RUNNER_TEMP/reply.md"
+      - name: Start a search and refresh the dashboard
+        if: steps.apply.outputs.outcome == 'applied'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
+          gh workflow run track-flights.yml --repo "$GITHUB_REPOSITORY" --ref main
+      - name: Reply on the issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          OUTCOME: ${{ steps.apply.outputs.outcome }}
+        run: |
+          if [ ! -s "$RUNNER_TEMP/reply.md" ]; then
+            echo "⚠️ Die Einstellungen konnten nicht verarbeitet werden; die bisherige Suche läuft weiter. Details: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > "$RUNNER_TEMP/reply.md"
+          fi
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/reply.md"
+          case "$OUTCOME" in
+            applied|unchanged) gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason completed ;;
+            rejected) gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason "not planned" ;;
+          esac
