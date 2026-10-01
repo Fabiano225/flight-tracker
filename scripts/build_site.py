@@ -14,7 +14,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tracker.config import Config, INT_LIMITS, FLOAT_LIMITS, MAX_DISPLAY_NAME
+from tracker.config import Settings, INT_LIMITS, FLOAT_LIMITS, MAX_DISPLAY_NAME
 from tracker.places import AIRPORTS, airlines, places
 from tracker.alerts import search_link
 from tracker.provider import Quote
@@ -214,7 +214,8 @@ def build(db_path, output, config_path=ROOT / 'config.json'):
     # Never copy a repository tree or runtime state into a public artifact.
     if output.exists() and any(output.iterdir()):
         raise ValueError('Build output must be empty; use a fresh output directory')
-    config = Config.load(config_path)
+    # The dashboard shows the primary trip.
+    config = Settings.load(config_path).primary
     data = export_data(db_path, config)
     data['baggage_profiles'] = {variant: export_data(db_path,config,variant=variant) for variant in PROFILES}
     data['places'] = places(config)

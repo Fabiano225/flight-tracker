@@ -1,6 +1,7 @@
 """One active transport, durable receipts and channel-safe price references."""
 import os
 
+from .config import trips_of
 from .network import ServiceError
 from .store import stamp
 
@@ -9,22 +10,39 @@ DASHBOARD = "https://fabiano225.github.io/flight-tracker/"
 SETTINGS = DASHBOARD + "settings.html"
 
 
-def configured_sender(config=None):
+def message_labels(settings):
+    """(fallback airport code, display names) for message titles.
+
+    Price alerts, check statuses and notices name their own destination; a code
+    for all other messages exists only while a single trip is searched."""
+    trips = trips_of(settings)
+    names = {}
+    for trip in reversed(trips):  # The first trip's names win for a shared airport.
+        names.update(trip.display_names)
+    return (trips[0].destination if len(trips) == 1 else None), names
+
+
+def configured_sender(settings=None):
     channel = os.environ.get("NOTIFICATION_CHANNEL", "auto").strip().lower() or "auto"
     if channel == "auto":
         channel = "discord" if os.environ.get("DISCORD_WEBHOOK_URL", "").strip() else "telegram"
     if channel == "discord":
         from .discord import Discord
-        return Discord(code=config.destination, names=config.display_names) if config else Discord()
+        if settings is None:
+            return Discord()
+        code, names = message_labels(settings)
+        return Discord(code=code, names=names)
     if channel == "telegram":
         from .telegram import Telegram
         return Telegram()
     raise ServiceError("NOTIFICATION_CHANNEL must be auto, discord or telegram")
 
 
-def deliver(store, config, now, sender):
-    store.expire(now, config.pending_ttl_hours, config.scope())
-    store.expire_outside_search(config)
+def deliver(store, settings, now, sender):
+    """Send pending messages of all trips; `settings` may also be a single Config."""
+    trips = trips_of(settings)
+    store.expire(now, trips[0].pending_ttl_hours, {trip.scope() for trip in trips})
+    store.expire_outside_search(trips)
     store.db.commit()
     destination = getattr(sender, "destination", "telegram")
 
@@ -34,7 +52,7 @@ def deliver(store, config, now, sender):
         store.db.commit()
 
     sent = 0
-    for row in store.db.execute("SELECT * FROM outbox WHERE status='pending' ORDER BY created,id").fetchall():
+    for row in store.db.execute("SELECT * FROM outbox WHERE status='pending' ORDER BY created,rowid").fetchall():
         target = store.db.execute("""SELECT o.* FROM outbox_replies r
             JOIN outbox o ON o.id=r.target_id WHERE r.outbox_id=? AND o.status='sent'""",
             (row["id"],)).fetchone()

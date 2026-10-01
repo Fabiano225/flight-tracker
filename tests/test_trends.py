@@ -147,7 +147,7 @@ class TrendTests(unittest.TestCase):
         self.run_quotes([self.quote])
         self.store.db.execute("UPDATE outbox SET status='pending'")
         config = replace(self.config, departure_start='2026-10-16')
-        self.store.expire_outside_search(config)
+        self.store.expire_outside_search((config,))
         self.assertEqual(self.store.db.execute('SELECT status FROM outbox').fetchone()[0], 'expired')
         self.assertEqual(load_watches(self.store, config, self.scope, NOW), {})
 

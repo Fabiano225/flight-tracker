@@ -97,12 +97,21 @@ class Store:
           AND o.status IN ('sent','pending')""",
           (scope, quote.origin, quote.departure, quote.return_date, quote.category)).fetchone()[0]
 
-    def expire(self, now, ttl_hours, scope=None):
+    def expire(self, now, ttl_hours, scopes=None):
+        """Expire stale messages, and alerts of searches that are no longer active.
+
+        `scopes` names every active trip's scope; alerts of other scopes expire."""
         self.db.execute("UPDATE outbox SET status='expired' WHERE status='pending' AND created<?",
                         (stamp(now - timedelta(hours=ttl_hours)),))
-        if scope:
-            self.db.execute("""UPDATE outbox SET status='expired' WHERE status='pending' AND kind IN ('deal','trend','check_status')
-              AND id IN (SELECT outbox_id FROM alert_items WHERE scope<>?)""", (scope,))
+        if scopes:
+            scopes = [scopes] if isinstance(scopes, str) else sorted(scopes)
+            self.db.execute(f"""UPDATE outbox SET status='expired' WHERE status='pending' AND kind IN ('deal','trend','check_status')
+              AND id IN (SELECT outbox_id FROM alert_items WHERE scope NOT IN ({','.join('?' * len(scopes))}))""", scopes)
+
+    def expire_check_status(self, scope):
+        """A newer check status replaces an undelivered older one of the same trip."""
+        self.db.execute("""UPDATE outbox SET status='expired' WHERE kind='check_status' AND status='pending'
+          AND run_id IN (SELECT id FROM runs WHERE scope=?)""", (scope,))
 
     def enqueue(self, run_id, kind, now, text, quotes=(), scope=""):
         message_id = uuid.uuid4().hex
@@ -112,20 +121,28 @@ class Store:
             [(message_id, scope, q.origin, q.departure, q.return_date, q.category, q.price) for q in quotes])
         return message_id
 
-    def expire_outside_search(self, config):
+    def expire_outside_search(self, trips):
         # Preserve compatible price history when dates change, but never deliver
         # a previously queued digest containing a now-excluded trip.
+        mode = self.get_meta('mode') or 'live'
+        by_scope = {config.scope(mode): config for config in trips}
         for message in self.db.execute("SELECT id,kind,run_id FROM outbox WHERE status='pending' AND kind IN ('deal','trend','check_status')").fetchall():
-            items=self.db.execute("SELECT origin,departure,return_date FROM alert_items WHERE outbox_id=?",(message[0],)).fetchall()
-            valid=bool(items)
+            items=self.db.execute("SELECT scope,origin,departure,return_date FROM alert_items WHERE outbox_id=?",(message[0],)).fetchall()
+            # A message belongs to the trip of its items' scope; a check status to the trip of its run.
+            run = None
             if message['kind'] == 'check_status':
                 run = self.db.execute('SELECT scope,summary FROM runs WHERE id=?', (message['run_id'],)).fetchone()
-                settings = json.loads(run['summary']).get('config', {}) if run else {}
-                valid = bool(run) and run['scope'] == config.scope(self.get_meta('mode') or 'live') and all(
-                    settings.get(k) == config.public_dict()[k] for k in
-                    ('departure_start', 'departure_end', 'min_trip_days', 'max_trip_days'))
+                scope = run['scope'] if run else None
+            else:
+                scope = items[0]['scope'] if items else None
+            config = by_scope.get(scope)
+            valid = config is not None and all(item['scope'] == scope for item in items)
+            if valid and run:
+                settings = json.loads(run['summary']).get('config', {})
+                valid = all(settings.get(k) == config.public_dict()[k] for k in
+                            ('departure_start', 'departure_end', 'min_trip_days', 'max_trip_days'))
                 valid = valid and settings.get('origins') == list(config.origins)
-            for item in items:
+            for item in items if valid else ():
                 try:
                     duration=(datetime.fromisoformat(item['return_date'])-datetime.fromisoformat(item['departure'])).days
                     valid = valid and item['origin'] in config.origins and config.departure_start <= item['departure'] <= config.departure_end and config.min_trip_days <= duration <= config.max_trip_days

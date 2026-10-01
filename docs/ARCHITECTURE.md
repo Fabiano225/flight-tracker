@@ -38,6 +38,19 @@ Google with every calendar and itinerary search, and `normalize_pairs` rechecks 
 itinerary. They join the history scope only when set, so a search without filters
 keeps its existing scope. With `max_stops: 0` the planner skips the any-stops profile.
 
+`Settings` holds one to five trips (each a `Config` with an `id`) and the primary trip.
+A flat `config.json` is the single trip `main`, whose scope omits the id so its history
+continues; every other trip's id is part of its scope, so trips never share price
+history, date watches or alerts. `SHARED_FIELDS` (request budget, pacing, timeouts and
+message expiry) apply to the whole run and must be equal for all trips.
+`scan_trips` searches the trips in order (primary first) with one `GuardedClient`, so
+the request cap, time budget and pacing are shared; providers do not close a client
+they did not create, and each trip caches its itinerary searches in its own file.
+Expiry is trip-aware: a scan or delivery expires only alerts whose scope is not among
+the active trips, check statuses are replaced per trip (matched by their run's scope),
+and pending digests are validated against their own trip's window. Health messages are
+aggregated per run, and pruning runs once with the longest comparison period.
+
 ## Search pipeline
 
 `tracker/planner.py` creates exact departure/return pairs. `tracker/provider.py`

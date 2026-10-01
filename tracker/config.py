@@ -39,8 +39,16 @@ PRICE_FIELDS = ("good_deal_nonstop_eur", "good_deal_layover_eur", "drop_eur", "r
 TRAVEL_CLASSES = ("economy", "premium_economy", "business", "first_class")
 MAX_DISPLAY_NAME = 40
 MAX_AIRLINES = 25
+MAX_TRIPS = 5
+# The original single search. Its price history scope has no trip id, so it
+# keeps the history it collected before several trips were possible.
+MAIN_TRIP = "main"
+TRIP_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,19}")
+# Run-wide settings: all trips of a run share one request budget and one message queue.
+SHARED_FIELDS = ("pending_ttl_hours", "max_http_attempts_per_run", "max_run_seconds", "http_timeout_seconds",
+                 "http_attempts", "request_interval_seconds", "max_parallel_requests")
 # Optional settings: config.json leaves them out while they have these values.
-OPTIONAL = {"max_stops": None, "airlines": (), "airlines_exclude": (), "display_names": {}}
+OPTIONAL = {"max_stops": None, "airlines": (), "airlines_exclude": (), "display_names": {}, "id": MAIN_TRIP}
 
 
 @dataclass(frozen=True)
@@ -80,8 +88,12 @@ class Config:
     max_parallel_requests: int = 3
     # Website and message labels only (airport code -> place name); never searched.
     display_names: dict = field(default_factory=dict)
+    # Trip identifier when several trips are searched (website links, settings).
+    id: str = MAIN_TRIP
 
     def __post_init__(self):
+        if not isinstance(self.id, str) or not TRIP_ID.fullmatch(self.id):
+            raise ValueError("Trip id must be 1-20 lowercase letters, digits or dashes")
         if not self.origins or len(set(self.origins)) != len(self.origins):
             raise ValueError("Origins must be a nonempty unique list")
         for airport in (*self.origins, self.destination):
@@ -156,6 +168,9 @@ class Config:
         for name in ("max_stops", "airlines", "airlines_exclude"):
             if getattr(self, name) != OPTIONAL[name]:
                 data[name] = sorted(getattr(self, name)) if name != "max_stops" else self.max_stops
+        # Further trips never share history or alerts with another trip, even to the same place.
+        if self.id != MAIN_TRIP:
+            data["trip"] = self.id
         data.update(provider="fli-0.9-prefetch-v2", mode=mode, gl="DE", hl="en")
         return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()[:24]
 
@@ -174,3 +189,87 @@ class Config:
 
     def threshold(self, category):
         return cents(self.good_deal_nonstop_eur if category == "nonstop" else self.good_deal_layover_eur)
+
+
+def shared_values(config):
+    return {name: getattr(config, name) for name in SHARED_FIELDS}
+
+
+@dataclass(frozen=True)
+class Settings:
+    """One to five trips, searched one after another in each run.
+
+    Every trip has its own route, dates, filters and price targets. The request
+    budget, pacing and message expiry (SHARED_FIELDS) apply to the whole run.
+    A config.json without a "trips" list is a single trip.
+    """
+    trips: tuple
+    primary_trip: str = MAIN_TRIP
+
+    def __post_init__(self):
+        if (not isinstance(self.trips, tuple) or not 1 <= len(self.trips) <= MAX_TRIPS
+                or not all(isinstance(trip, Config) for trip in self.trips)):
+            raise ValueError(f"Settings need 1 to {MAX_TRIPS} trips")
+        ids = [trip.id for trip in self.trips]
+        if len(set(ids)) != len(ids):
+            raise ValueError("Trip ids must be unique")
+        if self.primary_trip not in ids:
+            raise ValueError("primary_trip must name one of the trips")
+        if any(shared_values(trip) != shared_values(self.trips[0]) for trip in self.trips):
+            raise ValueError("All trips must use the same request settings")
+
+    @property
+    def primary(self):
+        """The trip the website shows first."""
+        return self.trip(self.primary_trip)
+
+    def trip(self, trip_id):
+        return next(trip for trip in self.trips if trip.id == trip_id)
+
+    def ordered(self):
+        """Search order: the primary trip first, then the others as listed."""
+        return (self.primary, *(trip for trip in self.trips if trip.id != self.primary_trip))
+
+    @classmethod
+    def load(cls, path):
+        return cls.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
+
+    @classmethod
+    def from_dict(cls, values):
+        if not isinstance(values, dict):
+            raise ValueError("Configuration must be a JSON object")
+        if "trips" not in values:
+            config = Config.from_dict(values)
+            return cls((config,), config.id)
+        unknown = set(values) - {"trips", "primary_trip", *SHARED_FIELDS}
+        if unknown:
+            raise ValueError(f"Unknown settings keys: {', '.join(sorted(unknown))}")
+        trips = values["trips"]
+        if not isinstance(trips, list) or not 1 <= len(trips) <= MAX_TRIPS:
+            raise ValueError(f"trips must list 1 to {MAX_TRIPS} trips")
+        shared = {name: values[name] for name in SHARED_FIELDS if name in values}
+        configs = []
+        for trip in trips:
+            if not isinstance(trip, dict) or "id" not in trip:
+                raise ValueError("Every trip needs an id")
+            both = set(trip) & set(SHARED_FIELDS)
+            if both:
+                raise ValueError(f"{', '.join(sorted(both))} applies to all trips; set it once next to the trips list")
+            configs.append(Config.from_dict({**trip, **shared}))
+        primary = values.get("primary_trip", configs[0].id)
+        if not isinstance(primary, str):
+            raise ValueError("primary_trip must be a trip id")
+        return cls(tuple(configs), primary)
+
+    def file_dict(self):
+        """config.json layout; a single trip keeps the flat original layout."""
+        if len(self.trips) == 1:
+            return self.trips[0].file_dict()
+        trips = [{"id": trip.id, **{name: value for name, value in trip.file_dict().items()
+                                    if name not in SHARED_FIELDS and name != "id"}} for trip in self.trips]
+        return {"primary_trip": self.primary_trip, "trips": trips, **shared_values(self.trips[0])}
+
+
+def trips_of(settings):
+    """The trips of Settings; a single Config is its own only trip."""
+    return settings.trips if isinstance(settings, Settings) else (settings,)

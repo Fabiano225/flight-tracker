@@ -5,6 +5,7 @@ import sqlite3
 import uuid
 
 from .alerts import is_drop, diverse_take
+from .config import MAIN_TRIP
 from .network import ServiceError, BudgetError
 from .planner import plan
 from .store import stamp
@@ -27,7 +28,8 @@ def search_window(config):
 
 def queue_window_ended(store, config, run_id, now):
     """Say once per search window that its last departure date has been reached."""
-    window = json.dumps([config.destination, list(config.origins), *search_window(config)])
+    trip = [] if config.id == MAIN_TRIP else [config.id]
+    window = json.dumps([config.destination, list(config.origins), *search_window(config), *trip])
     key = "window_ended:" + hashlib.sha256(window.encode()).hexdigest()[:16]
     if store.get_meta(key):
         return False
@@ -49,23 +51,75 @@ def quiet_route(store, config, scope, origin, profile, now):
 
 
 def scan(config, store, provider, now, demo=False):
-    scope = config.scope("demo" if demo else "live")
+    """Search a single trip; see scan_trips."""
+    return scan_trips((config,), store, lambda _: provider, now, demo)[0]
+
+
+def scan_trips(trips, store, providers, now, demo=False):
+    """Search every trip in turn. `providers(trip)` returns the trip's provider;
+    live providers share one paced client and thereby one request budget."""
+    summaries = [scan_trip(config, store, providers(config), now, demo, trips) for config in trips]
+    update_health(store, trips, summaries, now)
+    try:
+        # The longest comparison period decides what every trip may still read.
+        pruned = store.prune(now, max(config.history_window_days for config in trips))
+    except sqlite3.Error as exc:
+        # Cleanup is housekeeping; a failure must not lose this run's results.
+        pruned = None
+        summaries[-1]["prune_error"] = str(exc)[:200]
+    if pruned is not None:
+        summaries[-1]["pruned_rows"] = pruned
+    last = summaries[-1]
+    store.db.execute("UPDATE runs SET summary=? WHERE id=?", (json.dumps(last), last["run_id"]))
+    store.db.commit()
+    return summaries
+
+
+def update_health(store, trips, summaries, now):
+    """One health message per run for all trips; the flight source is shared."""
+    several = len(summaries) > 1
+    partial = [(config, summary) for config, summary in zip(trips, summaries) if summary["status"] == "partial"]
+    if partial:
+        last = store.get_meta("health_alert_at")
+        if last is None or last < stamp(now - timedelta(hours=24)):
+            errors = [f"{config.destination}: {error}" if several else error
+                      for config, summary in partial for error in summary["errors"][:2 if several else 4]]
+            store.enqueue(partial[0][1]["run_id"], "health", now,
+                "Flight tracker needs attention.\n" + "\n".join(errors[:10]) +
+                "\nNo missing or unverified prices are sent as deals. Check the GitHub Actions run.")
+            store.set_meta("health_alert_at", stamp(now))
+        store.set_meta("unhealthy", "yes")
+    else:
+        ok = [summary for summary in summaries if summary["status"] == "ok"]
+        if ok and store.get_meta("unhealthy") == "yes":
+            store.enqueue(ok[0]["run_id"], "health", now,
+                          "Flight tracker recovered: calendar searches and itinerary checks succeeded.")
+            store.set_meta("unhealthy", "no")
+    store.db.commit()
+
+
+def scan_trip(config, store, provider, now, demo=False, trips=None):
+    """Search one trip. `trips` are all trips of this run; alerts of others expire."""
+    mode = "demo" if demo else "live"
+    scope = config.scope(mode)
     run_id = uuid.uuid4().hex
     planned = plan(config, now.date())
     batches = [b for b in planned if not quiet_route(store, config, scope, b.origin, b.profile, now)]
-    summary = {"run_id": run_id, "started": stamp(now), "mode": "demo" if demo else "live",
+    summary = {"run_id": run_id, "started": stamp(now), "mode": mode, "trip": config.id,
         "status": "running", "calendar_queries_planned": len(batches), "calendar_queries_ok": 0,
         "calendar_queries_skipped": len(planned) - len(batches),
         "calendar_slots": sum(len(b.pairs()) for b in batches), "calendar_prices": 0,
         "calendar_unknown": 0, "verification_searches": 0, "verified_quotes": 0,
         "queued_deals": 0, "http_attempts": 0, "errors": [], "config": config.public_dict()}
+    used_before = provider.http.used
     db = store.db
     db.execute("INSERT INTO runs VALUES(?,?,?,?,?)", (run_id, stamp(now), scope, "running", json.dumps(summary)))
-    store.expire(now, config.pending_ttl_hours, scope)
-    store.expire_outside_search(config)
+    trips = trips or (config,)
+    store.expire(now, config.pending_ttl_hours, {trip.scope(mode) for trip in trips})
+    store.expire_outside_search(trips)
     # Retire unsent legacy rotating overviews after switching notification policy.
     db.execute("UPDATE outbox SET status='expired' WHERE kind='deal' AND status='pending'")
-    db.execute("UPDATE outbox SET status='expired' WHERE kind='check_status' AND status='pending'")
+    store.expire_check_status(scope)
     db.commit()
     candidates = []
     consecutive_errors = 0
@@ -103,7 +157,7 @@ def scan(config, store, provider, now, demo=False):
                     summary["calendar_unknown"] += 1
             db.commit()  # Preserve completed chunks if a later search fails.
             if not demo:
-                print(f"Date batches {summary['calendar_queries_ok']}/{len(batches)}; "
+                print(f"{config.destination} date batches {summary['calendar_queries_ok']}/{len(batches)}; "
                       f"prices {summary['calendar_prices']}; HTTP {provider.http.used}", flush=True)
         for (origin, profile), total in route_total.items():
             key = route_key(scope, origin, profile)
@@ -161,24 +215,8 @@ def scan(config, store, provider, now, demo=False):
             store, config, scope, run_id, verified, now, summary, demo))
         if summary["status"] == "expired" and not demo:
             summary["queued_window_notice"] = int(queue_window_ended(store, config, run_id, now))
-        if summary["status"] == "partial":
-            last = store.get_meta("health_alert_at")
-            if last is None or last < stamp(now - timedelta(hours=24)):
-                store.enqueue(run_id, "health", now,
-                    "Flight tracker needs attention.\n" + "\n".join(summary["errors"][:4]) +
-                    "\nNo missing or unverified prices are sent as deals. Check the GitHub Actions run.")
-                store.set_meta("health_alert_at", stamp(now))
-            store.set_meta("unhealthy", "yes")
-        elif summary["status"] == "ok" and store.get_meta("unhealthy") == "yes":
-            store.enqueue(run_id, "health", now, "Flight tracker recovered: calendar searches and itinerary checks succeeded.")
-            store.set_meta("unhealthy", "no")
-        summary["http_attempts"] = provider.http.used
+        summary["http_attempts"] = provider.http.used - used_before
         summary["calendar_dates_recovered"] = getattr(getattr(provider, "dates", None), "recovered_dates", 0)
-        try:
-            summary["pruned_rows"] = store.prune(now, config.history_window_days)
-        except sqlite3.Error as exc:
-            # Cleanup is housekeeping; a failure must not lose this run's results.
-            summary["prune_error"] = str(exc)[:200]
         db.execute("UPDATE runs SET status=?,summary=? WHERE id=?", (summary["status"], json.dumps(summary), run_id))
         db.commit()
         return summary

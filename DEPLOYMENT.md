@@ -182,7 +182,10 @@ opens a prefilled issue. The **Apply search settings** workflow applies only iss
 opened by the repository owner that contain the form marker. `scripts/search_settings.py
 apply` validates every setting (supported airports and airlines, ranges, a departure
 day from tomorrow on, the request and time budget), then commits `config.json` to the
-`search-config` branch with a normal fast-forward push. It replies with the changes,
+`search-config` branch with a normal fast-forward push. With several trips their
+requests are added up against the shared budget, and a trip whose departure window has
+ended must be given new dates or removed. An issue with a single trip's settings (the
+current form) replaces only the primary trip. It replies with the changes,
 closes the issue and dispatches **Publish dashboard** and **Track flights**. Rejected
 settings are answered and closed as not planned; the running search is unchanged.
 Settings issues from anyone else are closed as not planned by a separate job that has

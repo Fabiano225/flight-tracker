@@ -159,6 +159,38 @@ is protected. Once that branch exists it takes precedence over `config.json` on 
 for scans and the dashboard. Delete the branch to return to `config.json` on `main`.
 Until the form is first used, nothing changes.
 
+### Several trips
+
+Up to five trips can be tracked at once, for example Bangkok in October and Amsterdam
+for a weekend. Each trip has its own airports, dates, filters, price targets and alert
+thresholds, its own price history and its own alerts. Every run searches all trips one
+after another, so they share the run's request and time budget (`max_http_attempts_per_run`,
+`max_run_seconds` and the other request settings); the settings check rejects trips
+that together would exceed it. Messages for all trips go to the same channel, and each
+names its destination in the title. One health message covers all trips.
+
+A `config.json` with a single trip keeps the flat layout above. Several trips use a
+`trips` list; each trip has an `id` (lowercase letters, digits and dashes) and
+`primary_trip` names the trip the website shows first, which can be changed at any
+time:
+
+```json
+{
+  "primary_trip": "main",
+  "trips": [
+    {"id": "main", "origins": ["DUS", "FRA", "AMS"], "destination": "BKK", "...": "..."},
+    {"id": "ams", "origins": ["FRA"], "destination": "AMS", "...": "..."}
+  ],
+  "max_http_attempts_per_run": 1600,
+  "max_run_seconds": 2400,
+  "...": "the other request settings"
+}
+```
+
+The original single search is the trip `main` and keeps its price history. The
+dashboard currently shows the primary trip, and the form edits it while keeping the
+other trips.
+
 ## Set up Discord (preferred)
 
 1. In a Discord **server text channel**, open **Edit Channel → Integrations →

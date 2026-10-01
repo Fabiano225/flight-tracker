@@ -9,7 +9,7 @@ from pathlib import Path
 import threading
 import time
 
-from .config import cents
+from .config import MAIN_TRIP, cents
 from .network import ServiceError, BudgetError, TransientSourceError
 
 
@@ -225,10 +225,12 @@ class PrefetchDates:
 class FreeProvider:
     CACHE_MAX_AGE_SECONDS = 3600
 
-    def __init__(self, config, cache_path=None):
+    def __init__(self, config, cache_path=None, http=None):
         from fli.search import SearchFlights
         self.config = config
-        self.http = GuardedClient(config)
+        # Trips of one run share a client, its request budget and its pacing.
+        self.owns_http = http is None
+        self.http = http or GuardedClient(config)
         self.dates, self.flights = PrefetchDates(self.http), SearchFlights()
         self.flights.client = self.http
         # Itinerary searches of this run, reused by the later baggage step so
@@ -405,7 +407,13 @@ class FreeProvider:
             raise ServiceError("Baggage tariff details unavailable or changed format") from None
 
     def close(self):
-        self.http.close()
+        if self.owns_http:
+            self.http.close()
+
+
+def cache_file(directory, config):
+    """Each trip's searches are cached in a file of its own."""
+    return Path(directory) / ("search-cache.json" if config.id == MAIN_TRIP else f"search-cache-{config.id}.json")
 
 
 def itinerary_id(pair):

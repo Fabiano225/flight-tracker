@@ -40,6 +40,7 @@ def scan_baggage(config, store, provider, now):
     """Check actual booking offers once, then project supported baggage profiles."""
     db = store.db
     initialize(db)
+    used_before = provider.http.used  # Trips of a run may share one client.
     run = db.execute('SELECT * FROM runs WHERE scope=? ORDER BY started DESC,rowid DESC LIMIT 1',
                      (config.scope(),)).fetchone()
     if not run or run['started'] < stamp(now-timedelta(hours=12)) or run['status'] not in ('ok','partial'):
@@ -102,4 +103,4 @@ def scan_baggage(config, store, provider, now):
         provider.close()
     stats = [dict(r) for r in db.execute('SELECT variant,status,planned,completed,issues FROM baggage_runs WHERE run_id=?',(run['id'],))]
     return {'status':'partial' if any(r['status']!='ok' for r in stats) else 'ok', 'profiles':stats,
-            'http_attempts':provider.http.used, **getattr(provider,'cache_stats',{})}
+            'http_attempts':provider.http.used-used_before, **getattr(provider,'cache_stats',{})}
