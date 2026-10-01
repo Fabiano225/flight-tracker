@@ -47,3 +47,10 @@ def request_estimate(config, today):
     # Starts are paced; parallel requests overlap an assumed 1.5 s response time.
     seconds = requests * max(config.request_interval_seconds, 1.5 / config.max_parallel_requests)
     return {"calendar": calendar, "verification": verification, "requests": requests, "seconds": round(seconds)}
+
+
+def settings_estimate(settings, today):
+    """Estimate of one run over all trips; they share the request and time budget."""
+    trips = {trip.id: request_estimate(trip, today) for trip in settings.trips}
+    return {"trips": trips, "requests": sum(e["requests"] for e in trips.values()),
+            "seconds": sum(e["seconds"] for e in trips.values())}

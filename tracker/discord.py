@@ -48,13 +48,13 @@ def payload_for(text, reference_url=None, code=None, names=None):
     color = BLUE
     title = "✈️ " + place + "Flight Tracker"
     if 'Check incomplete' in text or 'Prüfung unvollständig' in text:
-        title, color = '⚠️ Check incomplete', AMBER
+        title, color = '⚠️ ' + place + 'Check incomplete', AMBER
     elif text.startswith('Flight tracker needs attention'):
         title, color = '⚠️ Flight search needs attention', AMBER
     elif 'No price change' in text or 'Keine Preisänderung' in text:
-        title, color = '✅ No price change', GREEN
+        title, color = '✅ ' + place + 'No price change', GREEN
     elif 'Only small price changes' in text or 'Nur kleine Preisänderungen' in text:
-        title = '↔️ Small price changes'
+        title = '↔️ ' + place + 'Small price changes'
     elif text.startswith(('Discord connected', 'Discord verbunden')):
         title, color = '✅ Discord connected', GREEN
     elif text.startswith('Flight tracker recovered'):

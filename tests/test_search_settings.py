@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 from scripts import search_settings as settings
-from tracker.config import Config
+from tracker.config import SHARED_FIELDS, Config, Settings
 from tracker.places import place, places, supported
 from tracker.planner import request_estimate
 
@@ -121,6 +121,66 @@ class IssueTests(unittest.TestCase):
         self.assertEqual(settings.cell('a|b'), 'a\\|b')
 
 
+def trips_values(**changes):
+    """Bangkok (main) and Amsterdam as the multi-trip settings block of an issue."""
+    base = Config.load(ROOT / 'config.json').file_dict()
+    trip = {k: v for k, v in base.items() if k not in SHARED_FIELDS}
+    amsterdam = {**trip, 'id': 'ams', 'origins': ['FRA'], 'destination': 'AMS', 'min_trip_days': 3,
+                 'max_trip_days': 4, 'good_deal_nonstop_eur': 120, 'good_deal_layover_eur': 100}
+    return {'primary_trip': 'main', 'trips': [{**trip, 'id': 'main'}, amsterdam],
+            **{k: base[k] for k in SHARED_FIELDS}, **changes}
+
+
+class TripIssueTests(unittest.TestCase):
+    def test_all_trips_are_parsed_and_checked_together(self):
+        new = settings.normalize(settings.parse_issue(body(trips_values())))
+        self.assertIsInstance(new, Settings)
+        self.assertEqual([t.destination for t in new.ordered()], ['BKK', 'AMS'])
+        estimate = settings.check(new, TODAY)
+        self.assertEqual(estimate['requests'], sum(request_estimate(t, TODAY)['requests'] for t in new.trips))
+
+    def test_missing_trip_settings_are_named_per_trip(self):
+        values = trips_values()
+        del values['trips'][1]['destination'], values['max_run_seconds']
+        with self.assertRaisesRegex(settings.Rejected, 'missing: max_run_seconds, trip 2: destination'):
+            settings.parse_issue(body(values))
+        with self.assertRaisesRegex(settings.Rejected, 'Choose 1 to 5 trips'):
+            settings.parse_issue(body(trips_values(trips=[])))
+        with self.assertRaisesRegex(settings.Rejected, 'Invalid setting: .*set it once'):
+            values = trips_values()
+            values['trips'][1]['max_run_seconds'] = 600
+            settings.parse_issue(body(values))
+
+    def test_budget_is_shared_and_ended_trips_must_go(self):
+        long = trips_values()
+        long['trips'][1].update(departure_end='2026-12-31', max_trip_days=11)
+        # Each trip alone fits the budget of 1600 requests; together they do not.
+        self.assertTrue(all(request_estimate(t, TODAY)['requests'] < 1600 for t in Settings.from_dict(long).trips))
+        with self.assertRaisesRegex(settings.Rejected, 'Too many requests: about \\d+ per run for all trips together'):
+            settings.check(Settings.from_dict(long), TODAY)
+        ended = trips_values()
+        ended['trips'][1].update(departure_start='2026-09-20', departure_end='2026-10-01')
+        with self.assertRaisesRegex(settings.Rejected, 'AMS trip: The departure window .* remove this trip'):
+            settings.check(Settings.from_dict(ended), TODAY)
+
+    def test_change_table_names_trips(self):
+        single = Settings.load(ROOT / 'config.json')
+        both = Settings.from_dict(trips_values())
+        self.assertEqual(settings.changes(single, both),
+                         [('Trips', '—', 'added: FRA → AMS, 2026-10-20 to 2026-10-23, 3–4 days')])
+        self.assertEqual(settings.changes(both, single),
+                         [('Trips', 'FRA → AMS, 2026-10-20 to 2026-10-23, 3–4 days', 'removed')])
+        values = trips_values(primary_trip='ams', max_http_attempts_per_run=1800)
+        values['trips'][1]['good_deal_nonstop_eur'] = 99
+        self.assertEqual(settings.changes(both, Settings.from_dict(values)), [
+            ('Request budget per run', '1600', '1800'), ('Shown first on the website', 'BKK', 'AMS'),
+            ('AMS · Price target, non-stop (€)', '120', '99')])
+        twins = trips_values()
+        twins['trips'][1].update(destination='BKK', origins=['MUC'])
+        self.assertEqual(settings.trip_name(Settings.from_dict(twins).trip('ams'), Settings.from_dict(twins).trips),
+                         'BKK (ams)')
+
+
 @unittest.skipUnless(shutil.which('git'), 'git not installed')
 class BranchTests(unittest.TestCase):
     def setUp(self):
@@ -160,6 +220,31 @@ class BranchTests(unittest.TestCase):
                              capture_output=True, text=True, check=True)
         self.assertEqual(log.stdout.splitlines(), ['Search settings: DUS, FRA, AMS → HND',
                                                    'Search settings from issue #7: DUS, FRA, AMS → HND'])
+
+    def test_trips_are_stored_and_a_single_trip_form_edits_the_primary_trip(self):
+        outcome, reply = settings.apply(body(trips_values()), self.config, TODAY, '8')
+        self.assertEqual(outcome, 'applied')
+        self.assertIn('✅ **New searches applied:** DUS, FRA, AMS → BKK · FRA → AMS', reply)
+        self.assertIn('| Trips | — | added: FRA → AMS, 2026-10-20 to 2026-10-23, 3–4 days |', reply)
+        self.assertIn('All 2 trips are searched in every run', reply)
+        self.assertNotIn('start over', reply)  # Bangkok keeps its history.
+        settings.use(self.config)
+        stored = Settings.load(self.config)
+        self.assertEqual([t.id for t in stored.trips], ['main', 'ams'])
+        self.assertEqual(stored.primary.scope(), Config.load(ROOT / 'config.json').scope())
+        # The current single-trip form sends one trip: it replaces the primary trip only.
+        outcome, reply = settings.apply(body({**json.loads(self.original), 'good_deal_layover_eur': 600}), self.config, TODAY)
+        self.assertEqual(outcome, 'applied')
+        self.assertIn('| BKK · Price target, with stops (€) | 650 | 600 |', reply)
+        settings.use(self.config)
+        stored = Settings.load(self.config)
+        self.assertEqual(stored.trip('main').good_deal_layover_eur, 600)
+        self.assertEqual(stored.trip('ams').destination, 'AMS')
+        # The trip shown first can be changed later.
+        outcome, reply = settings.apply(body(trips_values(primary_trip='ams')), self.config, TODAY)
+        self.assertIn('| Shown first on the website | BKK | AMS |', reply)
+        settings.use(self.config)
+        self.assertEqual(Settings.load(self.config).primary.destination, 'AMS')
 
     def test_rejected_settings_store_nothing(self):
         outcome, reply = settings.apply(body({**self.values, 'origins': ['XQZ']}), self.config, TODAY)

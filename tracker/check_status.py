@@ -49,8 +49,8 @@ def queue_check_status(store, config, scope, run_id, verified, now, summary, dem
     else:
         target = None
         lines.append('No delivered price alert for these comparison dates yet.')
-    # A newer check replaces an undelivered older receipt; fare alerts are untouched.
-    store.db.execute("UPDATE outbox SET status='expired' WHERE kind='check_status' AND status='pending'")
+    # A newer check replaces an undelivered older receipt of this trip; fare alerts are untouched.
+    store.expire_check_status(scope)
     status_id = store.enqueue(run_id, 'check_status', now, '\n'.join(lines),
                               [Quote(**v) for v in watches.values()], scope)
     if target:
