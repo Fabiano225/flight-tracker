@@ -181,6 +181,30 @@ class EmptyRouteTests(unittest.TestCase):
         self.assertEqual(self.run_scan(6), (2, 0))
 
 
+class PruneTests(unittest.TestCase):
+    def test_old_observations_go_but_alert_history_stays(self):
+        with tempfile.TemporaryDirectory() as directory, Store(directory) as store:
+            q = Quote("FRA", "2026-10-20", "2026-11-03", "layover", 60000, 700, 700, 1, 1, "TG", "")
+            for days in (200, 100, 40, 1):
+                at, run = stamp(NOW - timedelta(days=days)), f"r{days}"
+                store.db.execute("INSERT INTO runs VALUES(?,?,?,?,?)", (run, at, "s", "ok", "{}"))
+                store.db.execute("INSERT INTO calendar VALUES(?,?,?,?,?,?,?,?)",
+                                 (run, "s", at, "FRA", "2026-10-20", "2026-11-03", "any", 60000))
+                store.db.execute("INSERT INTO quotes VALUES(?,?,?,?,?,?,?,?,?)",
+                                 (run, "s", at, "FRA", "2026-10-20", "2026-11-03", "layover", 60000, json.dumps(q.to_dict())))
+                store.enqueue(run, "trend", NOW - timedelta(days=days), "alert", [q], "s")
+            store.db.commit()
+            store.prune(NOW, 30)
+            count = lambda table: store.db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            # The date grid is kept for the comparison period, verified fares for 120 days.
+            self.assertEqual(count("calendar"), 1)
+            self.assertEqual(count("quotes"), 3)
+            self.assertEqual((count("runs"), count("outbox"), count("alert_items")), (4, 4, 4))
+            # A longer comparison period keeps more.
+            store.prune(NOW, 365)
+            self.assertEqual(count("quotes"), 3)
+
+
 class WindowEndedTests(unittest.TestCase):
     def test_ended_window_is_announced_once_with_a_settings_link(self):
         with tempfile.TemporaryDirectory() as directory, Store(directory) as store:

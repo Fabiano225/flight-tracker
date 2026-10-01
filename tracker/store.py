@@ -5,6 +5,14 @@ import sqlite3
 import uuid
 
 
+# Observations are deleted once no comparison reads them. Alerts, delivery
+# receipts and runs are kept: they are small and anchor "since the last alert".
+MIN_WINDOW_DAYS = 31
+QUOTE_RETENTION_DAYS = 120
+SIZE_LIMIT_BYTES = 60_000_000
+SAFETY_CALENDAR_DAYS = 7
+
+
 def utcnow():
     return datetime.now(timezone.utc)
 
@@ -125,6 +133,29 @@ class Store:
                     valid=False
             if not valid:
                 self.db.execute("UPDATE outbox SET status='expired' WHERE id=?",(message[0],))
+
+    def prune(self, now, window_days):
+        """Delete observations that no price comparison reads anymore and shrink the file."""
+        keep = max(window_days, MIN_WINDOW_DAYS) + 2
+        tables = {row[0] for row in self.db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        limits = [("calendar", keep), ("quotes", max(keep, QUOTE_RETENTION_DAYS)),
+                  # The website reads baggage checks of the last 12 hours only.
+                  ("baggage_checks", 2), ("baggage_quotes", keep), ("baggage_runs", keep)]
+        removed = 0
+        for table, days in limits:
+            if table in tables:
+                removed += self.db.execute(f"DELETE FROM {table} WHERE observed<?",
+                                           (stamp(now - timedelta(days=days)),)).rowcount
+        self.db.commit()
+        if removed:
+            self.db.execute("VACUUM")
+        if (self.directory / "history.sqlite3").stat().st_size > SIZE_LIMIT_BYTES:
+            # Very wide searches: the date grid only ranks candidates, so it may shrink first.
+            removed += self.db.execute("DELETE FROM calendar WHERE observed<?",
+                                       (stamp(now - timedelta(days=SAFETY_CALENDAR_DAYS)),)).rowcount
+            self.db.commit()
+            self.db.execute("VACUUM")
+        return removed
 
     def close(self):
         self.db.commit()
