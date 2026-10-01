@@ -85,7 +85,9 @@ class GitStateTests(unittest.TestCase):
         head = self.command(["git", "rev-parse", "FETCH_HEAD"], repo).stdout.strip()
         message = "Update flight history and alert delivery state\n" if legacy else \
             f"Update flight history and alert delivery state\n\nState-Commits: {count}\n"
-        commit = self.command(["git", "commit-tree", f"{head}^{{tree}}", "-p", head, "-m", message], repo).stdout.strip()
+        # CI runners have no global Git identity; the state writer passes its own too.
+        commit = self.command(["git", "-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit-tree",
+                               f"{head}^{{tree}}", "-p", head, "-m", message], repo).stdout.strip()
         self.command(["git", "push", "origin", f"{commit}:refs/heads/tracker-state"], repo)
 
     def test_saves_count_up_and_long_histories_are_compacted(self):
