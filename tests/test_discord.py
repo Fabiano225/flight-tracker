@@ -11,7 +11,8 @@ from urllib.error import HTTPError
 from tracker.config import Config
 from tracker.discord import Discord, payload_for, GREEN, RED, AMBER
 from tracker.network import JsonHttp, ServiceError
-from tracker.notifications import configured_sender, deliver
+from tracker.check_status import TELEGRAM_REPLY_HINT
+from tracker.notifications import ARCHIVE_PREFIX, SETTINGS, configured_sender, deliver
 from tracker.provider import Quote, DemoProvider
 from tracker.service import scan
 from tracker.store import Store, stamp
@@ -67,51 +68,67 @@ class DiscordTests(unittest.TestCase):
     def test_status_link_uses_runtime_metadata_and_no_unsupported_reply(self):
         http = NS(get_json=Mock(side_effect=[{'guild_id': '111', 'channel_id': '222'}, {'id': '556'}]))
         sender = Discord(WEBHOOK, http)
-        sender.send('BKK Suchstatus\nKeine Preisänderung\nTippe auf die zitierte Nachricht, um zum Preisalarm zu springen (sofern noch vorhanden).', '555')
+        sender.send('BKK check status\nNo price change for the watched offers.\n' + TELEGRAM_REPLY_HINT, '555')
         payload = json.loads(http.get_json.call_args.args[2])
         self.assertIn('https://discord.com/channels/111/222/555', str(payload))
-        self.assertNotIn('zitierte Nachricht', str(payload))
+        self.assertNotIn('quoted message', str(payload))
         self.assertNotIn('message_reference', payload)
         self.assertEqual(payload['embeds'][0]['color'], GREEN)
 
     def test_optional_reference_failure_does_not_lose_status(self):
         http = NS(get_json=Mock(side_effect=[ServiceError('unavailable'), {'id': '556'}]))
         sender = Discord(WEBHOOK, http)
-        self.assertEqual(sender.send('BKK Suchstatus\nLetzter zugehöriger Preisalarm: gestern', '555'), '556')
-        self.assertIn('derzeit nicht verfügbar', str(json.loads(http.get_json.call_args.args[2])))
+        self.assertEqual(sender.send('BKK check status\nLatest related price alert: yesterday', '555'), '556')
+        self.assertIn('currently unavailable', str(json.loads(http.get_json.call_args.args[2])))
 
     def test_price_cards_preserve_price_dates_verdict_and_link(self):
         q = Quote('FRA', '2026-10-20', '2026-11-03', 'nonstop', 60000, 700, 750, 0, 0, 'TG', '')
         history = dict(previous=66000, previous_at=stamp(NOW), low=66000, count=4, first_at=stamp(NOW))
         prior = dict(departure=q.departure, return_date=q.return_date, price=66000, created=stamp(NOW))
-        text = 'BKK Preisalarm\n' + stamp(NOW) + '\n' + block(q, history, prior, Config()) + '\n\nKeine Preisprognose.'
+        text = 'BKK price alert\n' + stamp(NOW) + '\n' + block(q, history, prior, Config()) + '\n\nNot a forecast.'
         payload = payload_for(text)
         card = payload['embeds'][1]
+        self.assertEqual(payload['embeds'][0]['title'], '✈️ Bangkok · Price update')
         self.assertEqual(card['color'], GREEN)
-        self.assertIn('2026-10-20 bis 2026-11-03 | 600.00 EUR', card['description'])
+        self.assertIn('2026-10-20 to 2026-11-03 | 600.00 EUR', card['description'])
         self.assertIn('660.00 EUR → 600.00 EUR', card['description'])
-        self.assertIn('KAUF PRÜFEN', card['description'])
+        self.assertIn('**CHECK TO BUY:', card['description'])
         self.assertTrue(card['url'].startswith('https://www.google.com/travel/flights'))
-        rise = text.replace('PREIS GESUNKEN', 'PREIS GESTIEGEN')
+        rise = text.replace('PRICE DROPPED', 'PRICE ROSE')
         self.assertEqual(payload_for(rise)['embeds'][1]['color'], RED)
-        self.assertIn('Keine Preisprognose', str(payload))
+        self.assertIn('Not a forecast', str(payload))
+
+    def test_legacy_german_messages_still_render(self):
+        # Messages queued before the switch to English may still be pending.
+        text = ('BKK Preisalarm\n' + stamp(NOW) + '\nPREIS GESUNKEN | FRA-BKK | DIREKT (beide Richtungen)\n'
+                '2026-10-20 bis 2026-11-03 | 600.00 EUR\nKAUF PRUEFEN: innerhalb deiner Zielgrenze.\n'
+                'https://www.google.com/travel/flights?q=x')
+        payload = payload_for(text)
+        self.assertEqual(payload['embeds'][1]['color'], GREEN)
+        self.assertIn('**KAUF PRÜFEN:', payload['embeds'][1]['description'])
+        self.assertEqual(payload_for('BKK Suchstatus\nKeine Preisänderung')['embeds'][0]['color'], GREEN)
+        self.assertEqual(payload_for('BKK Suchstatus\nPrüfung unvollständig')['embeds'][0]['color'], AMBER)
+        self.assertIn('historical', payload_for('Übernommener Preisstand – alt')['embeds'][0]['title'])
 
     def test_titles_name_the_destination_of_each_message(self):
-        legacy = payload_for('BKK Preisalarm\n' + stamp(NOW) + '\n\nKeine Preisprognose.', code='HND')
-        self.assertEqual((legacy['username'], legacy['embeds'][0]['title']), ('BKK Flight Tracker', '✈️ Bangkok · Preisupdate'))
-        tokyo = payload_for('HND Preisalarm\n' + stamp(NOW) + '\n\nx', code='HND', names={'HND': 'Tokio Haneda'})
-        self.assertEqual((tokyo['username'], tokyo['embeds'][0]['title']), ('HND Flight Tracker', '✈️ Tokio Haneda · Preisupdate'))
-        other = payload_for('Hinweis', code='HND')
-        self.assertEqual(other['embeds'][0]['title'], '✈️ Tokio · Flight Tracker')
-        self.assertEqual(payload_for('Hinweis')['embeds'][0]['title'], '✈️ Flight Tracker')
+        older = payload_for('BKK price alert\n' + stamp(NOW) + '\n\nNot a forecast.', code='HND')
+        self.assertEqual((older['username'], older['embeds'][0]['title']), ('BKK Flight Tracker', '✈️ Bangkok · Price update'))
+        tokyo = payload_for('HND price alert\n' + stamp(NOW) + '\n\nx', code='HND', names={'HND': 'Tokyo Haneda'})
+        self.assertEqual((tokyo['username'], tokyo['embeds'][0]['title']), ('HND Flight Tracker', '✈️ Tokyo Haneda · Price update'))
+        other = payload_for('Note', code='HND')
+        self.assertEqual(other['embeds'][0]['title'], '✈️ Tokyo · Flight Tracker')
+        self.assertEqual(payload_for('Note')['embeds'][0]['title'], '✈️ Flight Tracker')
+        ended = payload_for('BKK search window ended\nDepartures have passed.\nSet up a new search: ' + SETTINGS)
+        self.assertEqual(ended['embeds'][0]['title'], '🏁 Bangkok · Search window ended')
+        self.assertIn('[Set up a new search →](' + SETTINGS + ')', ended['embeds'][0]['description'])
         with patch.dict(os.environ, {'DISCORD_WEBHOOK_URL': WEBHOOK}, clear=True):
-            sender = configured_sender(Config(destination='HND', display_names={'HND': 'Tokio Haneda'}))
-        self.assertEqual((sender.code, sender.names), ('HND', {'HND': 'Tokio Haneda'}))
+            sender = configured_sender(Config(destination='HND', display_names={'HND': 'Tokyo Haneda'}))
+        self.assertEqual((sender.code, sender.names), ('HND', {'HND': 'Tokyo Haneda'}))
 
     def test_partial_is_amber_and_historical_not_a_new_deal(self):
-        self.assertEqual(payload_for('BKK Suchstatus\nPrüfung unvollständig')['embeds'][0]['color'], AMBER)
-        card = payload_for('Übernommener Preisstand – KEIN neuer Preisalarm.\nHistorische Meldung')['embeds'][0]
-        self.assertIn('historisch', card['title'])
+        self.assertEqual(payload_for('BKK check status\nCheck incomplete – x')['embeds'][0]['color'], AMBER)
+        card = payload_for(ARCHIVE_PREFIX + ' – NOT a new price alert.\nHistorical message')['embeds'][0]
+        self.assertIn('historical', card['title'])
 
     def test_maximum_legacy_text_is_preserved_within_embed_limits(self):
         text = 'x' * 4096
@@ -128,10 +145,10 @@ class DiscordTests(unittest.TestCase):
             messages = store.db.execute('SELECT text FROM outbox').fetchall()
             self.assertTrue(messages)
             for row in messages:
-                text = row[0].replace('DEMO - synthetische Preise', 'BKK Preisalarm')
+                text = row[0].replace('DEMO - synthetic prices', 'BKK price alert')
                 payload = payload_for(text)
                 self.assertLessEqual(len(payload['embeds']), 10)
-                self.assertIn('Preis', str(payload))
+                self.assertIn('Price', str(payload))
 
     def test_rate_limit_json_fractional_seconds_and_redaction(self):
         sleeps = []
@@ -164,7 +181,7 @@ class ChannelMigrationTests(unittest.TestCase):
 
     def test_switch_copies_reference_once_and_preserves_history(self):
         self.assertEqual(deliver(self.store, Config(), NOW, self.sender), 2)
-        self.assertIn('KEIN neuer Preisalarm', self.sender.send.call_args_list[0].args[0])
+        self.assertIn('NOT a new price alert', self.sender.send.call_args_list[0].args[0])
         self.sender.send.assert_called_with('No change', reply_to_message_id='555')
         self.assertEqual(deliver(self.store, Config(), NOW, self.sender), 0)
         self.assertEqual(self.store.db.execute('SELECT message_id FROM outbox WHERE id=?', (self.price,)).fetchone()[0], '42')

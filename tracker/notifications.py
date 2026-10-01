@@ -4,6 +4,10 @@ import os
 from .network import ServiceError
 from .store import stamp
 
+ARCHIVE_PREFIX = "Copied price update"
+DASHBOARD = "https://fabiano225.github.io/flight-tracker/"
+SETTINGS = DASHBOARD + "settings.html"
+
 
 def configured_sender(config=None):
     channel = os.environ.get("NOTIFICATION_CHANNEL", "auto").strip().lower() or "auto"
@@ -47,10 +51,10 @@ def deliver(store, config, now, sender):
             else:
                 # Move only the referenced price alert, not the entire history.
                 # Mark it as historical, and persist before sending the status.
-                archive = ("Übernommener Preisstand – KEIN neuer Preisalarm.\n"
-                    "Historische Meldung, nicht erneut geprüft; Stand " + target['created'] + ".\n\n" + target['text'])
+                archive = (ARCHIVE_PREFIX + " – NOT a new price alert.\n"
+                    "Historical message, not rechecked; from " + target['created'] + ".\n\n" + target['text'])
                 if destination == 'telegram' and len(archive) > 4096:
-                    archive = archive[:4000] + '\n(Gekürzt; weitere Preise im Dashboard.)'
+                    archive = archive[:4000] + '\n(Shortened; more prices on the dashboard.)'
                 reply_id = sender.send(archive)
                 receipt(target['id'], reply_id)
                 sent += 1

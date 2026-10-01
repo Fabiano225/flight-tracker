@@ -1,5 +1,7 @@
 from datetime import timedelta
+import hashlib
 import json
+import sqlite3
 import uuid
 
 from .alerts import is_drop, diverse_take
@@ -7,6 +9,7 @@ from .network import ServiceError, BudgetError
 from .planner import plan
 from .store import stamp
 from .check_status import queue_check_status
+from .notifications import SETTINGS
 from .trends import load_watches, watch_searches, queue_trends
 
 # A route (airport + nonstop/any profile) whose complete date search found no
@@ -20,6 +23,20 @@ def route_key(scope, origin, profile):
 
 def search_window(config):
     return [config.departure_start, config.departure_end, config.min_trip_days, config.max_trip_days]
+
+
+def queue_window_ended(store, config, run_id, now):
+    """Say once per search window that its last departure date has been reached."""
+    window = json.dumps([config.destination, list(config.origins), *search_window(config)])
+    key = "window_ended:" + hashlib.sha256(window.encode()).hexdigest()[:16]
+    if store.get_meta(key):
+        return False
+    store.enqueue(run_id, "notice", now, f"{config.destination} search window ended\n{stamp(now)}\n"
+                  f"Departures from {config.departure_start} to {config.departure_end} can no longer be searched, "
+                  f"so the tracker has stopped searching this trip. Stored prices stay on the dashboard.\n"
+                  f"Set up a new search: {SETTINGS}")
+    store.set_meta(key, stamp(now))
+    return True
 
 
 def quiet_route(store, config, scope, origin, profile, now):
@@ -142,6 +159,8 @@ def scan(config, store, provider, now, demo=False):
         summary["status"] = "expired" if not planned else "partial" if summary["errors"] else "ok"
         summary['queued_check_status'] = int(queue_check_status(
             store, config, scope, run_id, verified, now, summary, demo))
+        if summary["status"] == "expired" and not demo:
+            summary["queued_window_notice"] = int(queue_window_ended(store, config, run_id, now))
         if summary["status"] == "partial":
             last = store.get_meta("health_alert_at")
             if last is None or last < stamp(now - timedelta(hours=24)):
@@ -155,6 +174,11 @@ def scan(config, store, provider, now, demo=False):
             store.set_meta("unhealthy", "no")
         summary["http_attempts"] = provider.http.used
         summary["calendar_dates_recovered"] = getattr(getattr(provider, "dates", None), "recovered_dates", 0)
+        try:
+            summary["pruned_rows"] = store.prune(now, config.history_window_days)
+        except sqlite3.Error as exc:
+            # Cleanup is housekeeping; a failure must not lose this run's results.
+            summary["prune_error"] = str(exc)[:200]
         db.execute("UPDATE runs SET status=?,summary=? WHERE id=?", (summary["status"], json.dumps(summary), run_id))
         db.commit()
         return summary

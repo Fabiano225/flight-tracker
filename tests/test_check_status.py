@@ -46,7 +46,7 @@ class CheckStatusTests(unittest.TestCase):
     def test_exactly_unchanged_replies_to_price_and_not_to_health(self):
         self.store.enqueue('old','health',NOW,'Health')
         self.queue()
-        self.assertIn('Keine Preisänderung', self.text())
+        self.assertIn('No price change', self.text())
         self.assertFalse(self.queue())
         sender = NS(send=Mock(return_value='43'))
         deliver(self.store,self.config,NOW,sender)
@@ -55,29 +55,29 @@ class CheckStatusTests(unittest.TestCase):
 
     def test_small_increase_and_decrease_are_not_labelled_unchanged(self):
         self.queue(price=61000)
-        self.assertIn('Nur kleine Preisänderungen',self.text())
+        self.assertIn('Only small price changes',self.text())
         self.assertIn('+10.00 EUR',self.text())
-        self.assertNotIn('Keine Preisänderung',self.text())
+        self.assertNotIn('No price change',self.text())
 
     def test_partial_scan_does_not_claim_no_change(self):
         self.queue(summary={**self.summary,'status':'partial','calendar_queries_ok':46})
-        self.assertIn('Prüfung unvollständig',self.text())
-        self.assertNotIn('Keine Preisänderung',self.text())
+        self.assertIn('Check incomplete',self.text())
+        self.assertNotIn('No price change',self.text())
 
     def test_small_decrease(self):
         self.queue(price=59700)
-        self.assertIn('Nur kleine Preisänderungen',self.text())
+        self.assertIn('Only small price changes',self.text())
         self.assertIn('-3.00 EUR',self.text())
 
     def test_pending_original_is_not_treated_as_delivered(self):
         self.store.db.execute("UPDATE outbox SET status='pending' WHERE id=?",(self.old,))
         self.queue()
-        self.assertIn('Prüfung unvollständig',self.text())
+        self.assertIn('Check incomplete',self.text())
         self.assertEqual(self.store.db.execute('SELECT COUNT(*) FROM outbox_replies').fetchone()[0],0)
 
     def test_missing_watch_is_not_unchanged(self):
         self.queue(missing=True)
-        self.assertIn('Prüfung unvollständig',self.text())
+        self.assertIn('Check incomplete',self.text())
 
     def test_window_expansion_recovers_reply_and_same_date_comparison(self):
         self.store.db.execute('INSERT INTO quotes VALUES(?,?,?,?,?,?,?,?,?)',
@@ -86,8 +86,8 @@ class CheckStatusTests(unittest.TestCase):
         wrong = replace(self.q, departure='2026-10-14', return_date='2026-10-28')
         self.store.set_meta(watch_key(self.config,self.scope), json.dumps({'FRA:layover':wrong.to_dict()}))
         self.queue()
-        self.assertIn('Keine Preisänderung', self.text())
-        self.assertNotIn('Prüfung unvollständig', self.text())
+        self.assertIn('No price change', self.text())
+        self.assertNotIn('Check incomplete', self.text())
         self.assertEqual(self.store.db.execute('SELECT target_id FROM outbox_replies').fetchone()[0], self.old)
 
     def test_price_alert_or_expired_window_has_no_extra_status(self):

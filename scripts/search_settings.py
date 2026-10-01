@@ -18,29 +18,30 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tracker.config import Config
-from tracker.places import place, supported
+from tracker.config import OPTIONAL, Config
+from tracker.places import airline_supported, place, supported
 from tracker.planner import plan, request_estimate
 
 BRANCH = "refs/heads/search-config"
 MARKER = "<!-- flightwatch-search-settings -->"
 MAX_BODY = 20000
 LABELS = {
-    "origins": "Abflughäfen", "destination": "Ziel", "departure_start": "Abflug frühestens",
-    "departure_end": "Abflug spätestens", "min_trip_days": "Reisedauer mindestens (Tage)",
-    "max_trip_days": "Reisedauer höchstens (Tage)", "currency": "Währung", "adults": "Personen",
-    "travel_class": "Reiseklasse", "max_direction_minutes": "Max. Flugdauer je Richtung (Minuten)",
-    "hide_separate_tickets": "Getrennte Tickets ausblenden", "carry_on_bags": "Kabinenkoffer in der Grundsuche",
-    "checked_bags": "Aufgabegepäck in der Grundsuche", "good_deal_nonstop_eur": "Preisziel Direktflug (€)",
-    "good_deal_layover_eur": "Preisziel mit Umstieg (€)", "drop_percent": "Starker Deal: mindestens % unter Tief",
-    "drop_eur": "Starker Deal: mindestens € unter Tief", "history_window_days": "Vergleichszeitraum (Tage)",
-    "realert_improvement_eur": "Neuer Preisalarm ab Änderung (€)", "max_deals_per_run": "Max. Angebote pro Meldung",
-    "pending_ttl_hours": "Unzugestellte Meldungen verfallen nach (Stunden)",
-    "max_verifications_per_run": "Flugprüfungen pro Suchlauf", "outbound_candidates": "Hinflug-Kandidaten je Prüfung",
-    "max_http_attempts_per_run": "Anfragen-Budget pro Suchlauf", "max_run_seconds": "Zeitbudget pro Suchlauf (Sekunden)",
-    "http_timeout_seconds": "Timeout je Anfrage (Sekunden)", "http_attempts": "Versuche je Anfrage",
-    "request_interval_seconds": "Abstand zwischen Anfragen (Sekunden)", "max_parallel_requests": "Parallele Anfragen",
-    "display_names": "Anzeigenamen",
+    "origins": "Departure airports", "destination": "Destination", "departure_start": "Earliest departure",
+    "departure_end": "Latest departure", "min_trip_days": "Shortest trip (days)",
+    "max_trip_days": "Longest trip (days)", "currency": "Currency", "adults": "Travellers",
+    "travel_class": "Cabin", "max_direction_minutes": "Max. travel time per direction (minutes)",
+    "hide_separate_tickets": "Hide separate tickets", "carry_on_bags": "Cabin bag in the base search",
+    "checked_bags": "Checked bag in the base search", "good_deal_nonstop_eur": "Price target, non-stop (€)",
+    "good_deal_layover_eur": "Price target, with stops (€)", "drop_percent": "Strong deal: at least % below the low",
+    "drop_eur": "Strong deal: at least € below the low", "history_window_days": "Comparison period (days)",
+    "realert_improvement_eur": "New price alert from a change of (€)", "max_deals_per_run": "Max. offers per message",
+    "pending_ttl_hours": "Undelivered messages expire after (hours)",
+    "max_verifications_per_run": "Flight checks per run", "outbound_candidates": "Outbound candidates per check",
+    "max_http_attempts_per_run": "Request budget per run", "max_run_seconds": "Time budget per run (seconds)",
+    "http_timeout_seconds": "Timeout per request (seconds)", "http_attempts": "Attempts per request",
+    "request_interval_seconds": "Gap between requests (seconds)", "max_parallel_requests": "Parallel requests",
+    "airlines": "Only these airlines", "airlines_exclude": "Exclude these airlines",
+    "max_stops": "Max. stops per direction", "display_names": "Display names",
 }
 CLASSES = {"economy": "Economy", "premium_economy": "Premium Economy", "business": "Business", "first_class": "First"}
 
@@ -85,58 +86,65 @@ def use(path):
 
 def parse_issue(body):
     if not body or len(body) > MAX_BODY or MARKER not in body:
-        raise Rejected("Das Issue enthält keine Sucheinstellungen aus dem Formular.")
+        raise Rejected("This issue contains no search settings from the form.")
     block = re.search(r"```json[ \t]*\r?\n(.*?)\r?\n```", body, re.S)
     if not block:
-        raise Rejected("Im Issue fehlt der Einstellungsblock (```json … ```).")
+        raise Rejected("The settings block (```json … ```) is missing from the issue.")
     try:
         values = json.loads(block.group(1))
     except ValueError:
-        raise Rejected("Der Einstellungsblock ist kein gültiges JSON.") from None
+        raise Rejected("The settings block is not valid JSON.") from None
     if not isinstance(values, dict):
-        raise Rejected("Der Einstellungsblock muss ein JSON-Objekt sein.")
-    missing = sorted({f.name for f in fields(Config)} - {"display_names"} - set(values))
+        raise Rejected("The settings block must be a JSON object.")
+    missing = sorted({f.name for f in fields(Config)} - set(OPTIONAL) - set(values))
     if missing:
         # Defaults would silently fall back to the original Bangkok search.
-        raise Rejected("Es fehlen Einstellungen: " + ", ".join(missing))
+        raise Rejected("Settings are missing: " + ", ".join(missing))
     try:
         return Config.from_dict(values)
     except (ValueError, TypeError) as exc:
-        raise Rejected(f"Ungültige Einstellung: {exc}") from None
+        raise Rejected(f"Invalid setting: {exc}") from None
 
 
 def normalize(config):
     route = (*config.origins, config.destination)
     names = {code: name for code, name in config.display_names.items()
              if code in route and name != place(code)["city"]}
-    return Config.from_dict({**config.file_dict(), "display_names": names})
+    return Config.from_dict({**config.form_dict(), "display_names": names})
 
 
 def check(config, today):
     for code in (*config.origins, config.destination):
         if not supported(code):
-            raise Rejected(f"Der Flughafen {code} wird von der Flugsuche nicht unterstützt.")
+            raise Rejected(f"The airport {code} is not supported by the flight search.")
+    for code in (*config.airlines, *config.airlines_exclude):
+        if not airline_supported(code):
+            raise Rejected(f"The airline {code} is not supported by the flight search.")
     if not plan(config, today):
-        raise Rejected("Im Abflugfenster liegt kein Tag ab morgen; es gäbe nichts zu suchen.")
+        raise Rejected("The departure window has no day from tomorrow on, so there would be nothing to search.")
     estimate = request_estimate(config, today)
     if estimate["requests"] > config.max_http_attempts_per_run:
-        raise Rejected(f"Zu viele Anfragen: etwa {estimate['requests']} pro Suchlauf, Budget "
-                       f"{config.max_http_attempts_per_run}. Weniger Abflugtage, Reisedauern oder Flughäfen wählen.")
+        raise Rejected(f"Too many requests: about {estimate['requests']} per run, budget "
+                       f"{config.max_http_attempts_per_run}. Choose fewer departure days, trip lengths or airports.")
     if estimate["seconds"] > config.max_run_seconds:
-        raise Rejected(f"Zu lange Suche: etwa {estimate['seconds'] // 60} Minuten pro Suchlauf, Limit "
-                       f"{config.max_run_seconds // 60} Minuten. Weniger Abflugtage, Reisedauern oder Flughäfen wählen.")
+        raise Rejected(f"Search too long: about {estimate['seconds'] // 60} minutes per run, limit "
+                       f"{config.max_run_seconds // 60} minutes. Choose fewer departure days, trip lengths or airports.")
     return estimate
 
 
 def shown(name, value):
     if name == "origins":
         return ", ".join(value)
+    if name in ("airlines", "airlines_exclude"):
+        return ", ".join(value) or ("all" if name == "airlines" else "none")
+    if name == "max_stops":
+        return "any" if value is None else "non-stop only" if value == 0 else f"up to {value}"
     if name == "display_names":
-        return ", ".join(f"{k}: {v}" for k, v in sorted(value.items())) or "automatisch"
+        return ", ".join(f"{k}: {v}" for k, v in sorted(value.items())) or "automatic"
     if name == "travel_class":
         return CLASSES.get(value, value)
     if isinstance(value, bool):
-        return "ja" if value else "nein"
+        return "yes" if value else "no"
     return str(value)
 
 
@@ -170,23 +178,24 @@ def apply(body, path, today, issue=None):
         new = normalize(parse_issue(body))
         estimate = check(new, today)
     except Rejected as exc:
-        return "rejected", (f"❌ **Nicht übernommen:** {exc}\n\n"
-                            "Die bisherige Suche läuft unverändert weiter. Bitte im Formular korrigieren und erneut senden.")
+        return "rejected", (f"❌ **Not applied:** {exc}\n\n"
+                            "The current search keeps running unchanged. Please correct it in the form and send it again.")
     diff = changes(current, new)
     if not diff:
-        return "unchanged", "ℹ️ **Keine Änderung:** Diese Einstellungen entsprechen schon der aktuellen Suche."
+        return "unchanged", "ℹ️ **No change:** These settings already match the current search."
     route = f"{', '.join(new.origins)} → {new.destination}"
     commit = save(serialize(new), parent, f"Search settings{f' from issue #{issue}' if issue else ''}: {route}\n")
-    lines = ["✅ **Neue Suche übernommen:** " + route, "", "| Einstellung | Bisher | Neu |", "|---|---|---|"]
+    lines = ["✅ **New search applied:** " + route, "", "| Setting | Before | New |", "|---|---|---|"]
     lines += [f"| {cell(label)} | {cell(old)} | {cell(value)} |" for label, old, value in diff]
     lines.append("")
     if new.scope() != current.scope():
-        lines += ["ℹ️ Ziel, Reiseklasse, Gepäck, getrennte Tickets oder Flugdauer-Limit haben sich geändert: "
-                  "Preisverlauf und Preisalarme beginnen für diese Suche neu. Der alte Verlauf bleibt gespeichert.", ""]
-    lines += [f"Die Website zeigt die neue Suche in etwa 2 Minuten. Ein Suchlauf ist gestartet (etwa "
-              f"{estimate['requests']} Anfragen); erste Preise erscheinen nach etwa 10–40 Minuten.", "",
-              f"Gespeichert im Branch `search-config` (Commit {commit[:7]}). `config.json` in main bleibt "
-              "unverändert und gilt erst wieder, wenn du diesen Branch löschst."]
+        lines += ["ℹ️ Settings that define comparable prices changed (destination, cabin, bags, separate "
+                  "tickets, travel time limit, airlines or stops): price history and alerts start over for this "
+                  "search. The old history stays stored.", ""]
+    lines += [f"The website shows the new search in about 2 minutes. A search run has started (about "
+              f"{estimate['requests']} requests); first prices appear after about 10–40 minutes.", "",
+              f"Stored on the `search-config` branch (commit {commit[:7]}). `config.json` on main stays "
+              "unchanged and applies again only if you delete that branch."]
     return "applied", "\n".join(lines)
 
 

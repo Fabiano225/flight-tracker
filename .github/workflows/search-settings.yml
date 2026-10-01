@@ -1,18 +1,19 @@
 name: Apply search settings
 # The website form opens a prefilled issue. Only the repository owner's issues are
-# applied; everyone else's are ignored. Settings are stored on the search-config
-# branch, so the protected main branch is never written.
+# applied; everyone else's are closed unread. Settings are stored on the
+# search-config branch, so the protected main branch is never written.
 on:
   issues:
     types: [opened]
 permissions:
   contents: read
-concurrency:
-  group: search-settings
-  cancel-in-progress: false
 jobs:
   apply:
     if: github.event.issue.user.login == github.repository_owner && contains(github.event.issue.body, '<!-- flightwatch-search-settings -->')
+    # Only owner runs queue here, so other people's issues cannot displace them.
+    concurrency:
+      group: search-settings
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -48,10 +49,24 @@ jobs:
           OUTCOME: ${{ steps.apply.outputs.outcome }}
         run: |
           if [ ! -s "$RUNNER_TEMP/reply.md" ]; then
-            echo "⚠️ Die Einstellungen konnten nicht verarbeitet werden; die bisherige Suche läuft weiter. Details: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > "$RUNNER_TEMP/reply.md"
+            echo "⚠️ The settings could not be processed; the current search keeps running. Details: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > "$RUNNER_TEMP/reply.md"
           fi
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/reply.md"
           case "$OUTCOME" in
             applied|unchanged) gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason completed ;;
             rejected) gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason "not planned" ;;
           esac
+  decline:
+    # Settings issues from anyone else are closed without checking out code or reading their content.
+    if: github.event.issue.user.login != github.repository_owner && contains(github.event.issue.body, '<!-- flightwatch-search-settings -->')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Close the settings issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason "not planned" --comment "Only the repository owner can change this tracker's search, so this settings request was closed without being applied. To track your own trip, fork the repository and use the settings page of your fork's website."

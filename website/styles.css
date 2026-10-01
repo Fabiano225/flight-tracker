@@ -54,7 +54,7 @@
 .airline-count{min-width:24px;text-align:center;padding:3px 6px;background:#f1f3ee;color:var(--muted);border-radius:20px;font-size:9px}
 .airline-empty,.airline-hint{font-size:10px;line-height:1.6;color:var(--muted);margin:8px 0 0}
 .airline-hint{border-top:1px solid var(--line);padding-top:10px}
-@media(max-width:760px){.airline-filter{min-width:0;width:100%}.airline-filter>summary{min-height:50px}.airline-popover{position:static;width:auto;box-shadow:none;border-radius:0 0 10px 10px}.airline-filter[open]>summary{border-radius:8px 8px 0 0}}
+@media(max-width:760px){.airline-filter{min-width:0;width:100%;grid-column:1/-1}.airline-filter>summary{min-height:50px}.airline-popover{position:static;width:auto;box-shadow:none;border-radius:0 0 10px 10px}.airline-filter[open]>summary{border-radius:8px 8px 0 0}}
 @media(prefers-reduced-motion:reduce){.airline-chevron{transition:none}}
 .favorites-missing{border:1px dashed var(--line);border-radius:10px;padding:12px 16px;margin:0 0 16px;font-size:11px;color:var(--muted)}
 .favorites-missing p{margin:0}
@@ -74,7 +74,10 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 .settings-card>legend+*{clear:both}
 .settings-card>legend .eyebrow,.advanced>summary .eyebrow{display:block;font-size:9px;letter-spacing:1.5px;color:var(--muted);margin:0 0 8px}
 .field-label{display:block;font-size:11px;font-weight:650;letter-spacing:.3px}
-.airport-field+.airport-field{margin-top:22px}
+.picker-field+.picker-field{margin-top:22px}
+.picker-grid{margin-top:20px}
+.picker-grid .picker-field+.picker-field{margin-top:0}
+.warning-link{font-weight:650;text-decoration:underline;text-underline-offset:3px}
 .field{display:block;min-width:0;font-size:11px;font-weight:650;letter-spacing:.3px}
 .settings-form input[type=text],.settings-form input[type=date],.settings-form input[type=number],.settings-form select{display:block;width:100%;max-width:100%;margin-top:7px;min-height:41px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:white;font:inherit;font-size:13px;font-weight:400;letter-spacing:0;color:var(--ink)}
 .settings-form input:focus-visible,.settings-form select:focus-visible{outline:3px solid #b48436;outline-offset:2px}
@@ -143,3 +146,42 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 @media(prefers-reduced-motion:reduce){.meter span{transition:none}}
 /* Long place names must wrap instead of widening the page. */
 .hero>*{min-width:0}.hero h1,.ticket-city{overflow-wrap:anywhere;hyphens:auto}
+
+/* Dark mode follows the system setting. */
+:root{color-scheme:light dark}
+@media (prefers-color-scheme:dark){
+:root{--paper:#0f1a16;--ink:#e3ebe4;--muted:#9aa99f;--line:#2a3a33;--green:#24533f;--white:#16241f;--amber:#e0ad5f;--red:#e88b78;--field:#111d18;--accent:#9ccc85}
+.skip,.table-scroll,.chart-card,.current-search,.settings-card,.airline-popover,.suggestions{background:var(--white)}
+select,.settings-form input[type=text],.settings-form input[type=date],.settings-form input[type=number],.settings-form select,.baggage-panel select,#history-select,.airline-filter>summary,.chip-remove{background:var(--field);color:var(--ink)}
+.hero h1 em{color:#a3c495}
+nav a:hover,nav a[aria-current="page"]{color:var(--accent)}
+.warning{background:#3a2f17;color:#f0d59a;border-color:#5a4826}
+.filters{background:#15221d;border-color:#253630}
+thead{background:#13201b}
+td{border-top-color:#22312b}
+.down,.baggage-included{color:var(--accent)}
+.pill.good{background:#24402c;color:#c4e3ac}.pill.mid{background:#43361b;color:#ecc882}.pill.watch{background:#26302b;color:#b2bdb5}
+.chart-button,.favorite-button{background:var(--white)}
+.chart-button:hover,.favorite-button:hover,.airline-option:hover{background:#1e3029}
+.favorite-button{color:var(--accent)}
+.favorite-button[aria-pressed="true"]{background:#43361b;color:#ecc882;border-color:#6b5426}
+.selected-row{background:#1a2a23}
+.chart-grid{stroke:#2a3a33}.chart-label{fill:#9aa99f}.chart-line{stroke:var(--accent)}.chart-area{fill:#1b3027}
+.chart-point{fill:var(--accent);stroke:var(--paper)}.chart-budget{stroke:#e0ad5f}
+.chart-legend i{background:var(--accent)}.chart-legend i.budget-line{border-bottom-color:#e0ad5f}
+.guide-card{background:#182a20}.guide-row p,.guide-footer{color:#a7b5aa}.guide-footer{border-top-color:#2c3f35}
+.baggage-panel{background:#15231d}.baggage-panel select{border-color:#2f4239}.baggage-caution{border-top-color:#2c3f35}
+.reset:hover{color:#cfe3b8}
+.airline-filter[open]>summary,.suggestions{border-color:#4a5f55}
+.airline-clear{color:var(--accent)}
+.airline-option:has(input:checked),.suggestions li:hover,.suggestions li.active{background:#213a2e}
+.airline-count{background:#22312b}
+.favorites-missing li{border-top-color:#22312b}
+.settings-form [aria-invalid]{background:#3a1d18!important}
+.chip{background:#1b2f25;border-color:#2f4a3c}
+.chip-remove:hover{background:#3a1d18}
+.message.error{background:#4a221c;color:#f6c4b8}.message.warn{background:#43361b;color:#f0d59a}
+.trip-card{box-shadow:0 14px 35px #0006}
+.airline-popover{box-shadow:0 14px 30px #0008}
+}
+@media (prefers-color-scheme:dark) and (max-width:760px){tr{background:var(--white)}}

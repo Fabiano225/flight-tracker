@@ -270,6 +270,31 @@ class PrefetchDateTests(unittest.TestCase):
         self.assertEqual(filters.flight_segments[0].travel_date,start.isoformat())
         provider.close()
 
+    def test_stop_and_airline_filters_reach_every_google_request(self):
+        config = replace(Config(), max_stops=1, airlines=("QR", "4U"), airlines_exclude=("SU",))
+        provider = FreeProvider(config)
+        self.addCleanup(provider.close)
+        params = provider.common("FRA", "2026-10-20", "2026-11-03", "any")
+        self.assertEqual(params["stops"].name, "ONE_STOP_OR_FEWER")
+        self.assertEqual(provider.common("FRA", "2026-10-20", "2026-11-03", "nonstop")["stops"].name, "NON_STOP")
+        self.assertEqual([a.name for a in params["airlines"]], ["QR", "_4U"])
+        self.assertEqual([a.name for a in params["airlines_exclude"]], ["SU"])
+        # The per-day calendar requests are rebuilt from the date filters; the filters must survive.
+        from fli.models import DateSearchFilters
+        start = date.today() + timedelta(days=30)
+        filters = DateSearchFilters(**provider.common("FRA", start.isoformat(), (start + timedelta(days=14)).isoformat(), "any"),
+                                    from_date=start.isoformat(), to_date=start.isoformat(), duration=14)
+        fetch = Mock(return_value=[NS(price=650, currency="EUR")])
+        provider.dates.shopping._fetch_flights = fetch
+        provider.dates.search(filters, currency="EUR", language="en", country="DE")
+        query = fetch.call_args.args[0]
+        self.assertEqual((query.stops.name, [a.name for a in query.airlines], [a.name for a in query.airlines_exclude]),
+                         ("ONE_STOP_OR_FEWER", ["QR", "_4U"], ["SU"]))
+        unfiltered = FreeProvider(Config())
+        self.addCleanup(unfiltered.close)
+        self.assertEqual((unfiltered.common("FRA", "2026-10-20", "2026-11-03", "any")["stops"].name,
+                          unfiltered.common("FRA", "2026-10-20", "2026-11-03", "any")["airlines"]), ("ANY", None))
+
     def test_pinned_library_verification_has_working_research_link(self):
         # Regression: build_flight_booking_url exists on unreleased fli main,
         # but not in the pinned 0.9.0 package installed on Actions.

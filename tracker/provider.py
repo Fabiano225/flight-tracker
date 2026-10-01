@@ -188,7 +188,8 @@ class PrefetchDates:
             segments[1].travel_date = returning.isoformat()
             search = FlightSearchFilters(trip_type=filters.trip_type, passenger_info=filters.passenger_info,
                 flight_segments=segments, stops=filters.stops, seat_type=filters.seat_type,
-                max_duration=filters.max_duration, bags=filters.bags, sort_by=SortBy.CHEAPEST)
+                max_duration=filters.max_duration, airlines=filters.airlines,
+                airlines_exclude=filters.airlines_exclude, bags=filters.bags, sort_by=SortBy.CHEAPEST)
             offers = self.shopping._fetch_flights(search, capture_session=False, **locale) or []
             if any(offer.currency != "EUR" for offer in offers if offer.price is not None):
                 raise ServiceError("Date-search currency is missing or differs from EUR")
@@ -285,14 +286,20 @@ class FreeProvider:
             self.searches = {}
 
     def common(self, origin, departure, return_date, profile):
-        from fli.models import Airport, PassengerInfo, SeatType, MaxStops, BagsFilter
+        from fli.models import Airline, Airport, PassengerInfo, SeatType, MaxStops, BagsFilter
         from fli.core.builders import build_flight_segments
         segments, trip = build_flight_segments(Airport[origin], Airport[self.config.destination], departure, return_date)
         seats = {"economy": SeatType.ECONOMY, "premium_economy": SeatType.PREMIUM_ECONOMY,
                  "business": SeatType.BUSINESS, "first_class": SeatType.FIRST}
+        stops = {None: MaxStops.ANY, 0: MaxStops.NON_STOP, 1: MaxStops.ONE_STOP_OR_FEWER,
+                 2: MaxStops.TWO_OR_FEWER_STOPS}[self.config.max_stops]
+        # The library names codes that start with a digit "_4U".
+        airline = lambda code: Airline[code] if code in Airline.__members__ else Airline["_" + code]
         return dict(trip_type=trip, passenger_info=PassengerInfo(adults=1), flight_segments=segments,
-                    stops=MaxStops.NON_STOP if profile == "nonstop" else MaxStops.ANY,
+                    stops=MaxStops.NON_STOP if profile == "nonstop" else stops,
                     seat_type=seats[self.config.travel_class], max_duration=self.config.max_direction_minutes,
+                    airlines=[airline(c) for c in self.config.airlines] or None,
+                    airlines_exclude=[airline(c) for c in self.config.airlines_exclude] or None,
                     bags=BagsFilter(checked_bags=self.config.checked_bags, carry_on=bool(self.config.carry_on_bags)))
 
     def fetch(self, batch):
@@ -435,6 +442,13 @@ def normalize_pairs(pairs, origin, departure, return_date, profile, config, make
         category = "nonstop" if outbound.stops == inbound.stops == 0 else "layover"
         if profile == "nonstop" and category != "nonstop":
             continue
+        # Google applies the stop and airline filters; recheck so a changed
+        # source cannot slip excluded flights into prices and alerts.
+        if config.max_stops is not None and max(outbound.stops, inbound.stops) > config.max_stops:
+            continue
+        carriers = {leg.airline.name.removeprefix("_") for x in pair for leg in x.legs}
+        if carriers & set(config.airlines_exclude) or (config.airlines and not carriers & set(config.airlines)):
+            continue
         # On the return-selection response, price is the total round-trip fare.
         # Adding outbound.price would double-count; outbound.price is a minimum
         # over still-unselected return options, not a standalone one-way fare.
@@ -442,7 +456,7 @@ def normalize_pairs(pairs, origin, departure, return_date, profile, config, make
             price = cents(inbound.price)
         except (ValueError, TypeError):
             continue
-        airlines = ", ".join(sorted({leg.airline.name for x in pair for leg in x.legs}))
+        airlines = ", ".join(sorted(carriers))
         quote = Quote(origin, departure, return_date, category, price, outbound.duration, inbound.duration,
                       outbound.stops, inbound.stops, airlines, make_link(pair), itinerary_id(pair))
         if category not in best or price < best[category].price:

@@ -45,7 +45,7 @@ def main():
         print("Telegram test message delivered")
         return 0
     if args.command == "discord-test":
-        Discord(code=config.destination, names=config.display_names).send("Discord verbunden\nDer Flight Tracker sendet Preisalarme und Suchstatus künftig in diesen Kanal.\nDies ist ein Verbindungstest, kein Flugangebot.")
+        Discord(code=config.destination, names=config.display_names).send("Discord connected\nThe flight tracker will send price alerts and check status to this channel.\nThis is a connection test, not a flight offer.")
         print("Discord test message delivered")
         return 0
     demo = args.command == "demo"

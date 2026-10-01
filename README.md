@@ -5,6 +5,7 @@
 Mobile-friendly price tables, date and duration filters, separate direct/connecting
 fares, and real price-history charts. Data updates automatically after each tracker
 workflow. The dashboard explicitly labels incomplete searches and stale observations.
+It follows the device's light or dark mode.
 
 Use the **Airlines** filter to keep selected carriers in the results or hide them.
 Airline names are shown with their carrier code. For connections involving several
@@ -15,7 +16,7 @@ filters. The available list reflects the current published prices.
 
 ### Favorites (website only)
 
-Use the star beside an offer to save it, and **Nur Favoriten** to filter the table
+Use the star beside an offer to save it, and **Favorites only** to filter the table
 and history selector. Favorites persist in this browser's local storage, without
 an account or device sync. Clearing site data removes them. If storage is blocked,
 the page explains that changes last only for the open tab. Filter reset does not
@@ -28,7 +29,7 @@ Favorites neither start extra searches nor change Telegram alerts.
 
 ### Baggage price views (website only)
 
-Use **Gepäck im Suchpreis** to switch between the base search, one cabin suitcase,
+Use **Baggage in the search price** to switch between the base search, one cabin suitcase,
 one checked bag, or both. Each view has its own prices, sorting and history.
 The base search imposes no extra baggage requirement: it does **not** mean bags
 are excluded. A cabin suitcase is distinct from a small personal item under the seat.
@@ -38,7 +39,7 @@ It distinguishes included, chargeable, not included and unknown baggage separate
 for cabin suitcases and checked bags. A baggage view contains only offers whose
 booking details explicitly include the selected bags for the whole trip. It shows
 the vendor and the time checked. Source: Google Flights booking details; always
-reconfirm the fare at checkout. Unknown weights remain **keine Angabe**.
+reconfirm the fare at checkout. Unknown weights remain **not stated**.
 
 This is not a general baggage fee calculator. Paid bags with no quoted inclusive
 price are omitted from baggage views rather than silently using the base price.
@@ -73,6 +74,8 @@ receipts when no alert threshold was reached.
   with a connection.
 - Rejects itineraries lasting **21 hours or more in either direction**.
 - Tracks one adult, economy fares in EUR and stores observations in SQLite.
+- Optional search filters limit stops per direction and include or exclude airlines;
+  Google applies them, so prices, history and alerts show the same selection.
 - Sends Discord alerts (or Telegram, if selected) for meaningful rises, falls, budget crossings and strong
   drops. Checks without a new alert send a short status rather than repeating fares.
 - Runs at 00:17, 06:17, 12:17 and 18:17 UTC through GitHub Actions.
@@ -82,10 +85,11 @@ receipts when no alert threshold was reached.
 The first observation establishes a watch. Later messages include:
 
 After each subsequent scan (about every six hours), a check without a new price
-alert sends **“Keine Preisänderung”** or **“Nur kleine Preisänderungen”**. Small
+alert sends **“No price change”** or **“Only small price changes”**. Small
 changes show the current price and euro difference against the previous price alert.
 Incomplete scans or missing comparisons are explicitly labelled incomplete, never
-unchanged. Expired trip windows do not generate check receipts.
+unchanged. Expired trip windows do not generate check receipts; instead, one
+**“search window ended”** message links to the settings page. All messages are English.
 
 In Discord, colour-coded cards show prices, changes, buying signals and search links.
 Check receipts link to the associated Discord price message. When switching channels,
@@ -99,14 +103,14 @@ deleted, delivery continues without the reply. No chat ID is written to state.
 
 | Message | Meaning |
 |---|---|
-| **PREIS GESUNKEN** / **PREIS GESTIEGEN** | Same airport, dates and flight type changed by at least €25 since the last alert. The message shows `before → now`, euros and percentage. |
-| **KAUF PRÜFEN** | Fare is at or below the €650 target and close to the observed low. |
-| **IM BUDGET, ABER …** | Fare is within €650 but at least €25 above the observed low. |
-| **BEOBACHTEN** | Fare is above the target. |
-| **STARKER DEAL** | At least 10% **and** €50 below the previous 30-day low. |
-| **GÜNSTIGERE ALTERNATIVE** | A different date pair is materially cheaper; it is not described as a drop for the old dates. |
+| **PRICE DROPPED** / **PRICE ROSE** | Same airport, dates and flight type changed by at least €25 since the last alert. The message shows `before → now`, euros and percentage. |
+| **CHECK TO BUY** | Fare is at or below the €650 target and close to the observed low. |
+| **WITHIN BUDGET, but …** | Fare is within €650 but at least €25 above the observed low. |
+| **WATCH** | Fare is above the target. |
+| **STRONG DEAL** | At least 10% **and** €50 below the previous 30-day low. |
+| **CHEAPER ALTERNATIVE** | A different date pair is materially cheaper; it is not described as a drop for the old dates. |
 
-The tracker never treats a missing search result as a price increase. “Buy” is a
+The tracker never treats a missing search result as a price increase. “Check to buy” is a
 budget signal, not a prediction that prices cannot fall further. Prices are search
 observations, not reservations; check baggage, fare rules and availability before
 booking.
@@ -121,6 +125,7 @@ booking.
 | Trip length | 14 … 21 calendar days |
 | Passenger / cabin / currency | 1 adult / economy / EUR |
 | Maximum direction duration | 1,259 minutes (20 h 59 min) |
+| Stops / airlines | Any number of stops, all airlines (both optional filters) |
 | Budget | €650, configurable independently for direct and connecting flights |
 | Strong-drop rule | ≥10% **and** ≥€50 below the previous 30-day low |
 | Notification threshold | €25 since the last alert, or crossing the budget |
@@ -132,19 +137,22 @@ separate history scope.
 
 ### Search settings (website)
 
-**Suche ändern** on the dashboard opens a form for every `config.json` setting:
-origins, destination, departure window, trip length, cabin, duration limit, separate
-tickets, base-search bags, alert thresholds and the request budget. One adult and EUR
-are fixed. Airports are chosen from the airports the flight source supports, with German
-place names; an optional display name only changes labels, never the search.
+**Change search** on the dashboard (`settings.html`) opens a form for every
+`config.json` setting: origins, destination, departure window, trip length, cabin,
+stops per direction, airlines to include or exclude, duration limit, separate tickets,
+base-search bags, alert thresholds and the request budget. One adult and EUR are fixed.
+Airports and airlines are chosen from the lists the flight source supports; the airport
+search ranks large airports first and also understands German names such as "München".
+An optional display name only changes labels, never the search.
 
 The form checks the values and estimates the requests per run before anything is sent.
 Submitting opens a prefilled GitHub issue. Only when you create that issue does the
 **Apply search settings** workflow validate it again and store it, and only for issues
-opened by the repository owner; everyone else's are ignored. It replies on the issue,
-closes it, starts **Track flights** and republishes the dashboard. Website texts,
-messages and the airport filter follow the new route; prices appear after the first
-run (about 10–40 minutes).
+opened by the repository owner; everyone else's are closed unread. It replies on the
+issue, closes it, starts **Track flights** and republishes the dashboard. Website
+texts, messages and the airport filter follow the new route; prices appear after the
+first run (about 10–40 minutes). Changing the destination, cabin, bags, separate
+tickets, duration limit, stops or airlines starts a new price history.
 
 The settings are saved as `config.json` on the `search-config` branch, because `main`
 is protected. Once that branch exists it takes precedence over `config.json` on `main`
@@ -214,7 +222,7 @@ flow.
 ```bash
 python -m venv .venv
 # Activate the environment for your shell
-python -m pip install -r requirements.txt
+python -m pip install --require-hashes -r requirements.txt
 python -m unittest discover -s tests -v
 python -m tracker plan
 ```
@@ -253,6 +261,12 @@ The `tracker-state` branch contains SQLite history, latest CSV/JSON output and t
 human-readable report. It contains route and fare observations, never the webhook URL, tokens, Telegram chat ID or Discord channel/server IDs.
 Delivery receipts include message IDs and an opaque destination fingerprint. Set the repository variable `TRACKER_ENABLED=false` to pause
 scheduled tracking.
+
+The database stays small: each scan deletes date-grid and baggage observations older
+than the comparison period (at least 33 days) and verified fares older than 120 days;
+price alerts and delivery receipts are kept. After 30 saves the `tracker-state` branch
+is replaced by a single commit, so its history holds only a few days of snapshots.
+The workflow's recovery artifacts keep the last seven days.
 
 ## Costs and privacy
 

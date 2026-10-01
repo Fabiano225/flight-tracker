@@ -15,7 +15,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tracker.config import Config, INT_LIMITS, FLOAT_LIMITS, MAX_DISPLAY_NAME
-from tracker.places import AIRPORTS, places
+from tracker.places import AIRPORTS, airlines, places
 from tracker.alerts import search_link
 from tracker.provider import Quote
 from tracker.baggage import PROFILES
@@ -23,50 +23,63 @@ from tracker.fare_baggage import covers, public_baggage
 from scripts.search_settings import CLASSES, LABELS, MARKER
 
 ASSETS = ('index.html', 'styles.css', 'app.js', 'model.mjs', 'favicon.svg', '.nojekyll',
-          'suche.html', 'search.js', 'search-model.mjs')
+          'settings.html', 'suche.html', 'search.js', 'search-model.mjs')
 GENERATED = ('data.json', 'search-config.json', 'airports.json')
-MONTHS = ('Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.')
+MONTHS = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 RAW_PLACEHOLDERS = {'route_origins'}
 
 
 def euro_text(value):
     amount = Decimal(str(value))
     if amount == amount.to_integral_value():
-        return f'{int(amount):,} €'.replace(',', '.')
-    return f'{amount:,.2f} €'.replace(',', '_').replace('.', ',').replace('_', '.')
+        return f'€{int(amount):,}'
+    return f'€{amount:,.2f}'
 
 
 def date_range(start, end):
     a, b = date.fromisoformat(start), date.fromisoformat(end)
     month = lambda d: MONTHS[d.month - 1]
     if a == b:
-        return f'{a.day}. {month(a)} {a.year}'
+        return f'{a.day} {month(a)} {a.year}'
     if (a.year, a.month) == (b.year, b.month):
-        return f'{a.day}.–{b.day}. {month(b)} {b.year}'
+        return f'{a.day}–{b.day} {month(b)} {b.year}'
     if a.year == b.year:
-        return f'{a.day}. {month(a)} – {b.day}. {month(b)} {b.year}'
-    return f'{a.day}. {month(a)} {a.year} – {b.day}. {month(b)} {b.year}'
+        return f'{a.day} {month(a)} – {b.day} {month(b)} {b.year}'
+    return f'{a.day} {month(a)} {a.year} – {b.day} {month(b)} {b.year}'
 
 
 def page_values(config):
     names = places(config)
     city, country = names[config.destination]['city'], names[config.destination]['country']
     cities = list(dict.fromkeys(names[code]['city'] for code in config.origins))
-    days = (f'{config.min_trip_days}–{config.max_trip_days} Tage' if config.min_trip_days != config.max_trip_days
-            else f"{config.min_trip_days} Tag{'' if config.min_trip_days == 1 else 'e'}")
+    days = (f'{config.min_trip_days}–{config.max_trip_days} days' if config.min_trip_days != config.max_trip_days
+            else f"{config.min_trip_days} day{'' if config.min_trip_days == 1 else 's'}")
     minutes = config.max_direction_minutes
     return dict(
         code=config.destination, city=city, region_upper=(country or city).upper(),
         ticket_place=f'{country.upper()} / {config.destination}' if country else config.destination,
-        origin_cities=', '.join(cities[:-1]) + ' und ' + cities[-1] if len(cities) > 1 else cities[0],
+        origin_cities=', '.join(cities[:-1]) + ' and ' + cities[-1] if len(cities) > 1 else cities[0],
         route_origins=''.join(f'<span>{html.escape(code)}</span>' for code in config.origins),
         trip_dates=date_range(config.departure_start, config.departure_end), trip_days=days,
         travel_class=CLASSES[config.travel_class],
         budget=(euro_text(config.good_deal_nonstop_eur) if config.good_deal_nonstop_eur == config.good_deal_layover_eur
-                else 'Getrennte Ziele'),
+                else 'Separate targets'),
         realert=euro_text(config.realert_improvement_eur), history_days=str(config.history_window_days),
-        duration_limit=(f'unter {(minutes + 1) // 60} Stunden' if (minutes + 1) % 60 == 0
-                        else f'bis {minutes // 60} h {minutes % 60:02d} min'))
+        duration_limit=(f'under {(minutes + 1) // 60} hours' if (minutes + 1) % 60 == 0
+                        else f'up to {minutes // 60} h {minutes % 60:02d} min'),
+        filter_summary=filter_summary(config))
+
+
+def filter_summary(config):
+    parts = []
+    if config.max_stops is not None:
+        parts.append('non-stop only' if config.max_stops == 0 else
+                     f"max. {config.max_stops} stop{'' if config.max_stops == 1 else 's'}")
+    if config.airlines:
+        parts.append('only ' + ', '.join(config.airlines))
+    if config.airlines_exclude:
+        parts.append('without ' + ', '.join(config.airlines_exclude))
+    return ''.join(' · ' + part for part in parts)
 
 
 def render_page(template, config):
@@ -89,7 +102,7 @@ def repository():
 def form_data(config):
     # Everything here is already public in config.json; no state or credentials.
     return dict(version=1, repository=repository(), marker=MARKER,
-                config={**config.file_dict(), 'display_names': dict(config.display_names)},
+                config=config.form_dict(), airlines=airlines(),
                 labels=LABELS, travel_classes=CLASSES,
                 limits=dict(int=INT_LIMITS, float=FLOAT_LIMITS, display_name=MAX_DISPLAY_NAME))
 
@@ -205,6 +218,11 @@ def build(db_path, output, config_path=ROOT / 'config.json'):
     data = export_data(db_path, config)
     data['baggage_profiles'] = {variant: export_data(db_path,config,variant=variant) for variant in PROFILES}
     data['places'] = places(config)
+    # Names for the airlines in the published offers, for the dashboard's airline filter.
+    names = airlines()
+    codes = {code.strip() for view in (data, *data['baggage_profiles'].values()) for offer in view['offers']
+             for code in str(offer.get('airlines') or '').split(',') if code.strip()}
+    data['airlines'] = {code: names[code] for code in sorted(codes) if code in names}
     conclusion = os.environ.get('PUBLIC_TRACK_RUN_CONCLUSION', '')
     if conclusion in ('success', 'failure', 'cancelled', 'timed_out', 'skipped', 'action_required'):
         data['workflow_conclusion'] = conclusion

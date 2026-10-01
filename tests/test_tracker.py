@@ -108,6 +108,27 @@ class QuoteTests(unittest.TestCase):
         quotes = self.normalize([pair(price=700),pair(price=600),pair(in_stops=1,price=550)])
         self.assertEqual({q.category:q.price for q in quotes},{"nonstop":60000,"layover":55000})
 
+    def test_search_filters_are_rechecked_on_every_itinerary(self):
+        def flown_by(*codes, **kw):
+            p = pair(**kw)
+            p[0].legs[0].airline = NS(name=codes[0])
+            p[1].legs[0].airline = NS(name=codes[-1])
+            return p
+        check = lambda config, pairs: [(q.price, q.airlines) for q in normalize_pairs(
+            pairs, "FRA", "2026-10-15", "2026-10-29", "any", config, lambda _: "")]
+        # Too many stops in either direction never pass a stop limit.
+        one_stop = replace(Config(), max_stops=1)
+        self.assertEqual(check(one_stop, [pair(out_stops=2, in_stops=0, price=500), pair(in_stops=1, price=600)]),
+                         [(60000, "TG")])
+        # An excluded airline on any leg drops the itinerary; the next cheapest is used.
+        self.assertEqual(check(replace(Config(), airlines_exclude=("SU",)),
+                               [flown_by("SU", "TG", price=500), flown_by("TG", price=600)]), [(60000, "TG")])
+        # "Only these" keeps itineraries where a selected airline flies at least one leg.
+        self.assertEqual(check(replace(Config(), airlines=("QR",)),
+                               [flown_by("TG", price=500), flown_by("QR", "TG", price=600)]), [(60000, "QR, TG")])
+        # Codes the library stores with a leading underscore are shown and compared without it.
+        self.assertEqual(check(replace(Config(), airlines=("4U",)), [flown_by("_4U", price=600)]), [(60000, "4U")])
+
 
 class AlertTests(unittest.TestCase):
     def test_drop_requires_both_limits(self):
@@ -179,6 +200,52 @@ class EmptyRouteTests(unittest.TestCase):
         self.config = replace(self.config, departure_start="2026-10-16", departure_end="2026-10-16")
         self.provider = NoNonstopProvider(self.config)
         self.assertEqual(self.run_scan(6), (2, 0))
+
+
+class PruneTests(unittest.TestCase):
+    def test_old_observations_go_but_alert_history_stays(self):
+        with tempfile.TemporaryDirectory() as directory, Store(directory) as store:
+            q = Quote("FRA", "2026-10-20", "2026-11-03", "layover", 60000, 700, 700, 1, 1, "TG", "")
+            for days in (200, 100, 40, 1):
+                at, run = stamp(NOW - timedelta(days=days)), f"r{days}"
+                store.db.execute("INSERT INTO runs VALUES(?,?,?,?,?)", (run, at, "s", "ok", "{}"))
+                store.db.execute("INSERT INTO calendar VALUES(?,?,?,?,?,?,?,?)",
+                                 (run, "s", at, "FRA", "2026-10-20", "2026-11-03", "any", 60000))
+                store.db.execute("INSERT INTO quotes VALUES(?,?,?,?,?,?,?,?,?)",
+                                 (run, "s", at, "FRA", "2026-10-20", "2026-11-03", "layover", 60000, json.dumps(q.to_dict())))
+                store.enqueue(run, "trend", NOW - timedelta(days=days), "alert", [q], "s")
+            store.db.commit()
+            store.prune(NOW, 30)
+            count = lambda table: store.db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            # The date grid is kept for the comparison period, verified fares for 120 days.
+            self.assertEqual(count("calendar"), 1)
+            self.assertEqual(count("quotes"), 3)
+            self.assertEqual((count("runs"), count("outbox"), count("alert_items")), (4, 4, 4))
+            # A longer comparison period keeps more.
+            store.prune(NOW, 365)
+            self.assertEqual(count("quotes"), 3)
+
+
+class WindowEndedTests(unittest.TestCase):
+    def test_ended_window_is_announced_once_with_a_settings_link(self):
+        with tempfile.TemporaryDirectory() as directory, Store(directory) as store:
+            config = replace(Config(), departure_start="2026-10-20", departure_end="2026-10-23")
+            after = datetime(2026, 10, 23, 6, tzinfo=timezone.utc)
+            for hours in (0, 6):
+                summary = scan(config, store, DemoProvider(config), after + timedelta(hours=hours))
+                self.assertEqual(summary["status"], "expired")
+            notices = store.db.execute("SELECT text FROM outbox WHERE kind='notice'").fetchall()
+            self.assertEqual(len(notices), 1)
+            self.assertTrue(notices[0][0].startswith("BKK search window ended\n"))
+            self.assertIn("settings.html", notices[0][0])
+            # A new window is announced again when it ends.
+            later = replace(config, departure_start="2026-10-24", departure_end="2026-10-25")
+            scan(later, store, DemoProvider(later), datetime(2026, 10, 26, tzinfo=timezone.utc))
+            self.assertEqual(store.db.execute("SELECT COUNT(*) FROM outbox WHERE kind='notice'").fetchone()[0], 2)
+            # Searches before the end send nothing of the kind.
+            with tempfile.TemporaryDirectory() as other, Store(other, "demo") as demo:
+                scan(config, demo, DemoProvider(config), NOW, True)
+                self.assertIsNone(demo.db.execute("SELECT 1 FROM outbox WHERE kind='notice'").fetchone())
 
 
 class HistoryTests(unittest.TestCase):

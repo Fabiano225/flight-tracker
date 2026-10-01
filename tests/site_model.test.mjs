@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,priceStatus,euro,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey} from '../website/model.mjs';
+import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -19,25 +19,25 @@ test('all filters combine and results sort by price',()=>{
 test('no invented previous price and current observation excluded from low',()=>{
   assert.equal(comparison(offer,[{at:offer.at,price:60000}],config).previous,null);
   const c=comparison(offer,[{at:'2026-09-20T06:00:00+00:00',price:70000},{at:offer.at,price:60000}],config);
-  assert.equal(c.low,70000);assert.equal(c.delta,-10000);assert.equal(c.verdict,'Kauf prüfen');
+  assert.equal(c.low,70000);assert.equal(c.delta,-10000);assert.equal(c.verdict,'Check to buy');
 });
 test('unchanged since the last check still reports an earlier, lower price',()=>{
   const history=[{at:'2026-09-18T06:00:00+00:00',price:58000},{at:'2026-09-19T06:00:00+00:00',price:60000},{at:offer.at,price:60000}];
   const c=comparison(offer,history,config);
   assert.equal(c.delta,0);assert.equal(c.low,58000);assert.equal(c.lowAt,'2026-09-18T06:00:00+00:00');
   const s=priceStatus(c);
-  assert.equal(s.main,`↑ ${euro(2000)} über Tief`);assert.equal(s.tone,'up');
-  assert.equal(s.detail,`Tief ${euro(58000)} am 18.09. · seit letzter Messung unverändert`);
+  assert.equal(s.main,`↑ ${euro(2000)} above the low`);assert.equal(s.tone,'up');
+  assert.equal(s.detail,`low ${euro(58000)} on ${shortDate('2026-09-18T06:00:00+00:00')} · unchanged since the last check`);
 });
 test('price status distinguishes new low, repeated low and first check',()=>{
   const at=p=>[{at:'2026-09-18T06:00:00+00:00',price:62000},{at:'2026-09-19T06:00:00+00:00',price:p}];
   const newLow=priceStatus(comparison(offer,at(61000),config));
-  assert.equal(newLow.main,'↓ Neues Tief');assert.equal(newLow.tone,'down');
-  assert.equal(newLow.detail,`bisher ${euro(61000)} am 19.09. · seit letzter Messung ↓ ${euro(1000)}`);
+  assert.equal(newLow.main,'↓ New low');assert.equal(newLow.tone,'down');
+  assert.equal(newLow.detail,`previously ${euro(61000)} on ${shortDate('2026-09-19T06:00:00+00:00')} · since the last check ↓ ${euro(1000)}`);
   const repeated=priceStatus(comparison(offer,[{at:'2026-09-17T06:00:00+00:00',price:60000},{at:'2026-09-19T06:00:00+00:00',price:64000}],config));
-  assert.equal(repeated.main,'Auf Tiefstpreis');
-  assert.equal(repeated.detail,`wie am 17.09. · seit letzter Messung ↓ ${euro(4000)}`);
-  assert.deepEqual(priceStatus(comparison(offer,[],config)),{main:'Erste Messung',detail:null,tone:'neutral'});
+  assert.equal(repeated.main,'At the low');
+  assert.equal(repeated.detail,`as on ${shortDate('2026-09-17T06:00:00+00:00')} · since the last check ↓ ${euro(4000)}`);
+  assert.deepEqual(priceStatus(comparison(offer,[],config)),{main:'First check',detail:null,tone:'neutral'});
 });
 test('favorites outside the search window are pruned, temporarily missing ones kept',()=>{
   const cfg={destination:'BKK',origins:['DUS','FRA','AMS'],departure_start:'2026-10-20',departure_end:'2026-10-23',min_trip_days:14,max_trip_days:21};
@@ -54,12 +54,12 @@ test('favorites without a row are listed with a reason',()=>{
   const shown=favoriteKey(q,'BKK','base'), notChecked=JSON.stringify(['BKK','AMS','2026-10-16','2026-10-30','nonstop','base']);
   const otherBag=JSON.stringify(['BKK','DUS','2026-10-15','2026-10-29','layover','cabin']);
   const list=unavailableFavorites(new Set([shown,notChecked,otherBag]),[q],'BKK','base');
-  assert.deepEqual(list.map(f=>[f.key,f.reason]),[[notChecked,'Derzeit kein geprüftes Angebot'],[otherBag,'In anderer Gepäckauswahl gemerkt']]);
+  assert.deepEqual(list.map(f=>[f.key,f.reason]),[[notChecked,'No checked offer at the moment'],[otherBag,'Saved with another baggage choice']]);
 });
 test('budget classification and independent category thresholds',()=>{
-  assert.equal(comparison({...offer,price:66000},[],config).verdict,'Beobachten');
-  assert.equal(comparison(offer,[{at:'2026-09-19',price:55000}],config).verdict,'Im Budget, über Tief');
-  assert.equal(comparison({...offer,category:'nonstop',price:70000},[],{...config,good_deal_nonstop_eur:800}).verdict,'Kauf prüfen');
+  assert.equal(comparison({...offer,price:66000},[],config).verdict,'Watch');
+  assert.equal(comparison(offer,[{at:'2026-09-19',price:55000}],config).verdict,'Within budget, above low');
+  assert.equal(comparison({...offer,category:'nonstop',price:70000},[],{...config,good_deal_nonstop_eur:800}).verdict,'Check to buy');
 });
 test('stale and partial scans never look healthy',()=>{
   const data={scan:{at:offer.at,status:'partial'},offers_as_of:'2026-09-19T12:00:00+00:00'};
@@ -87,11 +87,11 @@ test('base comparison requires exact itinerary and matching baseline timestamp',
 });
 
 test('baggage labels distinguish included paid absent and unknown without invented kg',()=>{
-  assert.equal(baggageDescription(null,'cabin'),'Kabinenkoffer: keine Angabe');
-  assert.equal(baggageDescription({cabin:{status:'chargeable'}},'cabin'),'Kabinenkoffer: gegen Aufpreis · Betrag unbekannt');
-  assert.equal(baggageDescription({checked:{status:'not_included'}},'checked'),'Aufgabegepäck: nicht enthalten');
-  assert.equal(baggageDescription({checked:{status:'included',pieces:1,kg:null}},'checked'),'Aufgabegepäck: 1 enthalten · kg: keine Angabe');
-  assert.equal(baggageDescription({cabin:{status:'included',pieces:1,kg:8}},'cabin'),'Kabinenkoffer: 1 enthalten · 8 kg');
+  assert.equal(baggageDescription(null,'cabin'),'Cabin bag: not stated');
+  assert.equal(baggageDescription({cabin:{status:'chargeable'}},'cabin'),'Cabin bag: extra charge · amount unknown');
+  assert.equal(baggageDescription({checked:{status:'not_included'}},'checked'),'Checked bag: not included');
+  assert.equal(baggageDescription({checked:{status:'included',pieces:1,kg:null}},'checked'),'Checked bag: 1 included · kg: not stated');
+  assert.equal(baggageDescription({cabin:{status:'included',pieces:1,kg:8}},'cabin'),'Cabin bag: 1 included · 8 kg');
 });
 
 const savedOffer={...offer,return_date:'2026-10-29'};
