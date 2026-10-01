@@ -125,6 +125,15 @@ Do not delete `history.sqlite3`. Keep the recovery artifact, pause the workflow 
 `TRACKER_ENABLED=false`, inspect the state branch and resolve the Git conflict before
 resuming. The state writer rejects concurrent updates rather than overwriting them.
 
+Every 30 saves, `scripts/state_git.py save` replaces the `tracker-state` branch with a
+single commit (counted by the `State-Commits:` line in each commit message). The push
+uses `--force-with-lease` on the restored commit, so it fails rather than overwriting
+a concurrent save; if the force push is refused (for example by a branch rule), the
+save continues as a normal fast-forward. Earlier states are in the recovery
+artifacts. Each scan also deletes observations older than the comparison period (at
+least 33 days; verified fares after 120 days) and vacuums the database; a database
+over 95 MB is refused before it reaches GitHub's 100 MB file limit.
+
 ### Pause tracking
 
 Set the repository Actions variable `TRACKER_ENABLED` to `false`. The workflow file
@@ -168,14 +177,16 @@ logic tests run with `node --test tests/site_model.test.mjs tests/search_model.t
 
 ### Changing the search from the website
 
-The dashboard page **Suche ändern** (`suche.html`) opens a prefilled issue. The
-**Apply search settings** workflow handles only issues opened by the repository owner
-that contain the form marker. `scripts/search_settings.py apply` validates every
-setting (supported airports, ranges, a departure day from tomorrow on, the request and
-time budget), then commits `config.json` to the `search-config` branch with a normal
-fast-forward push. It replies with the changes, closes the issue and dispatches
-**Publish dashboard** and **Track flights**. Rejected settings are answered and closed
-as not planned; the running search is unchanged.
+The dashboard page **Change search** (`settings.html`; the old `suche.html` redirects)
+opens a prefilled issue. The **Apply search settings** workflow applies only issues
+opened by the repository owner that contain the form marker. `scripts/search_settings.py
+apply` validates every setting (supported airports and airlines, ranges, a departure
+day from tomorrow on, the request and time budget), then commits `config.json` to the
+`search-config` branch with a normal fast-forward push. It replies with the changes,
+closes the issue and dispatches **Publish dashboard** and **Track flights**. Rejected
+settings are answered and closed as not planned; the running search is unchanged.
+Settings issues from anyone else are closed as not planned by a separate job that has
+only `issues: write` and never reads their content.
 
 `Track flights` and `Publish dashboard` run `scripts/search_settings.py use` first: if
 the `search-config` branch exists, its `config.json` replaces the checkout's copy for
