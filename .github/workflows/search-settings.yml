@@ -1,18 +1,19 @@
 name: Apply search settings
 # The website form opens a prefilled issue. Only the repository owner's issues are
-# applied; everyone else's are ignored. Settings are stored on the search-config
-# branch, so the protected main branch is never written.
+# applied; everyone else's are closed unread. Settings are stored on the
+# search-config branch, so the protected main branch is never written.
 on:
   issues:
     types: [opened]
 permissions:
   contents: read
-concurrency:
-  group: search-settings
-  cancel-in-progress: false
 jobs:
   apply:
     if: github.event.issue.user.login == github.repository_owner && contains(github.event.issue.body, '<!-- flightwatch-search-settings -->')
+    # Only owner runs queue here, so other people's issues cannot displace them.
+    concurrency:
+      group: search-settings
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
