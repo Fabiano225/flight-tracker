@@ -55,3 +55,17 @@ jobs:
             applied|unchanged) gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason completed ;;
             rejected) gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason "not planned" ;;
           esac
+  decline:
+    # Settings issues from anyone else are closed without checking out code or reading their content.
+    if: github.event.issue.user.login != github.repository_owner && contains(github.event.issue.body, '<!-- flightwatch-search-settings -->')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Close the settings issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason "not planned" --comment "Only the repository owner can change this tracker's search, so this settings request was closed without being applied. To track your own trip, fork the repository and use the settings page of your fork's website."
