@@ -36,7 +36,7 @@ notification policy changes.
 
 The tracking job intentionally follows this order:
 
-1. Checkout code and install pinned top-level dependencies.
+1. Checkout code and install hash-pinned dependencies (`requirements.txt`).
 2. Run offline tests.
 3. Restore the complete state database from `tracker-state`.
 4. Search calendars and verify a bounded set of round trips.

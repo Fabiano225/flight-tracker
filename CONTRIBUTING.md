@@ -22,6 +22,10 @@ response containing personal data or local state database to a commit.
   itineraries.
 - Keep workflow actions pinned to immutable commits.
 - Update `README.md`, `DEPLOYMENT.md` or `docs/ARCHITECTURE.md` when behavior changes.
+- Python dependencies: `requirements.in` lists the direct dependencies;
+  `requirements.txt` pins every package with hashes and is generated with
+  `pip-compile --generate-hashes --strip-extras requirements.in` (pip-tools, Python 3.12).
+  Dependabot updates both files. Never edit `requirements.txt` by hand.
 - After upgrading `flights`, regenerate the airport list with
   `pip install airportsdata && python scripts/make_airports.py` (needs Node.js); a test
   checks that it matches the supported airports.

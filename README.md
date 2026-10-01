@@ -214,7 +214,7 @@ flow.
 ```bash
 python -m venv .venv
 # Activate the environment for your shell
-python -m pip install -r requirements.txt
+python -m pip install --require-hashes -r requirements.txt
 python -m unittest discover -s tests -v
 python -m tracker plan
 ```
