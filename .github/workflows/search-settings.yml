@@ -48,7 +48,7 @@ jobs:
           OUTCOME: ${{ steps.apply.outputs.outcome }}
         run: |
           if [ ! -s "$RUNNER_TEMP/reply.md" ]; then
-            echo "⚠️ Die Einstellungen konnten nicht verarbeitet werden; die bisherige Suche läuft weiter. Details: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > "$RUNNER_TEMP/reply.md"
+            echo "⚠️ The settings could not be processed; the current search keeps running. Details: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > "$RUNNER_TEMP/reply.md"
           fi
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/reply.md"
           case "$OUTCOME" in

@@ -10,15 +10,16 @@ export function filteredOffers(offers, filters) {
     .sort((a,b) => a.price-b.price || a.departure.localeCompare(b.departure));
 }
 
+// Fallback when the published data has no name list (data.json `airlines`).
 export const airlineNames={DE:'Condor',EY:'Etihad Airways',QR:'Qatar Airways',TG:'Thai Airways',WY:'Oman Air'};
 export function airlineCodes(offer) {
   return [...new Set(String(offer?.airlines||'').split(',').map(code=>code.trim().toUpperCase()).filter(Boolean))];
 }
-export function airlineChoices(offers) {
+export function airlineChoices(offers, names={}) {
   const counts=new Map();
   for(const offer of offers)for(const code of airlineCodes(offer))counts.set(code,(counts.get(code)||0)+1);
-  return [...counts].map(([code,count])=>({code,count,label:airlineNames[code]?`${airlineNames[code]} (${code})`:code}))
-    .sort((a,b)=>a.label.localeCompare(b.label,'de'));
+  return [...counts].map(([code,count])=>{const name=names[code]||airlineNames[code];return {code,count,label:name?`${name} (${code})`:code};})
+    .sort((a,b)=>a.label.localeCompare(b.label,'en'));
 }
 
 export const favoritesStorageKey = 'flightwatch:flight-tracker:favorites:v1';
@@ -78,7 +79,7 @@ export function pruneFavorites(keys, config, today) {
 export function unavailableFavorites(keys, offers, destination, profile) {
   const shown=new Set(offers.map(q=>favoriteKey(q,destination,profile)));
   return [...keys].filter(key=>!shown.has(key)).map(parseFavorite).filter(Boolean)
-    .map(fav=>({...fav,reason:fav.profile===profile?'Derzeit kein geprüftes Angebot':'In anderer Gepäckauswahl gemerkt'}))
+    .map(fav=>({...fav,reason:fav.profile===profile?'No checked offer at the moment':'Saved with another baggage choice'}))
     .sort((a,b)=>(a.profile!==profile)-(b.profile!==profile) || a.departure.localeCompare(b.departure) || a.return_date.localeCompare(b.return_date));
 }
 export function comparison(offer, history, config) {
@@ -90,24 +91,24 @@ export function comparison(offer, history, config) {
   const lowAt = low === null ? null : prior.filter(p => p.price === low).at(-1).at;
   const threshold = 100 * (offer.category === 'nonstop' ? config.good_deal_nonstop_eur : config.good_deal_layover_eur);
   const delta = previous === null ? null : offer.price - previous;
-  const verdict = offer.price > threshold ? 'Beobachten'
-    : low !== null && offer.price-low >= config.realert_improvement_eur*100 ? 'Im Budget, über Tief' : 'Kauf prüfen';
+  const verdict = offer.price > threshold ? 'Watch'
+    : low !== null && offer.price-low >= config.realert_improvement_eur*100 ? 'Within budget, above low' : 'Check to buy';
   return {previous, previousAt, low, lowAt, vsLow: low === null ? null : offer.price - low, delta,
     percent: previous === null ? null : delta/previous*100, threshold, verdict};
 }
 
-export const euro = value => new Intl.NumberFormat('de-DE', {style:'currency',currency:'EUR',maximumFractionDigits: value%100 ? 2 : 0}).format(value/100);
-export const shortDate = s => new Intl.DateTimeFormat('de-DE',{day:'2-digit',month:'2-digit',timeZone:'Europe/Berlin'}).format(new Date(s));
+export const euro = value => new Intl.NumberFormat('en-GB', {style:'currency',currency:'EUR',minimumFractionDigits: value%100 ? 2 : 0,maximumFractionDigits: value%100 ? 2 : 0}).format(value/100);
+export const shortDate = s => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'Europe/Berlin'}).format(new Date(s));
 
 // Compare with the observed low of the history window first: "unchanged since
 // the last check" alone hides that the same trip may have been cheaper days ago.
 export function priceStatus(c) {
-  if (c.low === null) return {main:'Erste Messung', detail:null, tone:'neutral'};
-  const last = c.delta === 0 ? 'seit letzter Messung unverändert'
-    : `seit letzter Messung ${c.delta < 0 ? '↓' : '↑'} ${euro(Math.abs(c.delta))}`;
-  if (c.vsLow < 0) return {main:'↓ Neues Tief', detail:`bisher ${euro(c.low)} am ${shortDate(c.lowAt)} · ${last}`, tone:'down'};
-  if (c.vsLow === 0) return {main:'Auf Tiefstpreis', detail:`wie am ${shortDate(c.lowAt)} · ${last}`, tone:'down'};
-  return {main:`↑ ${euro(c.vsLow)} über Tief`, detail:`Tief ${euro(c.low)} am ${shortDate(c.lowAt)} · ${last}`, tone:'up'};
+  if (c.low === null) return {main:'First check', detail:null, tone:'neutral'};
+  const last = c.delta === 0 ? 'unchanged since the last check'
+    : `since the last check ${c.delta < 0 ? '↓' : '↑'} ${euro(Math.abs(c.delta))}`;
+  if (c.vsLow < 0) return {main:'↓ New low', detail:`previously ${euro(c.low)} on ${shortDate(c.lowAt)} · ${last}`, tone:'down'};
+  if (c.vsLow === 0) return {main:'At the low', detail:`as on ${shortDate(c.lowAt)} · ${last}`, tone:'down'};
+  return {main:`↑ ${euro(c.vsLow)} above the low`, detail:`low ${euro(c.low)} on ${shortDate(c.lowAt)} · ${last}`, tone:'up'};
 }
 export function freshness(data, now = Date.now()) {
   const at = Date.parse(data.scan?.at || '');
@@ -121,7 +122,7 @@ export function safeFlightLink(url) {
     && u.pathname === '/travel/flights' ? u.href : null; } catch { return null; }
 }
 
-export const baggageLabels = {base:'Basispreis', cabin:'1 Kabinenkoffer', checked:'1 Aufgabegepäckstück', both:'Kabinenkoffer + Aufgabegepäck'};
+export const baggageLabels = {base:'Base price', cabin:'1 cabin bag', checked:'1 checked bag', both:'Cabin bag + checked bag'};
 export function baggageView(root, profile) {
   if(profile==='base')return root;
   const selected=root.baggage_profiles?.[profile];
@@ -136,10 +137,10 @@ export function matchingBase(offer, root, view) {
 }
 
 export function baggageDescription(value, kind) {
-  const title=kind==='cabin'?'Kabinenkoffer':'Aufgabegepäck', bag=value?.[kind];
-  if(!bag || !['included','chargeable','not_included'].includes(bag.status))return `${title}: keine Angabe`;
-  if(bag.status==='chargeable')return `${title}: gegen Aufpreis · Betrag unbekannt`;
-  if(bag.status==='not_included')return `${title}: nicht enthalten`;
-  const weight=typeof bag.kg==='number' && bag.kg>0?`${bag.kg} kg`:'kg: keine Angabe';
-  return `${title}: ${bag.pieces} enthalten · ${weight}`;
+  const title=kind==='cabin'?'Cabin bag':'Checked bag', bag=value?.[kind];
+  if(!bag || !['included','chargeable','not_included'].includes(bag.status))return `${title}: not stated`;
+  if(bag.status==='chargeable')return `${title}: extra charge · amount unknown`;
+  if(bag.status==='not_included')return `${title}: not included`;
+  const weight=typeof bag.kg==='number' && bag.kg>0?`${bag.kg} kg`:'kg: not stated';
+  return `${title}: ${bag.pieces} included · ${weight}`;
 }

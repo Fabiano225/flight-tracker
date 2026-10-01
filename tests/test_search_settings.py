@@ -79,12 +79,13 @@ class IssueTests(unittest.TestCase):
 
     def test_rejections_explain_the_problem(self):
         cases = {
-            'Sucheinstellungen': body(self.values, marker=False),
-            'Einstellungsblock': settings.MARKER + '\nkein JSON',
-            'kein gültiges JSON': settings.MARKER + '\n```json\n{oops\n```',
-            'Es fehlen Einstellungen: destination': body({k: v for k, v in self.values.items() if k != 'destination'}),
-            'Ungültige Einstellung': body({**self.values, 'max_trip_days': 200}),
-            'Ungültige Einstellung: Unknown config keys': body({**self.values, 'surprise': 1}),
+            'no search settings': body(self.values, marker=False),
+            'settings block': settings.MARKER + '\nno JSON',
+            'not valid JSON': settings.MARKER + '\n```json\n{oops\n```',
+            'Settings are missing: destination': body({k: v for k, v in self.values.items() if k != 'destination'}),
+            'Invalid setting': body({**self.values, 'max_trip_days': 200}),
+            'Invalid setting: Unknown config keys': body({**self.values, 'surprise': 1}),
+            'Invalid setting: Invalid max_stops': body({**self.values, 'max_stops': 5}),
         }
         for message, text in cases.items():
             with self.assertRaisesRegex(settings.Rejected, message):
@@ -98,18 +99,25 @@ class IssueTests(unittest.TestCase):
             settings.check(Config.from_dict({**self.values, **changes}), TODAY)
         with self.assertRaisesRegex(settings.Rejected, 'XQZ'):
             check(origins=['XQZ'])
-        with self.assertRaisesRegex(settings.Rejected, 'kein Tag ab morgen'):
+        with self.assertRaisesRegex(settings.Rejected, 'no day from tomorrow on'):
             check(departure_start='2026-09-01', departure_end='2026-10-01')
-        with self.assertRaisesRegex(settings.Rejected, 'Zu viele Anfragen'):
+        with self.assertRaisesRegex(settings.Rejected, 'Too many requests'):
             check(departure_end='2026-12-31')
-        with self.assertRaisesRegex(settings.Rejected, 'Zu lange Suche'):
+        with self.assertRaisesRegex(settings.Rejected, 'Search too long'):
             check(request_interval_seconds=30)
+        with self.assertRaisesRegex(settings.Rejected, 'airline FF'):
+            check(airlines=['QR', 'FF'])
+        # A non-stop-only search skips the any-stops profile and halves the date requests.
+        self.assertEqual(settings.check(Config.from_dict({**self.values, 'max_stops': 0}), TODAY)['calendar'], 4 * 8 * 3)
 
     def test_change_table_uses_readable_labels(self):
-        old, new = Config(), Config(destination='HND', travel_class='business', hide_separate_tickets=False)
+        old = Config()
+        new = Config(destination='HND', travel_class='business', hide_separate_tickets=False, max_stops=1,
+                     airlines_exclude=('SU',))
         self.assertEqual(settings.changes(old, new), [
-            ('Ziel', 'BKK', 'HND'), ('Reiseklasse', 'Economy', 'Business'),
-            ('Getrennte Tickets ausblenden', 'ja', 'nein')])
+            ('Destination', 'BKK', 'HND'), ('Cabin', 'Economy', 'Business'),
+            ('Hide separate tickets', 'yes', 'no'), ('Max. stops per direction', 'any', 'up to 1'),
+            ('Exclude these airlines', 'none', 'SU')])
         self.assertEqual(settings.cell('a|b'), 'a\\|b')
 
 
@@ -139,8 +147,8 @@ class BranchTests(unittest.TestCase):
     def test_apply_stores_settings_on_branch_and_use_loads_them(self):
         outcome, reply = settings.apply(body(self.values), self.config, TODAY, '7')
         self.assertEqual(outcome, 'applied')
-        self.assertIn('| Ziel | BKK | HND |', reply)
-        self.assertIn('Preisverlauf und Preisalarme beginnen', reply)
+        self.assertIn('| Destination | BKK | HND |', reply)
+        self.assertIn('price history and alerts start over', reply)
         # main's config.json is not touched by apply.
         self.assertEqual(self.config.read_text(encoding='utf-8'), self.original)
         settings.use(self.config)
@@ -156,7 +164,7 @@ class BranchTests(unittest.TestCase):
     def test_rejected_settings_store_nothing(self):
         outcome, reply = settings.apply(body({**self.values, 'origins': ['XQZ']}), self.config, TODAY)
         self.assertEqual(outcome, 'rejected')
-        self.assertIn('bisherige Suche läuft unverändert weiter', reply)
+        self.assertIn('current search keeps running unchanged', reply)
         self.assertEqual(settings.stored(), (None, None))
 
     def test_invalid_stored_settings_fail_closed(self):

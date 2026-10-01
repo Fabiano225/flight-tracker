@@ -50,15 +50,15 @@ class TrendTests(unittest.TestCase):
         self.run_quotes([self.quote])
         count, text = self.run_quotes([replace(self.quote, price=55000)])
         self.assertEqual(count, 1)
-        self.assertIn('PREIS GESUNKEN', text)
+        self.assertIn('PRICE DROPPED', text)
         self.assertIn('600.00 EUR -> 550.00 EUR (-50.00 EUR / -8.3%)', text)
-        self.assertIn('Letzte Messung gleicher Daten', text)
-        self.assertIn('Bisheriges 30-Tage-Tief: 600.00 EUR', text)
+        self.assertIn('Last check of the same dates', text)
+        self.assertIn('Previous 30-day low: 600.00 EUR', text)
         count, text = self.run_quotes([replace(self.quote, price=70000)])
         self.assertEqual(count, 1)
-        self.assertIn('PREIS GESTIEGEN', text)
+        self.assertIn('PRICE ROSE', text)
         self.assertIn('550.00 EUR -> 700.00 EUR (+150.00 EUR / +27.3%)', text)
-        self.assertIn('BEOBACHTEN', text)
+        self.assertIn('WATCH', text)
 
     def test_small_changes_accumulate_since_last_alert(self):
         self.run_quotes([self.quote])
@@ -73,18 +73,18 @@ class TrendTests(unittest.TestCase):
         self.run_quotes([replace(self.quote, price=65500)])
         count, text = self.run_quotes([replace(self.quote, price=65000)])
         self.assertEqual(count, 1)
-        self.assertIn('KAUF PRUEFEN', text)
+        self.assertIn('CHECK TO BUY', text)
         count, text = self.run_quotes([replace(self.quote, price=65100)])
         self.assertEqual(count, 1)
-        self.assertIn('BEOBACHTEN', text)
+        self.assertIn('WATCH', text)
 
     def test_new_dates_are_not_misrepresented_as_same_trip_drop(self):
         self.run_quotes([self.quote])
         count, text = self.run_quotes([self.quote, replace(self.quote, return_date='2026-10-30', price=57000)])
         self.assertEqual(count, 1)
-        self.assertIn('GUENSTIGERE ALTERNATIVE', text)
-        self.assertIn('Vorherige Daten: 2026-10-15 bis 2026-10-29', text)
-        self.assertNotIn('PREIS GESUNKEN', text)
+        self.assertIn('CHEAPER ALTERNATIVE', text)
+        self.assertIn('Previous dates: 2026-10-15 to 2026-10-29', text)
+        self.assertNotIn('PRICE DROPPED', text)
 
     def test_missing_watch_not_reported_as_price_rise(self):
         self.run_quotes([self.quote])
@@ -98,15 +98,15 @@ class TrendTests(unittest.TestCase):
         count, text = self.run_quotes([replace(self.quote, price=80000),
                                       replace(self.quote, return_date='2026-10-30', price=70000)])
         self.assertEqual(count, 1)
-        self.assertIn('PREIS GESTIEGEN', text)
+        self.assertIn('PRICE ROSE', text)
 
     def test_categories_stay_separate_and_initial_above_budget_is_labelled(self):
         direct = replace(self.quote, category='nonstop', price=90000)
         count, text = self.run_quotes([self.quote, direct])
         self.assertEqual(count, 2)
-        self.assertIn('STARTWERT', text)
-        self.assertIn('Noch kein Preisverlauf', text)
-        self.assertIn('BEOBACHTEN: 250.00 EUR', text)
+        self.assertIn('FIRST PRICE', text)
+        self.assertIn('No price history', text)
+        self.assertIn('WATCH: 250.00 EUR', text)
         count, text = self.run_quotes([replace(self.quote, price=55000), direct])
         self.assertEqual(count, 1)
         self.assertNotIn('DIREKT (beide Richtungen)', text)
@@ -114,19 +114,19 @@ class TrendTests(unittest.TestCase):
     def test_strong_drop_and_history_window(self):
         self.run_quotes([replace(self.quote, price=100000)])
         count, text = self.run_quotes([replace(self.quote, price=90000)])
-        self.assertIn('STARKER DEAL', text)
-        self.assertIn('BEOBACHTEN', text)
+        self.assertIn('STRONG DEAL', text)
+        self.assertIn('WATCH', text)
         self.index = 150  # Prior quote history is older than 30 days.
         count, text = self.run_quotes([replace(self.quote, price=80000)])
-        self.assertIn('Noch kein Preisverlauf', text)
-        self.assertNotIn('STARKER DEAL', text)
+        self.assertIn('No price history', text)
+        self.assertNotIn('STRONG DEAL', text)
 
     def test_within_budget_but_above_low_is_not_buy_signal(self):
         self.run_quotes([replace(self.quote, price=50000)])
         count, text = self.run_quotes([self.quote])
         self.assertEqual(count, 1)
-        self.assertIn('IM BUDGET, aber 100.00 EUR', text)
-        self.assertNotIn('KAUF PRUEFEN', text)
+        self.assertIn('WITHIN BUDGET, but 100.00 EUR', text)
+        self.assertNotIn('CHECK TO BUY', text)
 
     def test_watch_and_notification_baseline_survive_reopen(self):
         self.run_quotes([self.quote])
@@ -161,7 +161,7 @@ class TrendTests(unittest.TestCase):
         self.assertEqual(self.run_quotes([self.quote, earlier])[0], 0)
         count, text = self.run_quotes([self.quote, replace(earlier, price=57000)])
         self.assertEqual(count, 1)
-        self.assertIn('GUENSTIGERE ALTERNATIVE', text)
+        self.assertIn('CHEAPER ALTERNATIVE', text)
         self.assertEqual(load_watches(self.store, self.config, self.scope, NOW)['FRA:layover']['departure'],
                          '2026-10-14')
 

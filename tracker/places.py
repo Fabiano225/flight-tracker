@@ -1,9 +1,10 @@
-"""German place names for airport codes. Labels only: searches always use the code."""
+"""Place and airline names for codes. Labels only: searches always use the codes."""
 from functools import lru_cache
 import json
 from pathlib import Path
 
 AIRPORTS = Path(__file__).with_name("airports.json")
+AIRLINES = Path(__file__).with_name("airlines.json")
 
 
 @lru_cache(maxsize=1)
@@ -29,3 +30,13 @@ def city(code, display_names=None):
 
 def places(config):
     return {code: place(code, config.display_names) for code in (*config.origins, config.destination)}
+
+
+@lru_cache(maxsize=1)
+def airlines():
+    return json.loads(AIRLINES.read_text(encoding="utf-8"))["airlines"]
+
+
+def airline_supported(code):
+    """Whether the flight source can filter by this airline code."""
+    return code in airlines()

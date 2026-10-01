@@ -38,6 +38,9 @@ FLOAT_LIMITS = {"drop_percent": (0.01, 100), "request_interval_seconds": (0, 30)
 PRICE_FIELDS = ("good_deal_nonstop_eur", "good_deal_layover_eur", "drop_eur", "realert_improvement_eur")
 TRAVEL_CLASSES = ("economy", "premium_economy", "business", "first_class")
 MAX_DISPLAY_NAME = 40
+MAX_AIRLINES = 25
+# Optional settings: config.json leaves them out while they have these values.
+OPTIONAL = {"max_stops": None, "airlines": (), "airlines_exclude": (), "display_names": {}}
 
 
 @dataclass(frozen=True)
@@ -55,6 +58,10 @@ class Config:
     hide_separate_tickets: bool = True
     carry_on_bags: int = 0
     checked_bags: int = 0
+    # Search filters, applied by Google: None allows any number of stops.
+    max_stops: int | None = None
+    airlines: tuple = ()
+    airlines_exclude: tuple = ()
     good_deal_nonstop_eur: float = 650
     good_deal_layover_eur: float = 650
     drop_percent: float = 10
@@ -104,6 +111,15 @@ class Config:
                 raise ValueError(f"Invalid {name}")
         for name in PRICE_FIELDS:
             cents(getattr(self, name))
+        if self.max_stops is not None and (type(self.max_stops) is not int or not 0 <= self.max_stops <= 2):
+            raise ValueError("Invalid max_stops: expected null or an integer 0..2")
+        for name in ("airlines", "airlines_exclude"):
+            codes = getattr(self, name)
+            if (not isinstance(codes, tuple) or len(codes) > MAX_AIRLINES or len(set(codes)) != len(codes)
+                    or not all(isinstance(c, str) and re.fullmatch(r"[A-Z0-9]{2}", c) for c in codes)):
+                raise ValueError(f"{name} must list up to {MAX_AIRLINES} unique two-character airline codes")
+        if set(self.airlines) & set(self.airlines_exclude):
+            raise ValueError("An airline cannot be both included and excluded")
         if not isinstance(self.display_names, dict):
             raise ValueError("display_names must map airport codes to names")
         for code, name in self.display_names.items():
@@ -124,10 +140,11 @@ class Config:
         unknown = set(values) - {f.name for f in fields(cls)}
         if unknown:
             raise ValueError(f"Unknown config keys: {', '.join(sorted(unknown))}")
-        if "origins" in values:
-            if not isinstance(values["origins"], list):
-                raise ValueError("origins must be a list")
-            values = {**values, "origins": tuple(values["origins"])}
+        for name in ("origins", "airlines", "airlines_exclude"):
+            if name in values:
+                if not isinstance(values[name], list):
+                    raise ValueError(f"{name} must be a list")
+                values = {**values, name: tuple(values[name])}
         return cls(**values)
 
     def scope(self, mode="live"):
@@ -135,18 +152,25 @@ class Config:
         names = ("destination", "currency", "adults", "travel_class", "max_direction_minutes",
                  "hide_separate_tickets", "carry_on_bags", "checked_bags")
         data = {name: getattr(self, name) for name in names}
+        # Filters join the scope only when set, so existing histories keep their scope.
+        for name in ("max_stops", "airlines", "airlines_exclude"):
+            if getattr(self, name) != OPTIONAL[name]:
+                data[name] = sorted(getattr(self, name)) if name != "max_stops" else self.max_stops
         data.update(provider="fli-0.9-prefetch-v2", mode=mode, gl="DE", hl="en")
         return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()[:24]
 
     def public_dict(self):
         return asdict(self)
 
+    def form_dict(self):
+        # JSON shape of every setting: field order, lists instead of tuples.
+        return {**self.public_dict(), "origins": list(self.origins), "airlines": list(self.airlines),
+                "airlines_exclude": list(self.airlines_exclude)}
+
     def file_dict(self):
-        # config.json layout: field order, origins as a list, labels only when set.
-        data = {**self.public_dict(), "origins": list(self.origins)}
-        if not data["display_names"]:
-            del data["display_names"]
-        return data
+        # config.json layout: optional settings appear only when they are set.
+        return {name: value for name, value in self.form_dict().items()
+                if name not in OPTIONAL or getattr(self, name) != OPTIONAL[name]}
 
     def threshold(self, category):
         return cents(self.good_deal_nonstop_eur if category == "nonstop" else self.good_deal_layover_eur)

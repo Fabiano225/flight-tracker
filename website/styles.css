@@ -74,7 +74,10 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 .settings-card>legend+*{clear:both}
 .settings-card>legend .eyebrow,.advanced>summary .eyebrow{display:block;font-size:9px;letter-spacing:1.5px;color:var(--muted);margin:0 0 8px}
 .field-label{display:block;font-size:11px;font-weight:650;letter-spacing:.3px}
-.airport-field+.airport-field{margin-top:22px}
+.picker-field+.picker-field{margin-top:22px}
+.picker-grid{margin-top:20px}
+.picker-grid .picker-field+.picker-field{margin-top:0}
+.warning-link{font-weight:650;text-decoration:underline;text-underline-offset:3px}
 .field{display:block;min-width:0;font-size:11px;font-weight:650;letter-spacing:.3px}
 .settings-form input[type=text],.settings-form input[type=date],.settings-form input[type=number],.settings-form select{display:block;width:100%;max-width:100%;margin-top:7px;min-height:41px;padding:10px 12px;border:1px solid var(--line);border-radius:7px;background:white;font:inherit;font-size:13px;font-weight:400;letter-spacing:0;color:var(--ink)}
 .settings-form input:focus-visible,.settings-form select:focus-visible{outline:3px solid #b48436;outline-offset:2px}

@@ -34,10 +34,10 @@ def main():
     message = max(eligible, key=lambda m: m["date"])
     chat_id = message["chat"]["id"]
     call(token, "sendMessage", {"chat_id": chat_id, "text":
-        f"Deine Telegram-Chat-ID: {chat_id}\n\n"
-        "Trage diese Nummer in GitHub als Actions-Secret TELEGRAM_CHAT_ID ein:\n"
+        f"Your Telegram chat ID: {chat_id}\n\n"
+        "Add this number in GitHub as the Actions secret TELEGRAM_CHAT_ID:\n"
         "https://github.com/Fabiano225/flight-tracker/settings/secrets/actions\n\n"
-        "Den Bot-Token bitte geheim halten."})
+        "Keep the bot token secret."})
     print("Chat ID sent privately through your bot. Add TELEGRAM_CHAT_ID in GitHub, then run the flight tracker.")
 
 

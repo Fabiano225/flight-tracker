@@ -1,32 +1,51 @@
-import {airportInfo, searchAirports, validate, changedFields, shownValue, orderedConfig, issueUrl, scopeFields, priceFields} from './search-model.mjs';
+import {airportInfo, searchAirports, searchAirlines, validate, changedFields, shownValue, orderedConfig, issueUrl, scopeFields, priceFields} from './search-model.mjs';
 
 const $ = id => document.getElementById(id);
 const form = $('settings');
 const field = name => form.elements.namedItem(name);
 const node = (tag, text, cls) => {const n=document.createElement(tag); if(text!==undefined)n.textContent=text; if(cls)n.className=cls; return n;};
 const berlinToday = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin'}).format(new Date());
-const germanDate = value => value.split('-').reverse().join('.');
+const shortDate = value => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
 const numberValue = value => String(value).trim()==='' ? NaN : Number(value);
 let meta, table, state, numberFields;
 
 function cityOf(code) {return airportInfo(table,code)?.city || code;}
 function routeCodes() {return [...new Set([...state.origins,state.destination])];}
 
+// One chip picker per list setting: airports from the airport list, airlines from the airline list.
+const pickers = {
+  origins: {multiple:true, search:q=>searchAirports(table,q,30), code:x=>x.code,
+    label:x=>`${x.city} (${x.code})`, detail:x=>[x.name,x.country].filter(Boolean).join(' · '),
+    chip:code=>{const x=airportInfo(table,code);return x?`${x.city}${x.country?' · '+x.country:''}`:'unknown';}, name:cityOf},
+  destination: {multiple:false, search:q=>searchAirports(table,q,30), code:x=>x.code,
+    label:x=>`${x.city} (${x.code})`, detail:x=>[x.name,x.country].filter(Boolean).join(' · '),
+    chip:code=>{const x=airportInfo(table,code);return x?`${x.city}${x.country?' · '+x.country:''}`:'unknown';}, name:cityOf},
+};
+pickers.airlines = {multiple:true, search:q=>searchAirlines(meta.airlines,q,30), code:x=>x.code,
+  label:x=>`${x.name} (${x.code})`, detail:()=>'', chip:code=>meta.airlines[code]||'unknown', name:code=>meta.airlines[code]||code};
+pickers.airlines_exclude = pickers.airlines;
+
+function selected(kind) {return kind==='destination'?[state.destination]:state[kind];}
+
 function fill(config) {
-  state={origins:[...config.origins],destination:config.destination,names:{...config.display_names}};
+  state={origins:[...config.origins],destination:config.destination,airlines:[...config.airlines],
+    airlines_exclude:[...config.airlines_exclude],names:{...config.display_names}};
   for(const name of [...numberFields,'departure_start','departure_end','travel_class'])field(name).value=config[name];
+  field('max_stops').value=config.max_stops===null?'':String(config.max_stops);
   field('duration_hours').value=Math.floor(config.max_direction_minutes/60);
   field('duration_minutes').value=config.max_direction_minutes%60;
   field('hide_separate_tickets').checked=config.hide_separate_tickets;
   field('carry_on_bags').checked=config.carry_on_bags===1;
   field('checked_bags').checked=config.checked_bags===1;
-  renderAirports();renderNames();update();
+  renderChips();renderNames();update();
 }
 
 function collect() {
-  const config={...meta.config,origins:[...state.origins],destination:state.destination};
+  const config={...meta.config,origins:[...state.origins],destination:state.destination,
+    airlines:[...state.airlines],airlines_exclude:[...state.airlines_exclude]};
   for(const name of ['departure_start','departure_end','travel_class'])config[name]=field(name).value;
   for(const name of numberFields)config[name]=numberValue(field(name).value);
+  config.max_stops=field('max_stops').value===''?null:Number(field('max_stops').value);
   const hours=numberValue(field('duration_hours').value), minutes=numberValue(field('duration_minutes').value);
   config.max_direction_minutes=Number.isInteger(hours) && Number.isInteger(minutes) && hours>=0 && minutes>=0 && minutes<60 ? hours*60+minutes : NaN;
   config.hide_separate_tickets=field('hide_separate_tickets').checked;
@@ -37,28 +56,29 @@ function collect() {
   return orderedConfig(meta,config);
 }
 
-function renderAirports() {
-  const chip=(code,removable)=>{
-    const item=node('li',undefined,'chip'), info=airportInfo(table,code);
-    item.append(node('strong',code),node('span',info?`${info.city}${info.country?' · '+info.country:''}`:'unbekannt'));
-    if(removable){
-      const remove=node('button','✕','chip-remove');remove.type='button';
-      remove.setAttribute('aria-label',`${info?.city||code} (${code}) entfernen`);
-      remove.addEventListener('click',()=>{state.origins=state.origins.filter(c=>c!==code);renderAirports();renderNames();update();$('origins-input').focus();});
-      item.append(remove);
-    }
-    return item;
-  };
-  $('origins-chips').replaceChildren(...state.origins.map(code=>chip(code,true)));
-  $('destination-chips').replaceChildren(chip(state.destination,false));
+function renderChips() {
+  for(const [kind,picker] of Object.entries(pickers)) {
+    const chips=selected(kind).map(code=>{
+      const item=node('li',undefined,'chip');
+      item.append(node('strong',code),node('span',picker.chip(code)));
+      if(picker.multiple){
+        const remove=node('button','✕','chip-remove');remove.type='button';
+        remove.setAttribute('aria-label',`Remove ${picker.name(code)} (${code})`);
+        remove.addEventListener('click',()=>{state[kind]=state[kind].filter(c=>c!==code);renderChips();renderNames();update();$(`${kind}-input`).focus();});
+        item.append(remove);
+      }
+      return item;
+    });
+    $(`${kind}-chips`).replaceChildren(...chips);
+  }
 }
 
 function renderNames() {
   const box=$('display-names');box.replaceChildren();
   for(const code of routeCodes()) {
-    const label=node('label',`Name für ${code}`,'field'), input=node('input');
+    const label=node('label',`Name for ${code}`,'field'), input=node('input');
     input.type='text';input.maxLength=meta.limits.display_name;input.value=state.names[code]||'';
-    input.placeholder=`automatisch: ${cityOf(code)}`;input.dataset.code=code;
+    input.placeholder=`automatic: ${cityOf(code)}`;input.dataset.code=code;
     input.setAttribute('aria-describedby','display_names-error');
     input.addEventListener('input',()=>{state.names[code]=input.value;});
     label.append(input);box.append(label);
@@ -66,30 +86,32 @@ function renderNames() {
 }
 
 function combo(kind) {
-  const input=$(`${kind}-input`), list=$(`${kind}-list`);
+  const picker=pickers[kind], input=$(`${kind}-input`), list=$(`${kind}-list`);
   let options=[], active=-1;
   const close=()=>{list.hidden=true;input.setAttribute('aria-expanded','false');input.removeAttribute('aria-activedescendant');active=-1;};
   const highlight=()=>{
     [...list.children].forEach((item,i)=>{item.setAttribute('aria-selected',String(i===active));item.classList.toggle('active',i===active);});
     if(active>=0){input.setAttribute('aria-activedescendant',`${kind}-option-${active}`);list.children[active].scrollIntoView({block:'nearest'});}
   };
-  const choose=info=>{
-    if(kind==='origins'){if(!state.origins.includes(info.code))state.origins.push(info.code);}
-    else state.destination=info.code;
-    input.value='';close();renderAirports();renderNames();update();input.focus();
+  const choose=option=>{
+    const code=picker.code(option);
+    if(picker.multiple){if(!state[kind].includes(code))state[kind].push(code);}
+    else state[kind]=code;
+    input.value='';close();renderChips();renderNames();update();input.focus();
   };
   const show=()=>{
-    const query=input.value.trim();
-    options=searchAirports(table,query,30).filter(info=>kind==='origins'?!state.origins.includes(info.code):info.code!==state.destination).slice(0,8);
+    const query=input.value.trim(), taken=selected(kind);
+    options=picker.search(query).filter(option=>!taken.includes(picker.code(option))).slice(0,8);
     list.replaceChildren();
-    options.forEach((info,i)=>{
+    options.forEach((option,i)=>{
       const item=node('li');item.id=`${kind}-option-${i}`;item.setAttribute('role','option');item.setAttribute('aria-selected','false');
-      item.append(node('strong',`${info.city} (${info.code})`),node('small',[info.name,info.country].filter(Boolean).join(' · ')));
+      item.append(node('strong',picker.label(option)));
+      if(picker.detail(option))item.append(node('small',picker.detail(option)));
       item.addEventListener('mousedown',event=>event.preventDefault());
-      item.addEventListener('click',()=>choose(info));
+      item.addEventListener('click',()=>choose(option));
       list.append(item);
     });
-    if(query && !options.length){const empty=node('li','Kein unterstützter Flughafen gefunden.','suggestion-empty');empty.setAttribute('aria-disabled','true');list.append(empty);}
+    if(query && !options.length){const empty=node('li','No supported match found.','suggestion-empty');empty.setAttribute('aria-disabled','true');list.append(empty);}
     list.hidden=!query;input.setAttribute('aria-expanded',String(!list.hidden));
   };
   input.addEventListener('input',()=>{active=-1;show();});
@@ -115,12 +137,12 @@ function update() {
     const key=['duration_hours','duration_minutes'].includes(input.name)?'max_direction_minutes':input.name;
     input.toggleAttribute('aria-invalid',Boolean(result.errors[key]));
   }
-  $('origins-input').toggleAttribute('aria-invalid',Boolean(result.errors.origins));
+  for(const kind of Object.keys(pickers))$(`${kind}-input`).toggleAttribute('aria-invalid',Boolean(result.errors[kind]));
   for(const input of $('display-names').querySelectorAll('input'))input.toggleAttribute('aria-invalid',Boolean(result.errors.display_names));
   const e=result.estimate;
   $('estimate').textContent=e
-    ?`Etwa ${e.requests} Anfragen pro Suchlauf (Budget ${config.max_http_attempts_per_run}) · etwa ${Math.max(1,Math.round(e.seconds/60))} Minuten (Limit ${Math.floor(config.max_run_seconds/60)}) · ${e.days} Abflugtag${e.days===1?'':'e'} ab morgen`
-    :'Die Schätzung erscheint, sobald alle Felder gültig sind.';
+    ?`About ${e.requests} requests per run (budget ${config.max_http_attempts_per_run}) · about ${Math.max(1,Math.round(e.seconds/60))} min (limit ${Math.floor(config.max_run_seconds/60)}) · ${e.days} departure day${e.days===1?'':'s'} from tomorrow`
+    :'The estimate appears once every field is valid.';
   const share=e?Math.min(1,Math.max(e.requests/config.max_http_attempts_per_run,e.seconds/config.max_run_seconds)):0;
   $('estimate-bar').style.width=`${Math.round(share*100)}%`;
   $('estimate-bar').className=share>1||result.errors.estimate?'over':share>0.8?'high':'';
@@ -131,23 +153,23 @@ function update() {
     item.append(node('strong',meta.labels[key]||key),node('span',`${shownValue(key,meta.config[key],meta)} → ${shownValue(key,config[key],meta)}`));
     list.append(item);
   }
-  if(!changed.length)list.append(node('li','Noch keine Änderung gegenüber der aktuellen Suche.','changes-empty'));
+  if(!changed.length)list.append(node('li','No change from the current search yet.','changes-empty'));
   const messages=$('messages');messages.replaceChildren();
   const errorCount=Object.keys(result.errors).length;
   if(result.errors.estimate)messages.append(node('p',result.errors.estimate,'message error'));
-  else if(errorCount)messages.append(node('p',`${errorCount} Feld${errorCount===1?'':'er'} bitte korrigieren.`,'message error'));
+  else if(errorCount)messages.append(node('p',`Please correct ${errorCount} field${errorCount===1?'':'s'}.`,'message error'));
   for(const warning of result.warnings)messages.append(node('p',warning,'message warn'));
   if(changed.some(key=>scopeFields.includes(key)))
-    messages.append(node('p','Ziel, Reiseklasse, Gepäck, getrennte Tickets oder Flugdauer-Limit ändern sich: Preisverlauf und Preisalarme beginnen für diese Suche neu. Der alte Verlauf bleibt gespeichert.','message info'));
+    messages.append(node('p','Settings that define comparable prices change (destination, cabin, bags, separate tickets, travel time limit, airlines or stops): price history and alerts start over for this search. The old history stays stored.','message info'));
   if(changed.some(key=>['origins','destination','departure_start','departure_end','min_trip_days','max_trip_days'].includes(key)))
-    messages.append(node('p','Favoriten außerhalb der neuen Suche werden auf der Website automatisch entfernt.','message info'));
+    messages.append(node('p','Favorites outside the new search are removed from the website automatically.','message info'));
   $('submit').setAttribute('aria-disabled',String(Boolean(errorCount) || !changed.length));
   return {config,result,changed};
 }
 
 function showCurrent() {
   const c=meta.config, place=airportInfo(table,c.destination);
-  $('current-search').textContent=`Aktuell: ${c.origins.join(', ')} → ${c.destination}${place?` (${c.display_names[c.destination]||place.city})`:''} · Abflug ${germanDate(c.departure_start)} bis ${germanDate(c.departure_end)} · ${c.min_trip_days}–${c.max_trip_days} Tage · ${meta.travel_classes[c.travel_class]}`;
+  $('current-search').textContent=`Current: ${c.origins.join(', ')} → ${c.destination}${place?` (${c.display_names[c.destination]||place.city})`:''} · departures ${shortDate(c.departure_start)} to ${shortDate(c.departure_end)} · ${c.min_trip_days}–${c.max_trip_days} days · ${meta.travel_classes[c.travel_class]}`;
 }
 
 form.addEventListener('input',event=>{if(!event.target.closest('.combo'))update();});
@@ -158,16 +180,16 @@ form.addEventListener('submit',event=>{
   const {config,result,changed}=update(), note=$('submit-note');note.replaceChildren();
   const invalid=Object.keys(result.errors).filter(key=>key!=='estimate');
   if(invalid.length){
-    note.textContent='Bitte zuerst die markierten Felder korrigieren.';
+    note.textContent='Please correct the marked fields first.';
     const first=form.querySelector('[aria-invalid]');if(first)first.focus();
     return;
   }
   if(result.errors.estimate){note.textContent=result.errors.estimate;return;}
-  if(!changed.length){note.textContent='Keine Änderung gegenüber der aktuellen Suche.';return;}
+  if(!changed.length){note.textContent='No change from the current search.';return;}
   const url=issueUrl(meta,config);
   window.open(url,'_blank','noopener');
-  const link=node('a','Issue auf GitHub öffnen ↗');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
-  note.append('Auf GitHub öffnet sich ein vorausgefülltes Issue. Klicke dort auf „Create“. Etwa eine Minute später antwortet der Workflow im Issue, und die neue Suche startet. Falls sich kein Tab geöffnet hat: ',link);
+  const link=node('a','Open the issue on GitHub ↗');link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+  note.append('A prefilled issue opens on GitHub. Click “Create” there. About a minute later the workflow replies in the issue and the new search starts. If no tab opened: ',link);
 });
 
 async function load() {
@@ -175,7 +197,7 @@ async function load() {
     const [settings,airports]=await Promise.all(['./search-config.json','./airports.json'].map(async url=>{
       const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw new Error('Fetch failed');return response.json();
     }));
-    if(settings.version!==1 || !settings.config || !airports.airports)throw new Error('Invalid data');
+    if(settings.version!==1 || !settings.config || !settings.airlines || !airports.airports)throw new Error('Invalid data');
     meta=settings;table=airports;
     numberFields=[...Object.keys(meta.limits.int),...Object.keys(meta.limits.float),...priceFields]
       .filter(name=>!['max_direction_minutes','carry_on_bags','checked_bags'].includes(name));
@@ -184,12 +206,12 @@ async function load() {
     }
     field('travel_class').replaceChildren(...Object.entries(meta.travel_classes).map(([value,label])=>{const o=node('option',label);o.value=value;return o;}));
     field('departure_start').min=field('departure_end').min=berlinToday();
-    combo('origins');combo('destination');
+    for(const kind of Object.keys(pickers))combo(kind);
     fill(meta.config);showCurrent();form.hidden=false;
   } catch {
-    $('current-search').textContent='Aktuelle Suche konnte nicht geladen werden.';
+    $('current-search').textContent='The current search could not be loaded.';
     $('load-error').hidden=false;
-    $('load-error').textContent='Die Einstellungen konnten nicht geladen werden. Bitte später erneut versuchen oder config.json direkt auf GitHub bearbeiten.';
+    $('load-error').textContent='The settings could not be loaded. Please try again later or edit config.json directly on GitHub.';
   }
 }
 load();

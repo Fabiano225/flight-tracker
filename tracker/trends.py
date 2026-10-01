@@ -94,43 +94,43 @@ def block(quote, history, prior, config):
     same_dates = prior is not None and (prior["departure"], prior["return_date"]) == (
         quote.departure, quote.return_date)
     if prior is None:
-        title = "STARTWERT"
+        title = "FIRST PRICE"
     elif not same_dates:
-        title = "GUENSTIGERE ALTERNATIVE - andere Reisedaten"
+        title = "CHEAPER ALTERNATIVE - different dates"
     else:
-        title = "PREIS GESUNKEN" if quote.price < prior["price"] else "PREIS GESTIEGEN"
-    category = "DIREKT (beide Richtungen)" if quote.category == "nonstop" else "MIT UMSTIEG"
+        title = "PRICE DROPPED" if quote.price < prior["price"] else "PRICE ROSE"
+    category = "NON-STOP (both directions)" if quote.category == "nonstop" else "WITH STOPS"
     lines = [f"{title} | {quote.origin}-{config.destination} | {category}",
-             f"{quote.departure} bis {quote.return_date} | {eur(quote.price)}"]
+             f"{quote.departure} to {quote.return_date} | {eur(quote.price)}"]
     if prior is not None:
-        label = "Seit Meldung " if same_dates else "Gegenueber gemeldeter Alternative "
+        label = "Since alert " if same_dates else "Compared with the alerted alternative "
         lines.append(label + prior["created"][:16].replace("T", " ") + " UTC:")
         lines.append(change(quote.price, prior["price"]))
         if not same_dates:
-            lines.append(f"Vorherige Daten: {prior['departure']} bis {prior['return_date']}")
+            lines.append(f"Previous dates: {prior['departure']} to {prior['return_date']}")
     if history["previous"] is not None:
-        lines.append("Letzte Messung gleicher Daten (" +
+        lines.append("Last check of the same dates (" +
                      history["previous_at"][:16].replace("T", " ") + " UTC):")
         lines.append(change(quote.price, history["previous"]))
-        lines.append(f"Bisheriges {config.history_window_days}-Tage-Tief: {eur(history['low'])}; "
-                     f"{history['count']} Messungen seit {history['first_at'][:10]}.")
+        lines.append(f"Previous {config.history_window_days}-day low: {eur(history['low'])}; "
+                     f"{history['count']} checks since {history['first_at'][:10]}.")
     else:
-        lines.append("Noch kein Preisverlauf fuer diese Reisedaten.")
+        lines.append("No price history for these dates yet.")
     threshold = config.threshold(quote.category)
     if quote.price <= threshold:
         if history["low"] is not None and quote.price - history["low"] >= cents(config.realert_improvement_eur):
-            lines.append(f"IM BUDGET, aber {eur(quote.price - history['low'])} ueber bisherigem Tief.")
+            lines.append(f"WITHIN BUDGET, but {eur(quote.price - history['low'])} above the previous low.")
         else:
-            lines.append(f"KAUF PRUEFEN: innerhalb deiner {eur(threshold)}-Zielgrenze.")
+            lines.append(f"CHECK TO BUY: within your {eur(threshold)} target.")
     else:
-        lines.append(f"BEOBACHTEN: {eur(quote.price - threshold)} ueber deiner Zielgrenze.")
+        lines.append(f"WATCH: {eur(quote.price - threshold)} above your target.")
     if is_drop(quote.price, history["low"], config):
-        lines.append("STARKER DEAL: deutlicher Rueckgang gegenueber bisherigem Tief.")
+        lines.append("STRONG DEAL: clear drop from the previous low.")
     elif history["low"] is not None and quote.price <= history["low"]:
-        lines.append("Am bisherigen beobachteten Tief oder darunter.")
+        lines.append("At or below the previous observed low.")
     if history["count"] < 3:
-        lines.append("Wenig Vergleichsdaten: Einordnung vor allem anhand deiner Preisgrenze.")
-    lines.append(f"Hin {hours(quote.outbound_minutes)} / zurueck {hours(quote.inbound_minutes)}")
+        lines.append("Little history: judged mainly against your price target.")
+    lines.append(f"Out {hours(quote.outbound_minutes)} / back {hours(quote.inbound_minutes)}")
     lines.append(search_link(quote, config.destination, config.travel_class))
     return "\n".join(lines)
 
@@ -173,10 +173,10 @@ def queue_trends(store, config, scope, run_id, verified, now, demo=False):
         if changed:
             eligible.append((selected, block(selected, history, prior, config)))
     store.set_meta(watch_key(config, scope), json.dumps(watches))
-    header = ("DEMO - synthetische Preise\n" if demo else f"{config.destination} Preisalarm\n") + stamp(now) + "\n"
-    footer = ("\n\nEUR pro Person, Hin/Rueck. Beobachtete Suchpreise, keine Preisprognose. "
-              "Gleiche Daten/Kategorie, ggf. andere Airline. Begrenzte Auswahl. "
-              "Preis, Gepaeck und Bedingungen vor Buchung pruefen.")
+    header = ("DEMO - synthetic prices\n" if demo else f"{config.destination} price alert\n") + stamp(now) + "\n"
+    footer = ("\n\nEUR per person, round trip. Observed search prices, not a forecast. "
+              "Same dates and category; the airline may differ. Limited selection. "
+              "Check price, baggage and conditions before booking.")
     # Split only at group boundaries to keep every message within Telegram's cap.
     batch, texts = [], []
     for quote, text in eligible[:config.max_deals_per_run]:
