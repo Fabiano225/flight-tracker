@@ -1,6 +1,7 @@
 from datetime import timedelta
 import hashlib
 import json
+import sqlite3
 import uuid
 
 from .alerts import is_drop, diverse_take
@@ -173,7 +174,11 @@ def scan(config, store, provider, now, demo=False):
             store.set_meta("unhealthy", "no")
         summary["http_attempts"] = provider.http.used
         summary["calendar_dates_recovered"] = getattr(getattr(provider, "dates", None), "recovered_dates", 0)
-        summary["pruned_rows"] = store.prune(now, config.history_window_days)
+        try:
+            summary["pruned_rows"] = store.prune(now, config.history_window_days)
+        except sqlite3.Error as exc:
+            # Cleanup is housekeeping; a failure must not lose this run's results.
+            summary["prune_error"] = str(exc)[:200]
         db.execute("UPDATE runs SET status=?,summary=? WHERE id=?", (summary["status"], json.dumps(summary), run_id))
         db.commit()
         return summary

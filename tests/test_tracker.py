@@ -108,6 +108,27 @@ class QuoteTests(unittest.TestCase):
         quotes = self.normalize([pair(price=700),pair(price=600),pair(in_stops=1,price=550)])
         self.assertEqual({q.category:q.price for q in quotes},{"nonstop":60000,"layover":55000})
 
+    def test_search_filters_are_rechecked_on_every_itinerary(self):
+        def flown_by(*codes, **kw):
+            p = pair(**kw)
+            p[0].legs[0].airline = NS(name=codes[0])
+            p[1].legs[0].airline = NS(name=codes[-1])
+            return p
+        check = lambda config, pairs: [(q.price, q.airlines) for q in normalize_pairs(
+            pairs, "FRA", "2026-10-15", "2026-10-29", "any", config, lambda _: "")]
+        # Too many stops in either direction never pass a stop limit.
+        one_stop = replace(Config(), max_stops=1)
+        self.assertEqual(check(one_stop, [pair(out_stops=2, in_stops=0, price=500), pair(in_stops=1, price=600)]),
+                         [(60000, "TG")])
+        # An excluded airline on any leg drops the itinerary; the next cheapest is used.
+        self.assertEqual(check(replace(Config(), airlines_exclude=("SU",)),
+                               [flown_by("SU", "TG", price=500), flown_by("TG", price=600)]), [(60000, "TG")])
+        # "Only these" keeps itineraries where a selected airline flies at least one leg.
+        self.assertEqual(check(replace(Config(), airlines=("QR",)),
+                               [flown_by("TG", price=500), flown_by("QR", "TG", price=600)]), [(60000, "QR, TG")])
+        # Codes the library stores with a leading underscore are shown and compared without it.
+        self.assertEqual(check(replace(Config(), airlines=("4U",)), [flown_by("_4U", price=600)]), [(60000, "4U")])
+
 
 class AlertTests(unittest.TestCase):
     def test_drop_requires_both_limits(self):
