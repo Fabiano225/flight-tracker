@@ -29,7 +29,7 @@ def search_link(quote, destination, cabin="economy"):
 
 
 def digest(items, config, now, demo=False):
-    heading = "DEMO - synthetic prices" if demo else "BKK flight deals - EUR, 1 adult, round trip"
+    heading = "DEMO - synthetic prices" if demo else f"{config.destination} flight deals - EUR, 1 adult, round trip"
     lines = [heading, f"Observed {now.strftime('%Y-%m-%d %H:%M UTC')}"]
     for quote, reason in items:
         label = "NONSTOP both ways" if quote.category == "nonstop" else f"LAYOVER (stops {quote.outbound_stops}/{quote.inbound_stops})"

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Suche des Flight Trackers ändern: Abflughäfen, Ziel, Reisedaten, Preisziele und Alarme.">
+  <meta name="theme-color" content="#173d32">
+  <meta name="robots" content="noindex">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <title>Suche ändern · Flightwatch</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg"><link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./search.js"></script>
+</head>
+<body class="settings-page">
+  <a class="skip" href="#settings">Zum Formular</a>
+  <header class="header wrap">
+    <a class="brand" href="./" aria-label="Flightwatch Startseite"><span class="brand-mark">↗</span>flightwatch<span class="brand-tag">EINSTELLUNGEN</span></a>
+    <nav aria-label="Hauptnavigation"><a href="./#angebote">Flüge</a><a href="./#verlauf">Preisverlauf</a><a href="./suche.html" aria-current="page">Suche ändern</a><a href="https://github.com/Fabiano225/flight-tracker" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
+  </header>
+  <main class="wrap">
+    <section class="settings-intro" aria-labelledby="settings-title">
+      <p class="eyebrow"><span class="dot"></span> DEINE SUCHE · EINSTELLUNGEN</p>
+      <h1 id="settings-title">Suche ändern.</h1>
+      <p class="intro">Stell hier ein, wonach der Tracker sucht. Beim Absenden öffnet sich ein vorausgefülltes GitHub-Issue. Erst wenn du es dort abschickst, wird die Suche übernommen, und nur wenn es vom Inhaber des Repositorys stammt.</p>
+      <p id="current-search" class="current-search" role="status">Aktuelle Suche wird geladen …</p>
+    </section>
+    <div id="load-error" class="warning" role="alert" hidden></div>
+    <noscript><p class="warning">Das Formular braucht JavaScript. Alternativ kannst du <a href="https://github.com/Fabiano225/flight-tracker/blob/main/config.json">config.json auf GitHub</a> bearbeiten.</p></noscript>
+
+    <form id="settings" class="settings-form" novalidate hidden>
+      <fieldset class="settings-card">
+        <legend><span class="eyebrow">01 · ROUTE</span>Von wo, wohin?</legend>
+        <div class="airport-field" data-field="origins">
+          <label for="origins-input" class="field-label">Abflughäfen</label>
+          <ul class="chips" id="origins-chips" aria-label="Gewählte Abflughäfen"></ul>
+          <div class="combo">
+            <input id="origins-input" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origins-list" aria-describedby="origins-error" placeholder="Stadt, Flughafen oder Code hinzufügen">
+            <ul id="origins-list" class="suggestions" role="listbox" aria-label="Vorschläge für Abflughäfen" hidden></ul>
+          </div>
+          <p class="field-error" id="origins-error"></p>
+        </div>
+        <div class="airport-field" data-field="destination">
+          <label for="destination-input" class="field-label">Ziel</label>
+          <ul class="chips" id="destination-chips" aria-label="Gewähltes Ziel"></ul>
+          <div class="combo">
+            <input id="destination-input" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-list" aria-describedby="destination-error" placeholder="Anderes Ziel suchen">
+            <ul id="destination-list" class="suggestions" role="listbox" aria-label="Vorschläge für das Ziel" hidden></ul>
+          </div>
+          <p class="field-error" id="destination-error"></p>
+        </div>
+      </fieldset>
+
+      <fieldset class="settings-card">
+        <legend><span class="eyebrow">02 · REISEZEITRAUM</span>Wann geht es los?</legend>
+        <div class="field-grid">
+          <label class="field">Abflug frühestens<input type="date" name="departure_start" aria-describedby="departure_start-error"><span class="field-error" id="departure_start-error"></span></label>
+          <label class="field">Abflug spätestens<input type="date" name="departure_end" aria-describedby="departure_end-error"><span class="field-error" id="departure_end-error"></span></label>
+          <label class="field">Reisedauer mindestens (Tage)<input type="number" inputmode="numeric" step="1" name="min_trip_days" aria-describedby="min_trip_days-error"><span class="field-error" id="min_trip_days-error"></span></label>
+          <label class="field">Reisedauer höchstens (Tage)<input type="number" inputmode="numeric" step="1" name="max_trip_days" aria-describedby="max_trip_days-error"><span class="field-error" id="max_trip_days-error"></span></label>
+        </div>
+        <p class="footnote">Gesucht wird jeder Abflugtag im Fenster mit jeder Reisedauer. Jeder zusätzliche Tag kostet Anfragen, siehe Zusammenfassung unten.</p>
+      </fieldset>
+
+      <fieldset class="settings-card">
+        <legend><span class="eyebrow">03 · FLÜGE</span>Welche Flüge zählen?</legend>
+        <div class="field-grid">
+          <label class="field">Reiseklasse<select name="travel_class" aria-describedby="travel_class-error"></select><span class="field-error" id="travel_class-error"></span></label>
+          <div class="field">
+            <span id="duration-label">Max. Flugdauer je Richtung</span>
+            <div class="duration-inputs" role="group" aria-labelledby="duration-label" aria-describedby="max_direction_minutes-error">
+              <label><input type="number" inputmode="numeric" step="1" min="0" max="20" name="duration_hours"> Std.</label>
+              <label><input type="number" inputmode="numeric" step="1" min="0" max="59" name="duration_minutes"> Min.</label>
+            </div>
+            <span class="field-error" id="max_direction_minutes-error"></span>
+          </div>
+        </div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" name="hide_separate_tickets"> Getrennte Tickets ausblenden <small>Keine Kombinationen aus einzeln gebuchten Flügen.</small></label>
+          <label class="check"><input type="checkbox" name="carry_on_bags"> Kabinenkoffer in der Grundsuche <small>Grundpreis nur mit 1 Kabinenkoffer suchen.</small></label>
+          <label class="check"><input type="checkbox" name="checked_bags"> Aufgabegepäck in der Grundsuche <small>Grundpreis nur mit 1 Aufgabegepäckstück suchen.</small></label>
+        </div>
+        <p class="footnote">Fest vorgegeben: 1 Person, Preise in EUR. Der Tracker unterstützt keine anderen Werte.</p>
+      </fieldset>
+
+      <fieldset class="settings-card">
+        <legend><span class="eyebrow">04 · PREISALARME</span>Wann soll er sich melden?</legend>
+        <div class="field-grid">
+          <label class="field">Preisziel Direktflug (€)<input type="number" inputmode="decimal" step="0.01" min="0.01" name="good_deal_nonstop_eur" aria-describedby="good_deal_nonstop_eur-error"><span class="field-error" id="good_deal_nonstop_eur-error"></span></label>
+          <label class="field">Preisziel mit Umstieg (€)<input type="number" inputmode="decimal" step="0.01" min="0.01" name="good_deal_layover_eur" aria-describedby="good_deal_layover_eur-error"><span class="field-error" id="good_deal_layover_eur-error"></span></label>
+          <label class="field">Neuer Preisalarm ab Änderung (€)<input type="number" inputmode="decimal" step="0.01" min="0.01" name="realert_improvement_eur" aria-describedby="realert_improvement_eur-error"><span class="field-error" id="realert_improvement_eur-error"></span></label>
+          <label class="field">Vergleichszeitraum (Tage)<input type="number" inputmode="numeric" step="1" name="history_window_days" aria-describedby="history_window_days-error"><span class="field-error" id="history_window_days-error"></span></label>
+          <label class="field">Starker Deal: mindestens % unter Tief<input type="number" inputmode="decimal" step="0.01" name="drop_percent" aria-describedby="drop_percent-error"><span class="field-error" id="drop_percent-error"></span></label>
+          <label class="field">… und mindestens € unter Tief<input type="number" inputmode="decimal" step="0.01" min="0.01" name="drop_eur" aria-describedby="drop_eur-error"><span class="field-error" id="drop_eur-error"></span></label>
+          <label class="field">Max. Angebote pro Meldung<input type="number" inputmode="numeric" step="1" name="max_deals_per_run" aria-describedby="max_deals_per_run-error"><span class="field-error" id="max_deals_per_run-error"></span></label>
+          <label class="field">Unzugestellte Meldungen verfallen nach (Std.)<input type="number" inputmode="numeric" step="1" name="pending_ttl_hours" aria-describedby="pending_ttl_hours-error"><span class="field-error" id="pending_ttl_hours-error"></span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="settings-card">
+        <legend><span class="eyebrow">05 · ANZEIGE</span>Namen auf der Website</legend>
+        <p class="footnote">Optional. Leer lassen, um den Namen aus der Flughafenliste zu verwenden. Gesucht wird immer mit dem Flughafen-Code.</p>
+        <div id="display-names" class="field-grid"></div>
+        <p class="field-error" id="display_names-error"></p>
+      </fieldset>
+
+      <details class="settings-card advanced">
+        <summary><span class="eyebrow">06 · TECHNIK</span><span class="advanced-title">Suchbudget für Fortgeschrittene</span></summary>
+        <p class="footnote">Diese Werte begrenzen Anfragen an die inoffizielle Google-Flights-Schnittstelle. Höhere Werte erhöhen das Risiko, gesperrt zu werden.</p>
+        <div class="field-grid">
+          <label class="field">Flugprüfungen pro Suchlauf<input type="number" inputmode="numeric" step="1" name="max_verifications_per_run" aria-describedby="max_verifications_per_run-error"><span class="field-error" id="max_verifications_per_run-error"></span></label>
+          <label class="field">Hinflug-Kandidaten je Prüfung<input type="number" inputmode="numeric" step="1" name="outbound_candidates" aria-describedby="outbound_candidates-error"><span class="field-error" id="outbound_candidates-error"></span></label>
+          <label class="field">Anfragen-Budget pro Suchlauf<input type="number" inputmode="numeric" step="1" name="max_http_attempts_per_run" aria-describedby="max_http_attempts_per_run-error"><span class="field-error" id="max_http_attempts_per_run-error"></span></label>
+          <label class="field">Zeitbudget pro Suchlauf (Sek.)<input type="number" inputmode="numeric" step="1" name="max_run_seconds" aria-describedby="max_run_seconds-error"><span class="field-error" id="max_run_seconds-error"></span></label>
+          <label class="field">Timeout je Anfrage (Sek.)<input type="number" inputmode="numeric" step="1" name="http_timeout_seconds" aria-describedby="http_timeout_seconds-error"><span class="field-error" id="http_timeout_seconds-error"></span></label>
+          <label class="field">Versuche je Anfrage<input type="number" inputmode="numeric" step="1" name="http_attempts" aria-describedby="http_attempts-error"><span class="field-error" id="http_attempts-error"></span></label>
+          <label class="field">Abstand zwischen Anfragen (Sek.)<input type="number" inputmode="decimal" step="0.1" name="request_interval_seconds" aria-describedby="request_interval_seconds-error"><span class="field-error" id="request_interval_seconds-error"></span></label>
+          <label class="field">Parallele Anfragen<input type="number" inputmode="numeric" step="1" name="max_parallel_requests" aria-describedby="max_parallel_requests-error"><span class="field-error" id="max_parallel_requests-error"></span></label>
+        </div>
+      </details>
+
+      <section class="settings-summary" aria-labelledby="summary-title">
+        <div>
+          <p class="eyebrow">ZUSAMMENFASSUNG</p>
+          <h2 id="summary-title">Was sich ändert</h2>
+          <p id="estimate" class="estimate"></p>
+          <div class="meter" aria-hidden="true"><span id="estimate-bar"></span></div>
+        </div>
+        <div>
+          <ul id="changes" class="changes"></ul>
+          <div id="messages" role="status" aria-live="polite"></div>
+          <div class="settings-actions">
+            <button type="submit" id="submit" class="primary-button">Auf GitHub übernehmen ↗</button>
+            <button type="reset" class="reset">Zurücksetzen</button>
+          </div>
+          <p id="submit-note" class="footnote" aria-live="polite"></p>
+        </div>
+      </section>
+    </form>
+  </main>
+  <footer class="wrap"><span class="footer-brand">flightwatch <span>/ Einstellungen</span></span><p>Änderungen werden über ein GitHub-Issue übernommen, nur vom Inhaber des Repositorys.<br>Die bisherige Suche läuft weiter, bis eine neue übernommen ist.</p><a href="https://github.com/Fabiano225/flight-tracker#search-settings-website">So funktioniert es ↗</a></footer>
+</body>
+</html>

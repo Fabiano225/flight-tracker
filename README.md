@@ -125,9 +125,31 @@ booking.
 | Strong-drop rule | ≥10% **and** ≥€50 below the previous 30-day low |
 | Notification threshold | €25 since the last alert, or crossing the budget |
 
-Edit `config.json` for a new trip. Changing dates or comparable search settings
-resets the date watches as appropriate; compatible dated observations are retained.
-Changing comparability filters creates a separate history scope.
+Change the search on the website (see below) or edit `config.json` for a new trip.
+Changing dates or comparable search settings resets the date watches as appropriate;
+compatible dated observations are retained. Changing comparability filters creates a
+separate history scope.
+
+### Search settings (website)
+
+**Suche ändern** on the dashboard opens a form for every `config.json` setting:
+origins, destination, departure window, trip length, cabin, duration limit, separate
+tickets, base-search bags, alert thresholds and the request budget. One adult and EUR
+are fixed. Airports are chosen from the airports the flight source supports, with German
+place names; an optional display name only changes labels, never the search.
+
+The form checks the values and estimates the requests per run before anything is sent.
+Submitting opens a prefilled GitHub issue. Only when you create that issue does the
+**Apply search settings** workflow validate it again and store it, and only for issues
+opened by the repository owner; everyone else's are ignored. It replies on the issue,
+closes it, starts **Track flights** and republishes the dashboard. Website texts,
+messages and the airport filter follow the new route; prices appear after the first
+run (about 10–40 minutes).
+
+The settings are saved as `config.json` on the `search-config` branch, because `main`
+is protected. Once that branch exists it takes precedence over `config.json` on `main`
+for scans and the dashboard. Delete the branch to return to `config.json` on `main`.
+Until the form is first used, nothing changes.
 
 ## Set up Discord (preferred)
 
@@ -225,6 +247,7 @@ Do not run a local live scan while the GitHub Actions state writer is running.
 | `Test Telegram` | Sends one connectivity test using repository secrets |
 | `Tests` | Offline unit/integration tests; no secrets and no live flight search |
 | `Publish dashboard` | Builds an allowlisted public price snapshot and deploys GitHub Pages |
+| `Apply search settings` | Validates an owner's settings issue from the website form and stores it on `search-config` |
 
 The `tracker-state` branch contains SQLite history, latest CSV/JSON output and the
 human-readable report. It contains route and fare observations, never the webhook URL, tokens, Telegram chat ID or Discord channel/server IDs.

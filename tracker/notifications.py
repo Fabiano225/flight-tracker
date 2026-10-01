@@ -5,13 +5,13 @@ from .network import ServiceError
 from .store import stamp
 
 
-def configured_sender():
+def configured_sender(config=None):
     channel = os.environ.get("NOTIFICATION_CHANNEL", "auto").strip().lower() or "auto"
     if channel == "auto":
         channel = "discord" if os.environ.get("DISCORD_WEBHOOK_URL", "").strip() else "telegram"
     if channel == "discord":
         from .discord import Discord
-        return Discord()
+        return Discord(code=config.destination, names=config.display_names) if config else Discord()
     if channel == "telegram":
         from .telegram import Telegram
         return Telegram()
