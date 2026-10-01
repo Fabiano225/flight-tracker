@@ -187,9 +187,20 @@ time:
 }
 ```
 
-The original single search is the trip `main` and keeps its price history. The
-dashboard currently shows the primary trip, and the form edits it while keeping the
-other trips.
+The original single search is the trip `main` and keeps its price history.
+
+On the dashboard, a bar above the page switches between the trips; it appears once
+there are two or more. The primary trip opens by default, and `?trip=<id>` opens
+another one (for example `https://fabiano225.github.io/flight-tracker/?trip=ams`), so
+every trip has its own link. Filters reset when you switch, and favorites stay saved
+for every trip that still searches them.
+
+In the settings form, the trip bar at the top selects the trip you edit. **+ Add trip**
+copies the trip you are editing without its destination; **Remove this trip** and
+**Shown first on the website** appear once there are two trips, and the trip shown
+first can be changed at any time. The estimate shows the requests of the trip you are
+editing and of all trips together against the shared budget. One issue carries all
+trips; a new trip's id comes from its destination (`ams`, then `ams-2`).
 
 ## Set up Discord (preferred)
 

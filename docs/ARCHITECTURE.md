@@ -51,6 +51,16 @@ the active trips, check statuses are replaced per trip (matched by their run's s
 and pending digests are validated against their own trip's window. Health messages are
 aggregated per run, and pruning runs once with the longest comparison period.
 
+The dashboard's `data.json` (version 2) lists the trips primary first; each carries its
+configuration, page texts, offers, histories and baggage views. `index.html` is
+prerendered for the primary trip; `app.js` replaces the texts marked `data-page` when
+another trip is chosen, and `trip.js` hides them before the first paint while a
+`?trip=` link loads. `search-config.json` (version 2) gives the form every trip, the
+primary trip and the shared field names. `website/search-model.mjs` validates each
+trip, adds up the request estimate and builds the issue's settings block, which leaves
+out shared settings per trip and optional settings at their defaults to keep the
+issue link short.
+
 ## Search pipeline
 
 `tracker/planner.py` creates exact departure/return pairs. `tracker/provider.py`

@@ -74,8 +74,9 @@ export function requestEstimate(config, today) {
 // Same rule as Python's str.isprintable(): no control, format or separator characters except a space.
 const printable=name=>!/[\p{C}\p{Z}]/u.test(name.replace(/ /g,''));
 
-export function validate(config, meta, table, today) {
-  const errors={}, warnings=[], error=(field,text)=>{errors[field]??=text;};
+// Field errors of one trip, and its request estimate once every field is valid.
+export function tripErrors(config, meta, table, today) {
+  const errors={}, error=(field,text)=>{errors[field]??=text;};
   const {int:ints,float:floats,display_name:maxName}=meta.limits;
   if(!config.origins.length)error('origins','Choose at least one departure airport.');
   for(const code of config.origins)if(!table.airports[code])error('origins',`${code} is not supported by the flight search.`);
@@ -113,17 +114,47 @@ export function validate(config, meta, table, today) {
   if(both.length)error('airlines_exclude',`${both.join(', ')} cannot be both included and excluded.`);
   for(const [code,name] of Object.entries(config.display_names))
     if(!name || name.length>maxName || name!==name.trim() || !printable(name))error('display_names',`Name for ${code}: 1–${maxName} characters, no control characters.`);
-  let estimate=null;
-  if(!Object.keys(errors).length) {
-    estimate=requestEstimate(config,today);
-    if(estimate.requests>config.max_http_attempts_per_run)
-      error('estimate',`Too many requests: about ${estimate.requests} per run with a budget of ${config.max_http_attempts_per_run}. Choose fewer departure days, trip lengths or airports.`);
-    else if(estimate.seconds>config.max_run_seconds)
-      error('estimate',`Search too long: about ${Math.floor(estimate.seconds/60)} minutes per run with a limit of ${Math.floor(config.max_run_seconds/60)} minutes.`);
-    else if(estimate.requests>0.8*config.max_http_attempts_per_run || estimate.seconds>0.8*config.max_run_seconds)
-      warnings.push('The search almost uses up its budget. Repeated requests during disruptions could end a run early.');
+  return {errors,estimate:Object.keys(errors).length?null:requestEstimate(config,today)};
+}
+
+// All trips of a run share one request and time budget.
+export function budgetCheck(estimate, config, trips=1) {
+  const together=trips>1?` for all ${trips} trips together`:'';
+  if(estimate.requests>config.max_http_attempts_per_run)
+    return {error:`Too many requests: about ${estimate.requests} per run${together} with a budget of ${config.max_http_attempts_per_run}. Choose fewer departure days, trip lengths or airports${trips>1?', or fewer trips':''}.`};
+  if(estimate.seconds>config.max_run_seconds)
+    return {error:`Search too long: about ${Math.floor(estimate.seconds/60)} minutes per run${together} with a limit of ${Math.floor(config.max_run_seconds/60)} minutes.`};
+  if(estimate.requests>0.8*config.max_http_attempts_per_run || estimate.seconds>0.8*config.max_run_seconds)
+    return {warning:'The search almost uses up its budget. Repeated requests during disruptions could end a run early.'};
+  return {};
+}
+
+// A single trip on its own.
+export function validate(config, meta, table, today) {
+  const {errors,estimate}=tripErrors(config,meta,table,today), warnings=[];
+  if(estimate) {
+    const check=budgetCheck(estimate,config);
+    if(check.error)errors.estimate=check.error;
+    if(check.warning)warnings.push(check.warning);
   }
   return {errors,warnings,estimate};
+}
+
+// All trips: field errors per trip, shared settings once, and one estimate for the run.
+export function validateTrips(configs, meta, table, today) {
+  const shared=new Set(meta.shared_fields), results=configs.map(config=>tripErrors(config,meta,table,today));
+  const pick=(errors,keep)=>Object.fromEntries(Object.entries(errors).filter(([key])=>shared.has(key)===keep));
+  const errors=pick(results[0].errors,true), warnings=[];
+  let estimate=null;
+  if(results.every(result=>result.estimate)) {
+    const sum=key=>results.reduce((total,result)=>total+result.estimate[key],0);
+    estimate={calendar:sum('calendar'),verification:sum('verification'),requests:sum('requests'),seconds:sum('seconds'),
+      trips:results.map(result=>result.estimate)};
+    const check=budgetCheck(estimate,configs[0],configs.length);
+    if(check.error)errors.estimate=check.error;
+    if(check.warning)warnings.push(check.warning);
+  }
+  return {errors,trips:results.map(result=>pick(result.errors,false)),warnings,estimate};
 }
 
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
@@ -142,26 +173,84 @@ export function shownValue(key, value, meta) {
   return String(value);
 }
 
-// Keep the field order of config.json so the stored file stays readable.
-export function orderedConfig(meta, config) {
-  return Object.fromEntries(Object.keys(meta.config).map(key=>[key,config[key]]));
+// New trips get an id from their destination ("ams", then "ams-2"); saved trips keep
+// theirs, because the id keeps a trip's price history and its ?trip= link.
+export function tripIds(trips) {
+  const taken=new Set(trips.map(trip=>trip.id).filter(Boolean));
+  return trips.map(trip=>{
+    if(trip.id)return trip.id;
+    const base=String(trip.config.destination||'').toLowerCase().replace(/[^a-z0-9]/g,'')||'trip';
+    let id=base;
+    for(let n=2;taken.has(id);n++)id=`${base}-${n}`;
+    taken.add(id);return id;
+  });
 }
 
-export function issueTitle(config) {
-  return `Change search: ${config.origins.join(', ')} → ${config.destination}`;
+export function tripName(config, configs) {
+  if(!config.destination)return 'New trip';
+  const twins=configs.filter(other=>other.destination===config.destination);
+  return twins.length>1?`${config.destination} (${twins.indexOf(config)+1})`:config.destination;
 }
 
-export function issueBody(meta, config) {
-  const changes=changedFields(meta.config,config).map(key=>
-    `- ${meta.labels[key]||key}: ${shownValue(key,meta.config[key],meta)} → ${shownValue(key,config[key],meta)}`);
-  return [meta.marker,
-    `**New search:** ${config.origins.join(', ')} → ${config.destination} · departures ${config.departure_start} to ${config.departure_end} · ${config.min_trip_days}–${config.max_trip_days} days`,
-    '', '**Changes:**', ...changes, '',
+export function tripSummary(config) {
+  return `${config.origins.join(', ')} → ${config.destination}, ${config.departure_start} to ${config.departure_end}, ${config.min_trip_days}–${config.max_trip_days} days`;
+}
+
+// Optional settings at these values are left out of the issue (as in config.json).
+const optional={max_stops:null,airlines:[],airlines_exclude:[],display_names:{}};
+
+// The issue's settings block: every trip in config.json field order, shared request settings once.
+export function settingsJson(meta, trips, primary) {
+  const ids=tripIds(trips), shared=meta.shared_fields;
+  const order=Object.keys(meta.trips[0]).filter(key=>key!=='id' && !shared.includes(key));
+  const fields=config=>order.filter(key=>!(Object.hasOwn(optional,key) && same(config[key],optional[key]))).map(key=>[key,config[key]]);
+  return {primary_trip:ids[primary],trips:trips.map((trip,i)=>({id:ids[i],...Object.fromEntries(fields(trip.config))})),
+    ...Object.fromEntries(shared.map(key=>[key,trips[0].config[key]]))};
+}
+
+// Rows of "what changes", matched by trip id like the reply on the issue.
+export function settingsChanges(meta, trips, primary) {
+  const ids=tripIds(trips), configs=trips.map(trip=>trip.config), shared=meta.shared_fields;
+  const row=(label,key,before,after)=>({label,before:shownValue(key,before,meta),after:shownValue(key,after,meta)});
+  const fieldRows=(old,next,prefix,skip)=>changedFields(old,next).filter(key=>key!=='id' && !skip.includes(key))
+    .map(key=>row(prefix+(meta.labels[key]||key),key,old[key],next[key]));
+  if(meta.trips.length===1 && trips.length===1 && ids[0]===meta.trips[0].id)return fieldRows(meta.trips[0],configs[0],'',[]);
+  const before=new Map(meta.trips.map(config=>[config.id,config]));
+  const rows=shared.filter(key=>!same(meta.trips[0][key],configs[0][key])).map(key=>row(meta.labels[key]||key,key,meta.trips[0][key],configs[0][key]));
+  if(ids[primary]!==meta.primary_trip) {
+    const old=before.get(meta.primary_trip);
+    rows.push({label:meta.labels.primary_trip,before:tripName(old,meta.trips),after:tripName(configs[primary],configs)});
+  }
+  configs.forEach((config,i)=>{
+    const old=before.get(ids[i]);
+    if(old)rows.push(...fieldRows(old,config,tripName(config,configs)+' · ',shared));
+    else rows.push({label:meta.labels.trips,before:'—',after:'added: '+tripSummary(config)});
+  });
+  for(const old of meta.trips)if(!ids.includes(old.id))rows.push({label:meta.labels.trips,before:tripSummary(old),after:'removed'});
+  return rows;
+}
+
+export function issueTitle(settings) {
+  const trips=settings.trips;
+  return trips.length===1?`Change search: ${trips[0].origins.join(', ')} → ${trips[0].destination}`
+    :`Change search: ${trips.length} trips (${trips.map(trip=>trip.destination).join(', ')})`;
+}
+
+const LISTED_CHANGES=25;
+export function issueBody(meta, settings, changes) {
+  const several=settings.trips.length>1;
+  const trips=settings.trips.map(t=>`- ${t.origins.join(', ')} → ${t.destination} · departures ${t.departure_start} to ${t.departure_end} · ${t.min_trip_days}–${t.max_trip_days} days${several && t.id===settings.primary_trip?' · shown first':''}`);
+  const listed=changes.slice(0,LISTED_CHANGES).map(change=>`- ${change.label}: ${change.before} → ${change.after}`);
+  if(changes.length>LISTED_CHANGES)listed.push(`- … and ${changes.length-LISTED_CHANGES} more`);
+  return [meta.marker, several?`**New search, ${settings.trips.length} trips:**`:'**New search:**', ...trips, '', '**Changes:**', ...listed, '',
     'Create this issue to apply the search. A workflow checks the settings, replies here and closes the issue. Only issues from the repository owner are applied.',
-    '', '```json', JSON.stringify(orderedConfig(meta,config),null,2), '```'].join('\n');
+    '', '```json', JSON.stringify(settings), '```'].join('\n');
 }
 
-export function issueUrl(meta, config) {
-  const params=new URLSearchParams({title:issueTitle(config),body:issueBody(meta,config)});
+// GitHub rejects very long addresses; beyond this the body is copied by hand.
+export const MAX_URL=8000;
+export function issueUrl(meta, settings, changes, withBody=true) {
+  const params=new URLSearchParams({title:issueTitle(settings)});
+  if(withBody)params.set('body',issueBody(meta,settings,changes));
   return `https://github.com/${meta.repository}/issues/new?${params}`;
 }

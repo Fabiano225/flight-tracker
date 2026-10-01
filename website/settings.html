@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Change the flight tracker's search: departure airports, destination, travel dates, filters, price targets and alerts.">
+  <meta name="description" content="Change the flight tracker's trips: departure airports, destinations, travel dates, filters, price targets and alerts.">
   <meta name="theme-color" content="#173d32">
   <meta name="color-scheme" content="light dark">
   <meta name="robots" content="noindex">
@@ -21,13 +21,26 @@
     <section class="settings-intro" aria-labelledby="settings-title">
       <p class="eyebrow"><span class="dot"></span> YOUR SEARCH · SETTINGS</p>
       <h1 id="settings-title">Change search.</h1>
-      <p class="intro">Set what the tracker searches for. Submitting opens a prefilled GitHub issue. The search changes only when you create that issue there, and only if it comes from the repository owner.</p>
-      <p id="current-search" class="current-search" role="status">Loading the current search …</p>
+      <p class="intro">Set what the tracker searches for, for up to five trips. Submitting opens a prefilled GitHub issue. The search changes only when you create that issue there, and only if it comes from the repository owner.</p>
+      <div id="current-search" class="current-search" role="status">Loading the current search …</div>
     </section>
     <div id="load-error" class="warning" role="alert" hidden></div>
     <noscript><p class="warning">The form needs JavaScript. Alternatively, edit <a href="https://github.com/Fabiano225/flight-tracker/blob/main/config.json">config.json on GitHub</a>.</p></noscript>
 
     <form id="settings" class="settings-form" novalidate hidden>
+      <section class="settings-card trips-card" aria-labelledby="trips-title">
+        <div class="trips-head">
+          <div><span class="eyebrow">TRIPS · UP TO 5</span><h2 id="trips-title">Which trip are you editing?</h2></div>
+          <button type="button" id="add-trip" class="chart-button">+ Add trip</button>
+        </div>
+        <div id="trip-tabs" class="trip-tabs" role="group" aria-label="Trips"></div>
+        <div id="trip-tools" class="trip-tools">
+          <label class="field">Shown first on the website<select id="primary-trip"></select></label>
+          <button type="button" id="remove-trip" class="reset remove-trip">Remove this trip</button>
+        </div>
+        <p id="trip-note" class="footnote" aria-live="polite">Every trip has its own airports, dates, filters, price targets, alerts and price history. All trips are searched in every run and share its request budget.</p>
+      </section>
+
       <fieldset class="settings-card">
         <legend><span class="eyebrow">01 · ROUTE</span>From where, to where?</legend>
         <div class="picker-field" data-field="origins">
@@ -114,7 +127,6 @@
           <label class="field">Strong deal: at least % below the low<input type="number" inputmode="decimal" step="0.01" name="drop_percent" aria-describedby="drop_percent-error"><span class="field-error" id="drop_percent-error"></span></label>
           <label class="field">… and at least € below the low<input type="number" inputmode="decimal" step="0.01" min="0.01" name="drop_eur" aria-describedby="drop_eur-error"><span class="field-error" id="drop_eur-error"></span></label>
           <label class="field">Max. offers per message<input type="number" inputmode="numeric" step="1" name="max_deals_per_run" aria-describedby="max_deals_per_run-error"><span class="field-error" id="max_deals_per_run-error"></span></label>
-          <label class="field">Undelivered messages expire after (h)<input type="number" inputmode="numeric" step="1" name="pending_ttl_hours" aria-describedby="pending_ttl_hours-error"><span class="field-error" id="pending_ttl_hours-error"></span></label>
         </div>
       </fieldset>
 
@@ -128,15 +140,20 @@
       <details class="settings-card advanced">
         <summary><span class="eyebrow">06 · TECHNICAL</span><span class="advanced-title">Search budget for advanced users</span></summary>
         <p class="footnote">These values limit requests to the unofficial Google Flights interface. Higher values increase the risk of being blocked.</p>
+        <h3 class="settings-subhead">This trip</h3>
         <div class="field-grid">
           <label class="field">Flight checks per run<input type="number" inputmode="numeric" step="1" name="max_verifications_per_run" aria-describedby="max_verifications_per_run-error"><span class="field-error" id="max_verifications_per_run-error"></span></label>
           <label class="field">Outbound candidates per check<input type="number" inputmode="numeric" step="1" name="outbound_candidates" aria-describedby="outbound_candidates-error"><span class="field-error" id="outbound_candidates-error"></span></label>
+        </div>
+        <h3 class="settings-subhead">All trips together</h3>
+        <div class="field-grid">
           <label class="field">Request budget per run<input type="number" inputmode="numeric" step="1" name="max_http_attempts_per_run" aria-describedby="max_http_attempts_per_run-error"><span class="field-error" id="max_http_attempts_per_run-error"></span></label>
           <label class="field">Time budget per run (s)<input type="number" inputmode="numeric" step="1" name="max_run_seconds" aria-describedby="max_run_seconds-error"><span class="field-error" id="max_run_seconds-error"></span></label>
           <label class="field">Timeout per request (s)<input type="number" inputmode="numeric" step="1" name="http_timeout_seconds" aria-describedby="http_timeout_seconds-error"><span class="field-error" id="http_timeout_seconds-error"></span></label>
           <label class="field">Attempts per request<input type="number" inputmode="numeric" step="1" name="http_attempts" aria-describedby="http_attempts-error"><span class="field-error" id="http_attempts-error"></span></label>
           <label class="field">Gap between requests (s)<input type="number" inputmode="decimal" step="0.1" name="request_interval_seconds" aria-describedby="request_interval_seconds-error"><span class="field-error" id="request_interval_seconds-error"></span></label>
           <label class="field">Parallel requests<input type="number" inputmode="numeric" step="1" name="max_parallel_requests" aria-describedby="max_parallel_requests-error"><span class="field-error" id="max_parallel_requests-error"></span></label>
+          <label class="field">Undelivered messages expire after (h)<input type="number" inputmode="numeric" step="1" name="pending_ttl_hours" aria-describedby="pending_ttl_hours-error"><span class="field-error" id="pending_ttl_hours-error"></span></label>
         </div>
       </details>
 
@@ -155,6 +172,11 @@
             <button type="reset" class="reset">Reset</button>
           </div>
           <p id="submit-note" class="footnote" aria-live="polite"></p>
+          <div id="copy-body" class="copy-body" hidden>
+            <label for="issue-body" class="field-label">Issue text to paste</label>
+            <textarea id="issue-body" readonly rows="6"></textarea>
+            <button type="button" id="copy-button" class="chart-button">Copy text</button>
+          </div>
         </div>
       </section>
     </form>

@@ -8,27 +8,29 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
   <title>{{city}} in view · Flightwatch</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg"><link rel="stylesheet" href="./styles.css">
+  <script src="./trip.js"></script>
   <script type="module" src="./app.js"></script>
 </head>
 <body>
   <a class="skip" href="#offers">Skip to offers</a>
   <header class="header wrap">
-    <a class="brand" href="./" aria-label="Flightwatch home"><span class="brand-mark">↗</span>flightwatch<span class="brand-tag">{{code}} EDITION</span></a>
-    <nav aria-label="Main navigation"><a href="#offers">Flights</a><a href="#history">Price history</a><a href="./settings.html">Change search</a><a href="https://github.com/Fabiano225/flight-tracker" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
+    <a class="brand" href="./" aria-label="Flightwatch home"><span class="brand-mark">↗</span>flightwatch<span class="brand-tag"><span data-page="code">{{code}}</span> EDITION</span></a>
+    <nav aria-label="Main navigation"><a href="#offers">Flights</a><a href="#history">Price history</a><a id="settings-link" href="./settings.html">Change search</a><a href="https://github.com/Fabiano225/flight-tracker" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav>
   </header>
   <main class="wrap">
+    <div id="trip-switcher" class="trip-switcher" role="navigation" aria-label="Tracked trips" hidden></div>
     <section class="hero" aria-labelledby="hero-title">
-      <div><p class="eyebrow"><span class="dot"></span> YOUR PRICE RADAR FOR {{region_upper}}</p>
-        <h1 id="hero-title">{{city}} in view.<br><em>The price too.</em></h1>
-        <p class="intro">Search less. Compare better. Your flights to {{city}} – with real price histories instead of gut feeling.</p>
-        <div class="route">{{route_origins}}<span class="route-line" aria-hidden="true">──── ↗</span><strong>{{code}}</strong></div>
+      <div><p class="eyebrow"><span class="dot"></span> <span>YOUR PRICE RADAR FOR <span data-page="region_upper">{{region_upper}}</span></span></p>
+        <h1 id="hero-title"><span data-page="city">{{city}}</span> in view.<br><em>The price too.</em></h1>
+        <p class="intro">Search less. Compare better. Your flights to <span data-page="city">{{city}}</span> – with real price histories instead of gut feeling.</p>
+        <div class="route"><span id="route-origins" class="route-origins">{{route_origins}}</span><span class="route-line" aria-hidden="true">──── ↗</span><strong data-page="code">{{code}}</strong></div>
       </div>
       <aside class="trip-card" aria-label="Trip profile">
         <div class="ticket-top"><span>YOUR TRAVEL WINDOW</span><span class="ticket-icon" aria-hidden="true">↗</span></div>
-        <div class="ticket-city">{{city}}<span>{{ticket_place}}</span></div>
-        <div class="ticket-stamp" aria-hidden="true">{{code}}<br><small>LET’S GO</small></div>
+        <div class="ticket-city"><span data-page="city">{{city}}</span><span class="ticket-place" data-page="ticket_place">{{ticket_place}}</span></div>
+        <div class="ticket-stamp" aria-hidden="true"><span data-page="code">{{code}}</span><br><small>LET’S GO</small></div>
         <div class="ticket-bottom"><div><span>DEPARTURE</span><strong id="trip-dates">{{trip_dates}}</strong></div><div><span>TRIP LENGTH</span><strong id="trip-days">{{trip_days}}</strong></div></div>
-        <p>1 adult · {{travel_class}} · Round trip{{filter_summary}}</p>
+        <p>1 adult · <span data-page="travel_class">{{travel_class}}</span> · Round trip<span data-page="filter_summary">{{filter_summary}}</span></p>
       </aside>
     </section>
     <div class="status-bar" role="status" aria-live="polite"><span id="status-label"><span class="dot"></span> Loading data …</span><span id="last-check">Four search runs a day</span><button id="reload" type="button">Refresh ↻</button></div>
@@ -74,10 +76,10 @@
       <div id="favorites-missing" class="favorites-missing" hidden></div>
       <div class="table-scroll"><table><caption id="results-count">Loading offers</caption><thead><tr><th>Route & connection</th><th>Your travel dates</th><th>Travel time</th><th>Price & change</th><th>Assessment</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="offers-body"></tbody></table></div>
       <p id="empty" class="empty" hidden>No offers for this selection. Try another filter.</p>
-      <p class="footnote">Compared with the lowest checked price of the last {{history_days}} days and with the previous check of the same route, dates and flight type. The airline can change. Missing results do not mean there are no flights.</p>
+      <p class="footnote">Compared with the lowest checked price of the last <span data-page="history_days">{{history_days}}</span> days and with the previous check of the same route, dates and flight type. The airline can change. Missing results do not mean there are no flights.</p>
     </section>
     <section id="history" class="history-layout" aria-labelledby="chart-heading">
-      <article class="chart-card"><div class="section-heading"><div><p class="eyebrow">THE TREND</p><h2 id="chart-heading">Prices in perspective.</h2></div><span class="period">{{history_days}} DAYS</span></div>
+      <article class="chart-card"><div class="section-heading"><div><p class="eyebrow">THE TREND</p><h2 id="chart-heading">Prices in perspective.</h2></div><span class="period"><span data-page="history_days">{{history_days}}</span> DAYS</span></div>
         <label class="chart-select-label" for="history-select">Choose a flight comparison</label><select id="history-select"></select>
         <div class="chart-summary"><strong id="chart-price">—</strong><span id="chart-change" class="muted">No comparison selected yet</span></div>
         <div id="chart" class="chart" aria-live="polite"></div>
@@ -85,14 +87,14 @@
         <p id="chart-note" class="footnote">No prices are added after the fact. A single point is not a trend yet.</p>
       </article>
       <aside class="guide-card"><p class="eyebrow">BOOK OR WAIT?</p><h2>A guide.<br>Not a crystal ball.</h2>
-        <div class="guide-row"><span class="guide-dot green"></span><div><strong>Check to buy</strong><p>Within budget and less than {{realert}} above the previous observed low.</p></div></div>
-        <div class="guide-row"><span class="guide-dot amber"></span><div><strong>Within budget, above low</strong><p>Your price target is reached, but it has been observed at least {{realert}} cheaper.</p></div></div>
+        <div class="guide-row"><span class="guide-dot green"></span><div><strong>Check to buy</strong><p>Within budget and less than <span data-page="realert">{{realert}}</span> above the previous observed low.</p></div></div>
+        <div class="guide-row"><span class="guide-dot amber"></span><div><strong>Within budget, above low</strong><p>Your price target is reached, but it has been observed at least <span data-page="realert">{{realert}}</span> cheaper.</p></div></div>
         <div class="guide-row"><span class="guide-dot gray"></span><div><strong>Watch</strong><p>Still above your price target. A falling price alone is not a good deal yet.</p></div></div>
         <p class="guide-footer">With little history, your budget limit matters most. Prices can rise or fall later. Check baggage and fare conditions before booking.</p>
       </aside>
     </section>
-    <section class="about-strip"><div><span class="eyebrow">IN THE BACKGROUND</span><h3>Your tracker keeps watching.</h3></div><p>Searches about every 6 hours. Checked travel times {{duration_limit}} per direction. Price alerts and short status messages via Discord or your Telegram bot.</p><a href="https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml" target="_blank" rel="noopener noreferrer">View search runs ↗</a></section>
+    <section class="about-strip"><div><span class="eyebrow">IN THE BACKGROUND</span><h3>Your tracker keeps watching.</h3></div><p>Searches about every 6 hours. Checked travel times <span data-page="duration_limit">{{duration_limit}}</span> per direction. Price alerts and short status messages via Discord or your Telegram bot.</p><a href="https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml" target="_blank" rel="noopener noreferrer">View search runs ↗</a></section>
   </main>
-  <footer class="wrap"><span class="footer-brand">flightwatch <span>/ {{city}} edition</span></span><p>Private travel project · Independent of Google and the airlines.<br>Public search prices, not a booking platform. No tracking cookies.</p><a href="https://github.com/Fabiano225/flight-tracker#costs-and-privacy">Project & privacy ↗</a></footer>
+  <footer class="wrap"><span class="footer-brand">flightwatch <span>/ <span data-page="city">{{city}}</span> edition</span></span><p>Private travel project · Independent of Google and the airlines.<br>Public search prices, not a booking platform. No tracking cookies.</p><a href="https://github.com/Fabiano225/flight-tracker#costs-and-privacy">Project & privacy ↗</a></footer>
 </body>
 </html>

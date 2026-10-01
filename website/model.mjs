@@ -69,16 +69,21 @@ export function favoriteExpired(fav, config, today) {
     || fav.departure<=today || fav.departure<config.departure_start || fav.departure>config.departure_end
     || days<config.min_trip_days || days>config.max_trip_days;
 }
-export function pruneFavorites(keys, config, today) {
-  const kept=new Set(), removed=[];
-  for(const key of keys){const fav=parseFavorite(key);if(fav && !favoriteExpired(fav,config,today))kept.add(key);else removed.push(key);}
+// With several trips a favorite stays while any trip still searches it.
+export function pruneFavorites(keys, configs, today) {
+  const list=Array.isArray(configs)?configs:[configs], kept=new Set(), removed=[];
+  for(const key of keys){const fav=parseFavorite(key);if(fav && list.some(config=>!favoriteExpired(fav,config,today)))kept.add(key);else removed.push(key);}
   return {keys:kept,removed};
+}
+export function belongsToTrip(fav, config) {
+  return !favoriteExpired(fav,config,'');
 }
 // Still-searchable favorites without a row in this view: not checked in the
 // latest run, or saved for another baggage selection. Listed so they can be removed.
-export function unavailableFavorites(keys, offers, destination, profile) {
+// With a trip's config, favorites of other trips are left out.
+export function unavailableFavorites(keys, offers, destination, profile, config=null) {
   const shown=new Set(offers.map(q=>favoriteKey(q,destination,profile)));
-  return [...keys].filter(key=>!shown.has(key)).map(parseFavorite).filter(Boolean)
+  return [...keys].filter(key=>!shown.has(key)).map(parseFavorite).filter(fav=>fav && (!config || belongsToTrip(fav,config)))
     .map(fav=>({...fav,reason:fav.profile===profile?'No checked offer at the moment':'Saved with another baggage choice'}))
     .sort((a,b)=>(a.profile!==profile)-(b.profile!==profile) || a.departure.localeCompare(b.departure) || a.return_date.localeCompare(b.return_date));
 }
@@ -143,4 +148,14 @@ export function baggageDescription(value, kind) {
   if(bag.status==='not_included')return `${title}: not included`;
   const weight=typeof bag.kg==='number' && bag.kg>0?`${bag.kg} kg`:'kg: not stated';
   return `${title}: ${bag.pieces} included · ${weight}`;
+}
+
+// Several trips: the page opens the primary trip unless its address names another one.
+export function chooseTrip(site, wanted) {
+  const primary=site.trips.find(t=>t.id===site.primary_trip)||site.trips[0];
+  const named=wanted?site.trips.find(t=>t.id===wanted):null;
+  return {trip:named||primary, unknown:Boolean(wanted) && !named};
+}
+export function tripHref(site, id, page='./') {
+  return id===site.primary_trip?page:`${page}?trip=${encodeURIComponent(id)}`;
 }
