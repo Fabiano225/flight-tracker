@@ -5,6 +5,8 @@ from .network import ServiceError
 from .store import stamp
 
 ARCHIVE_PREFIX = "Copied price update"
+DASHBOARD = "https://fabiano225.github.io/flight-tracker/"
+SETTINGS = DASHBOARD + "settings.html"
 
 
 def configured_sender(config=None):

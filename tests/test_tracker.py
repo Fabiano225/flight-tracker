@@ -181,6 +181,28 @@ class EmptyRouteTests(unittest.TestCase):
         self.assertEqual(self.run_scan(6), (2, 0))
 
 
+class WindowEndedTests(unittest.TestCase):
+    def test_ended_window_is_announced_once_with_a_settings_link(self):
+        with tempfile.TemporaryDirectory() as directory, Store(directory) as store:
+            config = replace(Config(), departure_start="2026-10-20", departure_end="2026-10-23")
+            after = datetime(2026, 10, 23, 6, tzinfo=timezone.utc)
+            for hours in (0, 6):
+                summary = scan(config, store, DemoProvider(config), after + timedelta(hours=hours))
+                self.assertEqual(summary["status"], "expired")
+            notices = store.db.execute("SELECT text FROM outbox WHERE kind='notice'").fetchall()
+            self.assertEqual(len(notices), 1)
+            self.assertTrue(notices[0][0].startswith("BKK search window ended\n"))
+            self.assertIn("settings.html", notices[0][0])
+            # A new window is announced again when it ends.
+            later = replace(config, departure_start="2026-10-24", departure_end="2026-10-25")
+            scan(later, store, DemoProvider(later), datetime(2026, 10, 26, tzinfo=timezone.utc))
+            self.assertEqual(store.db.execute("SELECT COUNT(*) FROM outbox WHERE kind='notice'").fetchone()[0], 2)
+            # Searches before the end send nothing of the kind.
+            with tempfile.TemporaryDirectory() as other, Store(other, "demo") as demo:
+                scan(config, demo, DemoProvider(config), NOW, True)
+                self.assertIsNone(demo.db.execute("SELECT 1 FROM outbox WHERE kind='notice'").fetchone())
+
+
 class HistoryTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

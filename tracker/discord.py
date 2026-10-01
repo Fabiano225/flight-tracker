@@ -6,11 +6,9 @@ import re
 
 from .check_status import TELEGRAM_REPLY_HINT
 from .network import JsonHttp, ServiceError
-from .notifications import ARCHIVE_PREFIX
+from .notifications import ARCHIVE_PREFIX, DASHBOARD, SETTINGS
 from .places import city
 
-DASHBOARD = "https://fabiano225.github.io/flight-tracker/"
-SETTINGS = DASHBOARD + "settings.html"
 GREEN, RED, AMBER, BLUE = 0x22C55E, 0xEF4444, 0xF59E0B, 0x5865F2
 # Message kinds named in the first line; the German names are legacy messages.
 KIND = re.compile(r"([A-Z]{3}) (price alert|check status|search window ended|Preisalarm|Suchstatus)\n")
@@ -63,6 +61,7 @@ def payload_for(text, reference_url=None, code=None, names=None):
         title, color = '✅ Flight search recovered', GREEN
     elif kind and kind.group(2) == 'search window ended':
         title = '🏁 ' + place + 'Search window ended'
+        text = text.replace('Set up a new search: ' + SETTINGS, '[Set up a new search →](' + SETTINGS + ')')
 
     embeds = []
     # The outbox text is also the durable, human-readable audit record. Split

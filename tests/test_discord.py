@@ -12,7 +12,7 @@ from tracker.config import Config
 from tracker.discord import Discord, payload_for, GREEN, RED, AMBER
 from tracker.network import JsonHttp, ServiceError
 from tracker.check_status import TELEGRAM_REPLY_HINT
-from tracker.notifications import ARCHIVE_PREFIX, configured_sender, deliver
+from tracker.notifications import ARCHIVE_PREFIX, SETTINGS, configured_sender, deliver
 from tracker.provider import Quote, DemoProvider
 from tracker.service import scan
 from tracker.store import Store, stamp
@@ -118,8 +118,9 @@ class DiscordTests(unittest.TestCase):
         other = payload_for('Note', code='HND')
         self.assertEqual(other['embeds'][0]['title'], '✈️ Tokyo · Flight Tracker')
         self.assertEqual(payload_for('Note')['embeds'][0]['title'], '✈️ Flight Tracker')
-        ended = payload_for('BKK search window ended\nDepartures have passed.')
+        ended = payload_for('BKK search window ended\nDepartures have passed.\nSet up a new search: ' + SETTINGS)
         self.assertEqual(ended['embeds'][0]['title'], '🏁 Bangkok · Search window ended')
+        self.assertIn('[Set up a new search →](' + SETTINGS + ')', ended['embeds'][0]['description'])
         with patch.dict(os.environ, {'DISCORD_WEBHOOK_URL': WEBHOOK}, clear=True):
             sender = configured_sender(Config(destination='HND', display_names={'HND': 'Tokyo Haneda'}))
         self.assertEqual((sender.code, sender.names), ('HND', {'HND': 'Tokyo Haneda'}))
