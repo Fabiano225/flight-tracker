@@ -1,337 +1,181 @@
-# BKK Flight Price Tracker
+# ✈️ Flightwatch – a free flight price tracker
 
-**[Open the flight dashboard ↗](https://fabiano225.github.io/flight-tracker/)**
-
-Mobile-friendly price tables, date and duration filters, separate direct/connecting
-fares, and real price-history charts. Data updates automatically after each tracker
-workflow. The dashboard explicitly labels incomplete searches and stale observations.
-The theme selector in the header switches between **Auto** (follows the device's light
-or dark mode), **Light** and **Dark**; the choice is remembered in this browser.
-
-Use the **Airlines** filter to keep selected carriers in the results or hide them.
-Airline names are shown with their carrier code. For connections involving several
-carriers, the inclusion filter keeps an offer when at least one selected carrier
-operates a leg; the exclusion filter hides an offer when any selected carrier is
-involved. Airline filters combine with the airport, date, trip-length and favorite
-filters. The available list reflects the current published prices.
-
-### Favorites (website only)
-
-Use the star beside an offer to save it, and **Favorites only** to filter the table
-and history selector. Favorites persist in this browser's local storage, without
-an account or device sync. Clearing site data removes them. If storage is blocked,
-the page explains that changes last only for the open tab. Filter reset does not
-delete favorites. Missing offers remain saved but are never shown as current fares.
-
-A favorite identifies route, outbound/return dates, direct/connecting category and
-baggage profile—not a fixed price, airline or vendor. It follows the current offer
-for that comparison as prices change. Baggage profiles are saved separately.
-Favorites neither start extra searches nor change Telegram alerts.
-
-### Baggage price views (website only)
-
-Use **Baggage in the search price** to switch between the base search, one cabin suitcase,
-one checked bag, or both. Each view has its own prices, sorting and history.
-The base search imposes no extra baggage requirement: it does **not** mean bags
-are excluded. A cabin suitcase is distinct from a small personal item under the seat.
-
-The website now inspects **booking offers for specific outbound/return flights**.
-It distinguishes included, chargeable, not included and unknown baggage separately
-for cabin suitcases and checked bags. A baggage view contains only offers whose
-booking details explicitly include the selected bags for the whole trip. It shows
-the vendor and the time checked. Source: Google Flights booking details; always
-reconfirm the fare at checkout. Unknown weights remain **not stated**.
-
-This is not a general baggage fee calculator. Paid bags with no quoted inclusive
-price are omitted from baggage views rather than silently using the base price.
-We do not infer allowances from airline names or add a fixed surcharge. Airline
-fare upgrades (e.g. Condor Classic) are not automatically priced unless supplied
-by the inspected booking offers. Research links open a search; choose the stated
-vendor and recheck the itinerary and fare. An exact-flight price difference may
-include a vendor or fare change, not just baggage.
-
-Only the existing shortlist is checked, with up to three concrete itineraries per
-query; this is not an exhaustive search of every baggage-inclusive fare. Missing
-results never inherit a base price or silently reuse an older snapshot. Earlier
-unconfirmed filter-price observations are excluded from baggage views/history.
-Notification alerts keep their original base-price profile.
-
-Automated fare monitoring from **Düsseldorf (DUS), Frankfurt (FRA) and Amsterdam
-(AMS) to Bangkok (BKK)**. The tracker searches flexible dates four times per day,
-keeps a durable price history and sends Discord or Telegram price alerts plus short check
-receipts when no alert threshold was reached.
+**[Open the dashboard ↗](https://fabiano225.github.io/flight-tracker/)**
 
 [![Tests](https://github.com/Fabiano225/flight-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/Fabiano225/flight-tracker/actions/workflows/tests.yml)
 [![Track flights](https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml/badge.svg)](https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml)
 
-> **Status:** personal, trip-specific automation for October/November 2026. The
-> upstream Google Flights interface is unofficial and may change without notice.
+Flightwatch watches round-trip fares for flexible travel dates, keeps a real price
+history and tells you on Discord or Telegram when a price is worth a look. It runs
+entirely on GitHub: no server, no paid flight API, no account to sign up for.
 
-## What it does
+Right now it tracks flights from **Düsseldorf, Frankfurt and Amsterdam to Bangkok**
+in October 2026. The trip can be changed on the website at any time, and up to five
+trips can be tracked at once.
 
-- Searches departures from **20–23 October 2026** (no departures before 20 October).
-- Accepts trips of **14–21 days**; the latest return departure is 13 November.
-- Separates **direct flights** (zero stops in both directions) from itineraries
-  with a connection.
-- Rejects itineraries lasting **21 hours or more in either direction**.
-- Tracks one adult, economy fares in EUR and stores observations in SQLite.
-- Optional search filters limit stops per direction and include or exclude airlines;
-  Google applies them, so prices, history and alerts show the same selection.
-- Sends Discord alerts (or Telegram, if selected) for meaningful rises, falls, budget crossings and strong
-  drops. Checks without a new alert send a short status rather than repeating fares.
-- Runs at 00:17, 06:17, 12:17 and 18:17 UTC through GitHub Actions.
+> A personal travel project. Prices come from Google Flights' public (unofficial)
+> search, which can change without notice. Always check the fare before booking.
 
-## Price alerts, at a glance
+## What you get
 
-The first observation establishes a watch. Later messages include:
+- **A dashboard** with the cheapest checked flights, filters for airport, dates, trip
+  length, stops and airlines, and a price-history chart for every flight comparison.
+- **Price alerts** when a fare drops, rises, reaches your price target or hits a new
+  low, plus a short "no change" note after searches without news.
+- **Flexible dates:** every departure day in your window is combined with every trip
+  length you allow (for example 14–21 days).
+- **Fair comparisons:** non-stop and connecting flights are kept apart, overly long
+  journeys are filtered out, and only actually checked round trips count.
+- **Baggage views** that show fares whose booking offer includes a cabin bag, a
+  checked bag or both.
+- **Favorites** saved in your browser, **light/dark mode**, and a layout that works on
+  phones.
 
-After each subsequent scan (about every six hours), a check without a new price
-alert sends **“No price change”** or **“Only small price changes”**. Small
-changes show the current price and euro difference against the previous price alert.
-Incomplete scans or missing comparisons are explicitly labelled incomplete, never
-unchanged. Expired trip windows do not generate check receipts; instead, one
-**“search window ended”** message links to the settings page. All messages are English.
+## How it works
 
-In Discord, colour-coded cards show prices, changes, buying signals and search links.
-Check receipts link to the associated Discord price message. When switching channels,
-that reference is copied once as an explicitly **historical price snapshot**, not
-as a new deal or a newly verified offer.
+1. Four times a day a GitHub Actions run searches every date combination.
+2. The most promising flights are checked in detail (real round trip, dates, stops,
+   travel time).
+3. Prices are stored and compared with the last 30 days.
+4. If something changed meaningfully, you get a message; the dashboard updates a few
+   minutes later.
 
-In the Telegram private bot chat, the receipt is a native reply to the latest
-applicable delivered price alert: tap the quoted message to jump back to it.
-It does not link to an intervening status or health message. If the original was
-deleted, delivery continues without the reply. No chat ID is written to state.
+## The dashboard
+
+- **Trips:** with several trips, a bar at the top switches between them. Each trip has
+  its own link, e.g. `…/flight-tracker/?trip=ams`.
+- **Filters:** departure airport, connection type, outbound day, trip length and
+  airlines (show only or hide selected airlines).
+- **Price history:** pick a flight to see every checked price, your price target and
+  the lowest price of the comparison period.
+- **Baggage:** choose *Base price*, *1 cabin bag*, *1 checked bag* or both. Baggage views
+  only list offers that state the bags are included for the whole trip; they never
+  guess a fee.
+- **Favorites:** save a flight with the star. Favorites stay in this browser only.
+- **Theme:** the selector in the header switches between *Auto* (follows your device),
+  *Light* and *Dark*.
+
+The page clearly says when a search was incomplete or the data is older than 12 hours.
+
+## Price alerts
+
+Alerts go to a Discord channel (or a Telegram chat) and name their trip in the title.
 
 | Message | Meaning |
 |---|---|
-| **PRICE DROPPED** / **PRICE ROSE** | Same airport, dates and flight type changed by at least €25 since the last alert. The message shows `before → now`, euros and percentage. |
-| **CHECK TO BUY** | Fare is at or below the €650 target and close to the observed low. |
-| **WITHIN BUDGET, but …** | Fare is within €650 but at least €25 above the observed low. |
-| **WATCH** | Fare is above the target. |
-| **STRONG DEAL** | At least 10% **and** €50 below the previous 30-day low. |
-| **CHEAPER ALTERNATIVE** | A different date pair is materially cheaper; it is not described as a drop for the old dates. |
+| **PRICE DROPPED** / **PRICE ROSE** | The same flight dates changed by at least €25 since the last alert. |
+| **CHECK TO BUY** | At or below your price target and close to the lowest price seen. |
+| **WITHIN BUDGET, but …** | Within your target, but it has been at least €25 cheaper. |
+| **WATCH** | Still above your target. |
+| **STRONG DEAL** | At least 10% **and** €50 below the lowest price of the last 30 days. |
+| **CHEAPER ALTERNATIVE** | Other dates are clearly cheaper than the ones you were alerted about. |
 
-The tracker never treats a missing search result as a price increase. “Check to buy” is a
-budget signal, not a prediction that prices cannot fall further. Prices are search
-observations, not reservations; check baggage, fare rules and availability before
-booking.
+Searches without a new alert send a short **"No price change"** or **"Only small price
+changes"** note, linked to the last alert. When a trip's travel window has passed, one
+message says so and links to the settings page. A missing search result is never
+treated as a price change.
 
-## Search configuration
+## Search settings (website)
 
-| Setting | Value |
-|---|---|
-| Origins | DUS, FRA, AMS |
-| Destination | BKK |
-| Departures | 2026-10-20 … 2026-10-23, inclusive |
-| Trip length | 14 … 21 calendar days |
-| Passenger / cabin / currency | 1 adult / economy / EUR |
-| Maximum direction duration | 1,259 minutes (20 h 59 min) |
-| Stops / airlines | Any number of stops, all airlines (both optional filters) |
-| Budget | €650, configurable independently for direct and connecting flights |
-| Strong-drop rule | ≥10% **and** ≥€50 below the previous 30-day low |
-| Notification threshold | €25 since the last alert, or crossing the budget |
+Open **Change search** on the dashboard to change what is tracked: departure airports,
+destination, travel dates, trip length, cabin, stops, airlines, maximum travel time,
+price targets and when to alert. Airports can be searched by city, airport name or
+code (German names such as "München" work too).
 
-Change the search on the website (see below) or edit `config.json` for a new trip.
-Changing dates or comparable search settings resets the date watches as appropriate;
-compatible dated observations are retained. Changing comparability filters creates a
-separate history scope.
+- **Several trips:** use **+ Add trip** for up to five trips, e.g. Bangkok in October
+  and a weekend in Amsterdam. Each trip has its own price targets, alerts and history;
+  choose which one the website shows first.
+- **Request estimate:** the form shows how many searches a run needs. All trips share
+  one budget, so very wide date ranges or many trips are rejected before anything is
+  sent.
+- **Applying:** the form opens a prefilled GitHub issue. Once you create it, a workflow
+  checks the settings, saves them, replies in the issue and starts a new search. First
+  prices appear after about 10–40 minutes.
 
-### Search settings (website)
+Only issues from the repository owner are applied; anyone else's are closed
+automatically. Settings are stored on the `search-config` branch; deleting that
+branch returns to `config.json` on `main`.
 
-**Change search** on the dashboard (`settings.html`) opens a form for every
-`config.json` setting: origins, destination, departure window, trip length, cabin,
-stops per direction, airlines to include or exclude, duration limit, separate tickets,
-base-search bags, alert thresholds and the request budget. One adult and EUR are fixed.
-Airports and airlines are chosen from the lists the flight source supports; the airport
-search ranks large airports first and also understands German names such as "München".
-An optional display name only changes labels, never the search.
+## Get notifications
 
-The form checks the values and estimates the requests per run before anything is sent.
-Submitting opens a prefilled GitHub issue. Only when you create that issue does the
-**Apply search settings** workflow validate it again and store it, and only for issues
-opened by the repository owner; everyone else's are closed unread. It replies on the
-issue, closes it, starts **Track flights** and republishes the dashboard. Website
-texts, messages and the airport filter follow the new route; prices appear after the
-first run (about 10–40 minutes). Changing the destination, cabin, bags, separate
-tickets, duration limit, stops or airlines starts a new price history.
+### Discord (recommended)
 
-The settings are saved as `config.json` on the `search-config` branch, because `main`
-is protected. Once that branch exists it takes precedence over `config.json` on `main`
-for scans and the dashboard. Delete the branch to return to `config.json` on `main`.
-Until the form is first used, nothing changes.
+1. In a Discord server text channel, open **Edit Channel → Integrations → Webhooks →
+   New Webhook** and copy the webhook URL.
+2. Add it as the repository secret **`DISCORD_WEBHOOK_URL`**
+   (**Settings → Secrets and variables → Actions**). Treat it like a password.
+3. Run the **Test Discord** workflow to receive a test message.
 
-### Several trips
+### Telegram
 
-Up to five trips can be tracked at once, for example Bangkok in October and Amsterdam
-for a weekend. Each trip has its own airports, dates, filters, price targets and alert
-thresholds, its own price history and its own alerts. Every run searches all trips one
-after another, so they share the run's request and time budget (`max_http_attempts_per_run`,
-`max_run_seconds` and the other request settings); the settings check rejects trips
-that together would exceed it. Messages for all trips go to the same channel, and each
-names its destination in the title. One health message covers all trips.
+1. Create a bot with [@BotFather](https://t.me/BotFather) (`/newbot`) and add its token
+   as the secret **`TELEGRAM_BOT_TOKEN`**.
+2. Send `/start` to your bot, then run the **Telegram setup** workflow; it replies with
+   your chat ID.
+3. Save that as the secret **`TELEGRAM_CHAT_ID`** and run **Test Telegram**.
 
-A `config.json` with a single trip keeps the flat layout above. Several trips use a
-`trips` list; each trip has an `id` (lowercase letters, digits and dashes) and
-`primary_trip` names the trip the website shows first, which can be changed at any
-time:
+If both are set up, Discord is used. The repository variable `NOTIFICATION_CHANNEL`
+(`auto`, `discord` or `telegram`) picks one explicitly.
 
-```json
-{
-  "primary_trip": "main",
-  "trips": [
-    {"id": "main", "origins": ["DUS", "FRA", "AMS"], "destination": "BKK", "...": "..."},
-    {"id": "ams", "origins": ["FRA"], "destination": "AMS", "...": "..."}
-  ],
-  "max_http_attempts_per_run": 1600,
-  "max_run_seconds": 2400,
-  "...": "the other request settings"
-}
-```
+## Run your own copy
 
-The original single search is the trip `main` and keeps its price history.
+1. **Fork** this repository (it must stay public for free GitHub Actions minutes).
+2. Under **Settings → Pages**, set the source to **GitHub Actions**.
+3. Under **Actions**, enable workflows, then run **Track flights** once.
+4. Set up Discord or Telegram as above.
+5. Open your dashboard at `https://<your-user>.github.io/<repo>/` and set your trip
+   under **Change search**.
 
-On the dashboard, a bar above the page switches between the trips; it appears once
-there are two or more. The primary trip opens by default, and `?trip=<id>` opens
-another one (for example `https://fabiano225.github.io/flight-tracker/?trip=ams`), so
-every trip has its own link. Filters reset when you switch, and favorites stay saved
-for every trip that still searches them.
-
-In the settings form, the trip bar at the top selects the trip you edit. **+ Add trip**
-copies the trip you are editing without its destination; **Remove this trip** and
-**Shown first on the website** appear once there are two trips, and the trip shown
-first can be changed at any time. The estimate shows the requests of the trip you are
-editing and of all trips together against the shared budget. One issue carries all
-trips; a new trip's id comes from its destination (`ams`, then `ams-2`).
-
-## Set up Discord (preferred)
-
-1. In a Discord **server text channel**, open **Edit Channel → Integrations →
-   Webhooks → New Webhook** and copy its webhook URL. A bot application is not needed.
-2. In [repository Actions secrets](https://github.com/Fabiano225/flight-tracker/settings/secrets/actions),
-   add **`DISCORD_WEBHOOK_URL`** with that URL as its value. Treat it as a password;
-   never paste it into issues, commits or logs.
-3. Run [Test Discord](https://github.com/Fabiano225/flight-tracker/actions/workflows/discord-test.yml)
-   to receive a clearly labelled connection test (no flight searches).
-4. The next **Track flights** run sends its notifications to Discord automatically.
-   Existing Telegram secrets can stay in place; it does not send to both channels.
-
-The optional Actions **variable** `NOTIFICATION_CHANNEL` selects the transport:
-
-| Value | Behaviour |
-|---|---|
-| absent / `auto` | Discord if its webhook secret exists; otherwise Telegram |
-| `discord` | Require Discord, even if its secret is missing |
-| `telegram` | Keep using the existing Telegram bot |
-
-A failed Discord send stays pending; it does **not** silently fall back to Telegram.
-Use a regular server text channel, not a DM, forum, media channel or thread.
-Check Discord channel/server notification settings if messages arrive without a
-push notification. The tracker deliberately sends no `@everyone` or role mentions.
-
-## Optional: set up Telegram
-
-1. Create a bot with [@BotFather](https://t.me/BotFather) using `/newbot`.
-2. In [repository secrets](https://github.com/Fabiano225/flight-tracker/settings/secrets/actions),
-   add `TELEGRAM_BOT_TOKEN`.
-3. Send `/start` to the bot from the Telegram account that should receive alerts.
-4. Run the [Telegram setup workflow](https://github.com/Fabiano225/flight-tracker/actions/workflows/telegram-setup.yml).
-   It replies privately with the chat ID.
-5. Save that value as `TELEGRAM_CHAT_ID` (the value is never committed).
-6. Run [Test Telegram](https://github.com/Fabiano225/flight-tracker/actions/workflows/telegram-test.yml).
-7. Trigger [Track flights](https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml)
-   once manually. Scheduled runs then continue automatically.
-
-The setup workflow reads only a recent private `/start` message. It does not print
-the bot token, remove a webhook or expose the chat ID in its log.
-
-## How the pipeline works
-
-1. Build the date grid for all airports, trip lengths and two search profiles.
-2. Record calendar observations, including unknown/no-offer results.
-3. Recheck the stable date watches first, then shortlist additional candidates.
-4. Verify actual round trips, dates, currency, stop counts and both flight durations.
-5. Compare compatible verified quotes with their 30-day history.
-6. Checkpoint SQLite and pending messages before notification delivery; save delivery
-   receipts afterwards.
-
-The free adapter uses the [`fli`](https://github.com/punitarani/fli) Python client
-against an unofficial Google Flights shopping endpoint. It has no API key, paid
-fallback, proxy rotation or CAPTCHA handling. Verification is deliberately bounded,
-so this project is a practical monitor rather than an exhaustive fare inventory.
-See [the architecture notes](docs/ARCHITECTURE.md) for the data model and alert
-flow.
-
-## Local development
-
-```bash
-python -m venv .venv
-# Activate the environment for your shell
-python -m pip install --require-hashes -r requirements.txt
-python -m unittest discover -s tests -v
-python -m tracker plan
-```
-
-Run an offline synthetic demo without network access:
-
-```bash
-python -m tracker demo --as-of 2026-09-18
-python -m tracker demo --as-of 2026-09-19 --demo-discount 100
-```
-
-Useful commands for an already configured local environment:
-
-```bash
-python -m tracker report
-python -m tracker export --output history.csv
-python -m tracker discord-test
-python -m tracker telegram-test
-```
-
-Do not run a local live scan while the GitHub Actions state writer is running.
-
-## Workflows and state
-
-| Workflow | Purpose |
-|---|---|
-| `Track flights` | Scheduled search, verification, state checkpoint and notification delivery |
-| `Telegram setup` | Finds the chat ID for a recent private `/start` |
-| `Test Discord` | Sends a formatted connection test using the webhook secret |
-| `Test Telegram` | Sends one connectivity test using repository secrets |
-| `Tests` | Offline unit/integration tests; no secrets and no live flight search |
-| `Publish dashboard` | Builds an allowlisted public price snapshot and deploys GitHub Pages |
-| `Apply search settings` | Validates an owner's settings issue from the website form and stores it on `search-config` |
-
-The `tracker-state` branch contains SQLite history, latest CSV/JSON output and the
-human-readable report. It contains route and fare observations, never the webhook URL, tokens, Telegram chat ID or Discord channel/server IDs.
-Delivery receipts include message IDs and an opaque destination fingerprint. Set the repository variable `TRACKER_ENABLED=false` to pause
-scheduled tracking.
-
-The database stays small: each scan deletes date-grid and baggage observations older
-than the comparison period (at least 33 days) and verified fares older than 120 days;
-price alerts and delivery receipts are kept. After 30 saves the `tracker-state` branch
-is replaced by a single commit, so its history holds only a few days of snapshots.
-The workflow's recovery artifacts keep the last seven days.
+A few links still point to this repository (the dashboard URL in
+`tracker/notifications.py` and links in `website/*.html`); change them to your own.
+To pause tracking, set the repository variable `TRACKER_ENABLED` to `false`.
+Step-by-step operation and troubleshooting: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Costs and privacy
 
-The repository is public and uses standard GitHub-hosted Ubuntu runners. GitHub
-currently provides standard-runner runtime at no charge for public repositories;
-artifact/cache limits and any previously accrued private-repository usage are
-separate. See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
-
-The project stores no credentials in source control. Secrets are supplied only as
-GitHub Actions secrets. The public repository and `tracker-state` branch do reveal
-the configured routes, dates, observed fares and alert text. Treat that as public
-data when adapting the project.
+- **Free:** GitHub-hosted runners cost nothing for public repositories
+  ([GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)).
+  No paid API, proxy or CAPTCHA service is used.
+- **Public data:** the repository, the website and the `tracker-state` branch show the
+  tracked routes, dates and prices. Don't use it for trips you want to keep private.
+- **Secrets stay secret:** webhook URLs, bot tokens and chat IDs exist only as GitHub
+  secrets; they are never written to the repository, the state or the website.
+- **No tracking:** the website uses no cookies or analytics. Favorites and the theme
+  choice are stored only in your browser.
 
 ## Limitations
 
-- GitHub schedules are best effort and can start late or be skipped.
-- Google may rate-limit or change the unofficial endpoint.
-- A calendar estimate is never sent as a deal; only verified round trips qualify.
-- The shortlist can miss an itinerary outside the bounded verification set.
-- Search prices can expire before booking and do not include an assumed baggage
-  allowance.
+- GitHub can start scheduled runs late or skip them.
+- Google may limit or change its search; the tracker then reports an incomplete search
+  instead of guessing.
+- Only a shortlist of flights is checked in detail, so a cheaper itinerary can be
+  missed.
+- Prices are search results, not reservations, and can change before you book.
 
-For routine operation and troubleshooting, see [DEPLOYMENT.md](DEPLOYMENT.md).
-For contribution guidance, see [CONTRIBUTING.md](CONTRIBUTING.md).
+## For developers
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+python -m pip install --require-hashes -r requirements.txt
+python -m unittest discover -s tests -v
+node --test tests/site_model.test.mjs tests/search_model.test.mjs
+python -m tracker demo --as-of 2026-09-18   # offline demo with synthetic prices
+```
+
+Other commands: `python -m tracker plan`, `report`, `export --output history.csv`,
+`discord-test`, `telegram-test`. Don't run a live scan locally while the GitHub
+workflow is running.
+
+| Workflow | Purpose |
+|---|---|
+| `Track flights` | Searches, checks flights, saves the history and sends messages |
+| `Publish dashboard` | Builds the website from the saved data |
+| `Apply search settings` | Applies settings issues from the owner |
+| `Tests` | Offline tests; no secrets, no live searches |
+| `Test Discord` / `Test Telegram` / `Telegram setup` | Notification setup and tests |
+
+History lives in a SQLite database on the `tracker-state` branch. Old observations are
+cleaned up automatically, so it stays small. The search uses the open-source
+[`fli`](https://github.com/punitarani/fli) client. Details on the data model, alerts,
+multi-trip runs and the website: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
