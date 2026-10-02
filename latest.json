@@ -1,19 +1,19 @@
 {
-  "run_id": "19c015aa66be43f89c46c4151b6b95f4",
-  "started": "2026-10-01T22:45:42+00:00",
+  "run_id": "8ccabe2b81304e218ddc30a79129b0c2",
+  "started": "2026-10-02T05:49:15+00:00",
   "mode": "live",
   "trip": "main",
   "status": "ok",
-  "calendar_queries_planned": 48,
-  "calendar_queries_ok": 48,
-  "calendar_queries_skipped": 0,
-  "calendar_slots": 192,
+  "calendar_queries_planned": 40,
+  "calendar_queries_ok": 40,
+  "calendar_queries_skipped": 8,
+  "calendar_slots": 160,
   "calendar_prices": 160,
-  "calendar_unknown": 32,
+  "calendar_unknown": 0,
   "verification_searches": 18,
   "verified_quotes": 18,
-  "queued_deals": 1,
-  "http_attempts": 263,
+  "queued_deals": 0,
+  "http_attempts": 231,
   "errors": [],
   "config": {
     "origins": [
@@ -55,9 +55,9 @@
     "display_names": {},
     "id": "main"
   },
-  "queued_check_status": 0,
+  "queued_check_status": 1,
   "calendar_dates_recovered": 0,
-  "pruned_rows": 4178,
+  "pruned_rows": 164,
   "quotes": [
     {
       "origin": "AMS",
