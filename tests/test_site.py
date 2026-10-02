@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from scripts.build_site import export_data, build, ASSETS, GENERATED, render_page, date_range, euro_text
-from tracker.config import Config
+from tracker.config import Config, Settings
 from tracker.provider import Quote
 from tracker.store import Store, stamp
 
@@ -92,34 +92,73 @@ class SiteTests(unittest.TestCase):
         self.assertIsNone(data['scan'])
 
     def test_build_only_publishes_allowlisted_assets(self):
-        self.record('new',NOW,60000)
+        self.record('new',NOW,60000,quote=replace(self.q,departure='2026-10-21',return_date='2026-11-04'))
         output=self.root/'public'
         build(self.path,output)
         self.assertEqual({p.name for p in output.iterdir()},set(ASSETS)|set(GENERATED))
         with self.assertRaisesRegex(ValueError,'empty'):build(self.path,output)
         form=json.loads((output/'search-config.json').read_text(encoding='utf-8'))
-        self.assertEqual(set(form),{'version','repository','marker','config','airlines','labels','travel_classes','limits'})
+        self.assertEqual(set(form),{'version','repository','marker','primary_trip','trips','shared_fields','max_trips',
+                                    'airlines','labels','travel_classes','limits'})
+        self.assertEqual((form['version'],form['primary_trip'],form['max_trips']),(2,'main',5))
         self.assertEqual(form['airlines']['QR'],'Qatar Airways')
-        self.assertEqual(form['config']['max_stops'],None)
-        self.assertEqual(form['config']['destination'],'BKK')
+        self.assertEqual(form['trips'][0]['max_stops'],None)
+        self.assertEqual(form['trips'][0]['destination'],'BKK')
+        self.assertEqual(form['trips'][0]['id'],'main')
         self.assertNotIn('{{',(output/'index.html').read_text(encoding='utf-8'))
-        self.assertEqual(json.loads((output/'data.json').read_text(encoding='utf-8'))['places']['BKK'],
-                         {'city':'Bangkok','country':'Thailand'})
+        data=json.loads((output/'data.json').read_text(encoding='utf-8'))
+        self.assertEqual((data['version'],data['primary_trip'],len(data['trips'])),(2,'main',1))
+        trip=data['trips'][0]
+        self.assertEqual(trip['places']['BKK'],{'city':'Bangkok','country':'Thailand'})
+        self.assertEqual(len(trip['offers']),1)
+        self.assertEqual(trip['page']['city'],'Bangkok')
+        self.assertNotIn('route_origins',trip['page'])
+
+    def test_every_trip_is_published_with_the_primary_trip_first(self):
+        bangkok=Config.load(Path(__file__).resolve().parents[1]/'config.json')
+        amsterdam=replace(bangkok,id='ams',origins=('FRA',),destination='AMS',min_trip_days=3,max_trip_days=4,
+                          display_names={'AMS':'Schiphol <Amsterdam>'})
+        settings=Settings((bangkok,amsterdam),'ams')
+        path=self.root/'multi.json'
+        path.write_text(json.dumps(settings.file_dict()),encoding='utf-8')
+        q=replace(self.q,origin='FRA',departure='2026-10-21',return_date='2026-10-24')
+        self.record('bkk',NOW,60000,quote=replace(self.q,departure='2026-10-21',return_date='2026-11-04'),scope=bangkok.scope())
+        self.record('ams',NOW,9000,quote=q,scope=amsterdam.scope())
+        output=self.root/'public'
+        build(self.path,output,path,NOW)
+        data=json.loads((output/'data.json').read_text(encoding='utf-8'))
+        self.assertEqual(data['primary_trip'],'ams')
+        self.assertEqual([t['id'] for t in data['trips']],['ams','main'])
+        self.assertEqual([[o['price'] for o in t['offers']] for t in data['trips']],[[9000],[60000]])
+        self.assertEqual(data['trips'][0]['page']['city'],'Schiphol <Amsterdam>')
+        self.assertEqual(data['trips'][0]['config']['destination'],'AMS')
+        self.assertNotIn('version',data['trips'][0])
+        # The page is prerendered for the primary trip; names are escaped.
+        page=(output/'index.html').read_text(encoding='utf-8')
+        self.assertIn('<title>Schiphol &lt;Amsterdam&gt; in view · Flightwatch</title>',page)
+        self.assertIn('<span class="route-code">FRA</span>',page)
+        form=json.loads((output/'search-config.json').read_text(encoding='utf-8'))
+        self.assertEqual([t['id'] for t in form['trips']],['main','ams'])
+        self.assertEqual(form['primary_trip'],'ams')
 
     def test_page_texts_follow_the_configured_route(self):
         template=(Path(__file__).resolve().parents[1]/'website'/'index.html').read_text(encoding='utf-8')
         page=render_page(template,Config.load(Path(__file__).resolve().parents[1]/'config.json'))
-        for text in ('<title>Bangkok in view · Flightwatch</title>','YOUR PRICE RADAR FOR THAILAND',
-                     'flights from Düsseldorf, Frankfurt and Amsterdam,','<span>DUS</span><span>FRA</span><span>AMS</span>',
-                     'Bangkok<span>THAILAND / BKK</span>','20–23 Oct 2026','14–21 days','1 adult · Economy · Round trip</p>',
-                     'less than €25 above','travel times under 21 hours per direction','/ Bangkok edition'):
+        for text in ('<title>Bangkok in view · Flightwatch</title>','YOUR PRICE RADAR FOR <span data-page="region_upper">THAILAND</span>',
+                     'flights from Düsseldorf, Frankfurt and Amsterdam,',
+                     '<span class="route-code">DUS</span><span class="route-code">FRA</span><span class="route-code">AMS</span>',
+                     '<span data-page="city">Bangkok</span><span class="ticket-place" data-page="ticket_place">THAILAND / BKK</span>',
+                     '20–23 Oct 2026','14–21 days','1 adult · <span data-page="travel_class">Economy</span> · Round trip<span data-page="filter_summary"></span></p>',
+                     'less than <span data-page="realert">€25</span> above',
+                     'travel times <span data-page="duration_limit">under 21 hours</span> per direction',
+                     '/ <span data-page="city">Bangkok</span> edition'):
             self.assertIn(text,page)
         tokyo=render_page(template,Config(origins=('MUC',),destination='HND',min_trip_days=7,max_trip_days=7,
             travel_class='business',max_direction_minutes=900,good_deal_layover_eur=900,realert_improvement_eur=12.5,
             max_stops=1,airlines=('NH','JL'),display_names={'HND':'Tokyo <Haneda> & "Co"'}))
-        for text in ('Tokyo &lt;Haneda&gt; &amp; &quot;Co&quot; in view','YOUR PRICE RADAR FOR JAPAN','JAPAN / HND',
-                     'flights from Munich,','7 days','1 adult · Business · Round trip · max. 1 stop · only NH, JL</p>',
-                     'Separate targets','less than €12.50 above','travel times up to 15 h 00 min per direction'):
+        for text in ('Tokyo &lt;Haneda&gt; &amp; &quot;Co&quot; in view','>JAPAN</span>','JAPAN / HND',
+                     'flights from Munich,','7 days','Business</span> · Round trip<span data-page="filter_summary"> · max. 1 stop · only NH, JL</span></p>',
+                     'Separate targets','>€12.50</span> above','>up to 15 h 00 min</span> per direction'):
             self.assertIn(text,tokyo)
         self.assertNotIn('<Haneda>',tokyo)
         with self.assertRaisesRegex(ValueError,'placeholder'):

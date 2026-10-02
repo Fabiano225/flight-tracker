@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey} from '../website/model.mjs';
+import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -135,4 +135,51 @@ test('blocked storage and malformed contents fail gracefully without changing in
   for(const raw of ['{bad','null','{}','[1]','["untrusted"]'])
     assert.equal(readFavorites(()=>({getItem:()=>raw})).ok,false);
   assert.equal(writeFavorites(new Set(['invalid']),()=>({setItem:()=>assert.fail()})),false);
+});
+
+test('the primary trip opens unless the address names another tracked trip',()=>{
+  const site={primary_trip:'ams',trips:[{id:'ams'},{id:'main'}]};
+  assert.deepEqual(chooseTrip(site,null),{trip:site.trips[0],unknown:false});
+  assert.deepEqual(chooseTrip(site,'main'),{trip:site.trips[1],unknown:false});
+  assert.deepEqual(chooseTrip(site,'gone'),{trip:site.trips[0],unknown:true});
+  assert.equal(tripHref(site,'ams'),'./');
+  assert.equal(tripHref(site,'main'),'./?trip=main');
+  assert.equal(tripHref(site,'main','./settings.html'),'./settings.html?trip=main');
+});
+test('favorites of every trip are kept and listed only with their own trip',()=>{
+  const bkk={destination:'BKK',origins:['FRA'],departure_start:'2026-10-20',departure_end:'2026-10-23',min_trip_days:14,max_trip_days:21};
+  const ams={destination:'AMS',origins:['FRA'],departure_start:'2026-10-20',departure_end:'2026-10-23',min_trip_days:3,max_trip_days:4};
+  const toBangkok=JSON.stringify(['BKK','FRA','2026-10-20','2026-11-03','layover','base']);
+  const toAmsterdam=JSON.stringify(['AMS','FRA','2026-10-20','2026-10-23','nonstop','base']);
+  const gone=JSON.stringify(['SYD','FRA','2026-10-20','2026-11-03','layover','base']);
+  const result=pruneFavorites(new Set([toBangkok,toAmsterdam,gone]),[bkk,ams],'2026-10-01');
+  assert.deepEqual([...result.keys],[toBangkok,toAmsterdam]);
+  assert.deepEqual(result.removed,[gone]);
+  assert.deepEqual(unavailableFavorites(result.keys,[],'AMS','base',ams).map(f=>f.key),[toAmsterdam]);
+  assert.deepEqual(unavailableFavorites(result.keys,[],'BKK','base',bkk).map(f=>f.key),[toBangkok]);
+});
+test('the theme script applies the saved choice, also without browser storage',()=>{
+  const source=readFileSync(new URL('../website/theme.js',import.meta.url),'utf8');
+  const run=(stored,systemDark,storageFails=false)=>{
+    const root={dataset:{},style:{}}, ignore=()=>{};
+    const storage={getItem:()=>{if(storageFails)throw new Error('blocked');return stored;}};
+    new Function('window','document','localStorage','matchMedia',source)({matchMedia:true,addEventListener:ignore},
+      {documentElement:root,querySelectorAll:()=>[],addEventListener:ignore},storage,()=>({matches:systemDark,addEventListener:ignore}));
+    return [root.dataset.themeChoice,root.dataset.theme,root.style.colorScheme];
+  };
+  assert.deepEqual(run(null,false),['auto','light','light']);
+  assert.deepEqual(run(null,true),['auto','dark','dark']);
+  assert.deepEqual(run('light',true),['light','light','light']);
+  assert.deepEqual(run('dark',false),['dark','dark','dark']);
+  assert.deepEqual(run('purple',true),['auto','dark','dark']);
+  assert.deepEqual(run('dark',false,true),['auto','light','light']);
+});
+test('every page sets its theme before the styles load and offers all three choices',()=>{
+  for(const name of ['index.html','settings.html']) {
+    const html=readFileSync(new URL(`../website/${name}`,import.meta.url),'utf8');
+    assert.ok(html.indexOf('src="./theme.js"')>0 && html.indexOf('src="./theme.js"')<html.indexOf('styles.css'),name);
+    assert.deepEqual([...html.matchAll(/<option value="(auto|light|dark)">/g)].map(m=>m[1]),['auto','light','dark'],name);
+  }
+  // Dark rules follow the resolved theme only, so a saved choice always wins over the system.
+  assert.ok(!readFileSync(new URL('../website/styles.css',import.meta.url),'utf8').includes('prefers-color-scheme'));
 });

@@ -1,21 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {searchAirports,searchAirlines,validate,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,orderedConfig} from '../website/search-model.mjs';
+import {searchAirports,searchAirlines,validate,validateTrips,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
+  tripIds,settingsJson,settingsChanges,MAX_URL} from '../website/search-model.mjs';
 
 const table=JSON.parse(readFileSync(new URL('../tracker/airports.json',import.meta.url),'utf8'));
 const airlines=JSON.parse(readFileSync(new URL('../tracker/airlines.json',import.meta.url),'utf8')).airlines;
 const file=JSON.parse(readFileSync(new URL('../config.json',import.meta.url),'utf8'));
-const meta={config:{...file,max_stops:null,airlines:[],airlines_exclude:[],display_names:{}},airlines,
+const shared=['pending_ttl_hours','max_http_attempts_per_run','max_run_seconds','http_timeout_seconds','http_attempts','request_interval_seconds','max_parallel_requests'];
+const main={...file,max_stops:null,airlines:[],airlines_exclude:[],display_names:{},id:'main'};
+const meta={trips:[main],primary_trip:'main',shared_fields:shared,max_trips:5,airlines,
   marker:'<!-- flightwatch-search-settings -->',repository:'Fabiano225/flight-tracker',
-  labels:{destination:'Destination',origins:'Departure airports',max_stops:'Max. stops per direction'},
+  labels:{destination:'Destination',origins:'Departure airports',max_stops:'Max. stops per direction',max_http_attempts_per_run:'Request budget per run',
+    good_deal_layover_eur:'Price target, with stops (€)',primary_trip:'Shown first on the website',trips:'Trips'},
   travel_classes:{economy:'Economy',premium_economy:'Premium Economy',business:'Business',first_class:'First'},
   limits:{display_name:40,float:{drop_percent:[0.01,100],request_interval_seconds:[0,30]},
     int:{min_trip_days:[1,90],max_trip_days:[1,90],history_window_days:[1,365],max_deals_per_run:[1,6],pending_ttl_hours:[1,24],
       max_http_attempts_per_run:[1,2000],http_timeout_seconds:[1,120],http_attempts:[1,4],carry_on_bags:[0,1],checked_bags:[0,1],
       max_direction_minutes:[1,1259],max_verifications_per_run:[6,100],outbound_candidates:[1,10],max_run_seconds:[60,2400],max_parallel_requests:[1,6]}}};
 const today='2026-10-01';
-const config=changes=>({...meta.config,...changes});
+const config=changes=>({...main,...changes});
+const amsterdam=config({origins:['FRA'],destination:'AMS',min_trip_days:3,max_trip_days:4,id:'ams'});
 
 test('settings page script parses without executing DOM code',()=>{
   const source=readFileSync(new URL('../website/search.js',import.meta.url),'utf8');
@@ -49,12 +54,12 @@ test('airline search finds codes and names',()=>{
 });
 
 test('the current search is valid and its request estimate matches the tracker',()=>{
-  const result=validate(meta.config,meta,table,today);
+  const result=validate(main,meta,table,today);
   assert.deepEqual(result.errors,{});
   assert.deepEqual(result.estimate,{days:4,calendar:192,verification:72,requests:264,seconds:211});
   // Only departures from tomorrow on are searched; non-stop only skips the any-stops profile.
-  assert.equal(requestEstimate(meta.config,'2026-10-21').calendar,2*8*3*2);
-  assert.equal(requestEstimate(meta.config,'2026-10-23').calendar,0);
+  assert.equal(requestEstimate(main,'2026-10-21').calendar,2*8*3*2);
+  assert.equal(requestEstimate(main,'2026-10-23').calendar,0);
   assert.equal(requestEstimate(config({max_stops:0}),today).calendar,4*8*3);
   assert.equal(requestEstimate(config({max_stops:1}),today).calendar,4*8*3*2);
 });
@@ -99,19 +104,72 @@ test('filters are shown in plain words',()=>{
   assert.equal(shownValue('airlines',['QR','EK'],meta),'QR, EK');
 });
 
-test('issue carries the marker, every setting in file order and a readable summary',()=>{
+test('one trip: the issue carries the marker, the settings and a readable summary',()=>{
   const next=config({origins:['DUS','MUC'],destination:'HND',max_stops:1,display_names:{HND:'Tokyo Haneda'}});
-  assert.deepEqual(changedFields(meta.config,next),['origins','destination','max_stops','display_names']);
-  const body=issueBody(meta,next);
+  assert.deepEqual(changedFields(main,next),['origins','destination','max_stops','display_names']);
+  const changes=settingsChanges(meta,[{id:'main',config:next}],0);
+  assert.deepEqual(changes.map(c=>`${c.label}: ${c.before} → ${c.after}`).slice(0,3),
+    ['Departure airports: DUS, FRA, AMS → DUS, MUC','Destination: BKK → HND','Max. stops per direction: any → up to 1']);
+  const settings=settingsJson(meta,[{id:'main',config:next}],0), body=issueBody(meta,settings,changes);
   assert.ok(body.startsWith(meta.marker+'\n'));
   assert.match(body,/- Destination: BKK → HND/);
-  assert.match(body,/- Max\. stops per direction: any → up to 1/);
-  const json=body.match(/```json\n([\s\S]*?)\n```/)[1];
-  assert.deepEqual(Object.keys(JSON.parse(json)),Object.keys(meta.config));
-  assert.deepEqual(JSON.parse(json),orderedConfig(meta,next));
-  assert.equal(issueTitle(next),'Change search: DUS, MUC → HND');
-  const url=new URL(issueUrl(meta,next));
+  const json=JSON.parse(body.match(/```json\n([\s\S]*?)\n```/)[1]);
+  assert.deepEqual(json,settings);
+  assert.deepEqual(Object.keys(json),['primary_trip','trips',...shared]);
+  assert.equal(json.trips[0].id,'main');
+  assert.equal(json.trips[0].max_stops,1);
+  assert.ok(!('airlines' in json.trips[0]) && !('max_run_seconds' in json.trips[0]));  // Defaults and shared settings left out.
+  assert.equal(issueTitle(settings),'Change search: DUS, MUC → HND');
+  const url=new URL(issueUrl(meta,settings,changes));
   assert.equal(url.origin+url.pathname,'https://github.com/Fabiano225/flight-tracker/issues/new');
   assert.equal(url.searchParams.get('body'),body);
-  assert.ok(url.href.length<8000);
+  assert.ok(url.href.length<MAX_URL);
+  assert.equal(new URL(issueUrl(meta,settings,changes,false)).searchParams.get('body'),null);
+});
+
+test('new trips get ids from their destination; saved trips keep theirs',()=>{
+  const trip=(destination,id=null)=>({id,config:config({destination})});
+  assert.deepEqual(tripIds([trip('BKK','main'),trip('AMS'),trip('AMS'),trip(''),trip('SYD','syd')]),['main','ams','ams-2','trip','syd']);
+  assert.deepEqual(tripIds([trip('SYD'),trip('SYD','syd')]),['syd-2','syd']);
+});
+
+test('trips share one request budget; field errors stay with their trip',()=>{
+  const each=config({departure_end:'2026-11-25',max_trip_days:17});
+  const result=validateTrips([each,{...each,id:'second',destination:'HND'}],meta,table,today);
+  assert.ok(result.estimate.trips.every(e=>e.requests<1600));
+  assert.match(result.errors.estimate,/Too many requests: about \d+ per run for all 2 trips together/);
+  const broken=validateTrips([main,{...amsterdam,destination:'',max_run_seconds:30}],meta,table,today);
+  assert.deepEqual(Object.keys(broken.trips[0]),[]);
+  assert.deepEqual(Object.keys(broken.trips[1]),['destination']);
+  assert.deepEqual(Object.keys(broken.errors),[]);  // Shared values come from the first trip.
+  const shared=validateTrips([{...main,max_run_seconds:30},{...amsterdam,max_run_seconds:30}],meta,table,today);
+  assert.deepEqual(Object.keys(shared.errors),['max_run_seconds']);
+  assert.deepEqual(shared.trips,[{},{}]);
+  const fine=validateTrips([main,amsterdam],meta,table,today);
+  assert.equal(fine.estimate.requests,requestEstimate(main,today).requests+requestEstimate(amsterdam,today).requests);
+});
+
+test('several trips: changes name the trip and the issue holds all trips',()=>{
+  const two={...meta,trips:[main,amsterdam]};
+  const edited=[{id:'main',config:{...main,max_http_attempts_per_run:1700}},
+    {id:'ams',config:{...amsterdam,good_deal_layover_eur:90,max_http_attempts_per_run:1700}},
+    {id:null,config:{...amsterdam,id:'ams',destination:'LIS',max_http_attempts_per_run:1700}}];
+  const changes=settingsChanges(two,edited,1).map(c=>`${c.label}: ${c.before} → ${c.after}`);
+  assert.deepEqual(changes,['Request budget per run: 1600 → 1700','Shown first on the website: BKK → AMS',
+    'AMS · Price target, with stops (€): 650 → 90','Trips: — → added: FRA → LIS, 2026-10-20 to 2026-10-23, 3–4 days']);
+  assert.deepEqual(settingsChanges(two,[edited[0]],0).map(c=>c.after).slice(-1),['removed']);
+  const settings=settingsJson(two,edited,1);
+  assert.deepEqual(settings.trips.map(t=>t.id),['main','ams','lis']);
+  assert.equal(settings.primary_trip,'ams');
+  assert.equal(settings.max_http_attempts_per_run,1700);
+  assert.equal(issueTitle(settings),'Change search: 3 trips (BKK, AMS, LIS)');
+  assert.match(issueBody(two,settings,settingsChanges(two,edited,1)),/- FRA → AMS · departures 2026-10-20 to 2026-10-23 · 3–4 days · shown first/);
+});
+
+test('five full trips still fit into the issue link',()=>{
+  const names={BKK:'Bangkok Suvarnabhumi',AMS:'Amsterdam Schiphol',SYD:'Sydney Kingsford Smith',JFK:'New York JFK',HND:'Tokyo Haneda'};
+  const trips=Object.keys(names).map(code=>({id:null,config:config({destination:code,airlines_exclude:['SU','FR'],max_stops:1,
+    display_names:{[code]:names[code]},good_deal_nonstop_eur:1234.5,good_deal_layover_eur:999.99})}));
+  const settings=settingsJson(meta,trips,0), changes=settingsChanges(meta,trips,0);
+  assert.ok(issueUrl(meta,settings,changes).length<MAX_URL);
 });

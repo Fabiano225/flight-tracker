@@ -1,4 +1,4 @@
-import {filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites} from './model.mjs';
+import {filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const day = s => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'Europe/Berlin'}).format(new Date(s+'T12:00:00Z'));
@@ -7,19 +7,22 @@ const category = q => q.category==='nonstop' ? 'Non-stop · both directions' : '
 const hours = m => `${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')}`;
 const node = (tag, text, cls) => {const n=document.createElement(tag); if(text!==undefined)n.textContent=text; if(cls)n.className=cls; return n;};
 const svgNode = (tag, attrs, text) => {const n=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));if(text!==undefined)n.textContent=text;return n;};
-let data, rootData, selectedId;
+let site, data, rootData, selectedId, tripId, tripNotice='';
 let selectedAirlines=new Set(),airlineMode='include';
 const savedFavorites=readFavorites();
 let favorites=savedFavorites.keys, favoritesStored=savedFavorites.ok, prunedNotice='';
 const berlinToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin'}).format(new Date());
 const airlineNames=()=>rootData?.airlines||{};
+const wantedTrip=()=>new URLSearchParams(location.search).get('trip');
 
 function showFavoritesStatus() {
   const profile=$('baggage').value;
   const available=data?favoriteOffers(data.offers,favorites,data.config.destination,profile).length:0;
-  $('favorites-count').textContent=`${favorites.size} saved · ${available} available with this baggage choice`;
+  // With several trips, count the favorites of the trip shown.
+  const saved=rootData?[...favorites].map(parseFavorite).filter(fav=>fav && belongsToTrip(fav,rootData.config)).length:favorites.size;
+  $('favorites-count').textContent=`${saved} saved · ${available} available with this baggage choice`;
   $('favorites-status').textContent=[favoritesStored?'':'Browser storage is unavailable or the saved selection is damaged. Changes apply only to this open tab for now.',prunedNotice].filter(Boolean).join(' ');
-  const missing=data?unavailableFavorites(favorites,data.offers,data.config.destination,profile):[], box=$('favorites-missing');
+  const missing=data?unavailableFavorites(favorites,data.offers,data.config.destination,profile,rootData.config):[], box=$('favorites-missing');
   box.replaceChildren();box.hidden=!missing.length;
   if(!missing.length)return;
   const list=node('ul');
@@ -36,8 +39,8 @@ function showFavoritesStatus() {
 }
 
 function pruneExpiredFavorites() {
-  if(!rootData)return;
-  const pruned=pruneFavorites(favorites,rootData.config,berlinToday());
+  if(!site)return;
+  const pruned=pruneFavorites(favorites,site.trips.map(trip=>trip.config),berlinToday());
   if(!pruned.removed.length)return;
   favorites=pruned.keys;favoritesStored=writeFavorites(favorites);
   prunedNotice=`${pruned.removed.length===1?'1 favorite was':pruned.removed.length+' favorites were'} removed: the travel date, airport or trip length is no longer part of the search.`;
@@ -103,7 +106,7 @@ function showStatus() {
   const label=!scan?'No search data yet':scan.status==='expired'?'Travel window ended':fresh.stale?'Data not current':fresh.partial?'Search partly incomplete':'Latest search completed';
   $('status-label').replaceChildren(node('span','', 'dot'),node('span',label));
   $('last-check').textContent=scan?`Checked: ${when(scan.at)} · Berlin time`:'Waiting for the first search run';
-  const messages=[];
+  const messages=tripNotice?[tripNotice]:[];
   if($('baggage').value!=='base') {
     if(!scan)messages.push('There is no search data for this baggage choice yet. No base price is used as a baggage price.');
     else if(data.base_at!==rootData.offers_as_of)messages.push('The baggage check belongs to a different base data set, so no direct price difference is shown.');
@@ -208,15 +211,53 @@ function renderChart() {
   [0,...(times.length>1?[times.length-1]:[])].forEach((i,j)=>svg.append(svgNode('text',{x:x(times[i]),y:height-8,'text-anchor':times.length===1?'middle':j?'end':'start',class:'chart-label'},when(points[i].at))));
   chart.append(svg);
 }
+// Texts that name the trip; the page arrives prerendered for the primary trip.
+function applyPage(trip) {
+  const page=trip.page;
+  for(const element of document.querySelectorAll('[data-page]')){const value=page[element.dataset.page];if(typeof value==='string')element.textContent=value;}
+  $('route-origins').replaceChildren(...trip.config.origins.map(code=>node('span',code,'route-code')));
+  document.title=`${page.city} in view · Flightwatch`;
+  document.querySelector('meta[name="description"]')?.setAttribute('content',`Your price radar for ${page.city}: flights from ${page.origin_cities}, with price history and a transparent search status.`);
+  $('settings-link').href=tripHref(site,trip.id,'./settings.html');
+}
+function renderSwitcher() {
+  const box=$('trip-switcher');box.replaceChildren();box.hidden=site.trips.length<2;
+  for(const trip of box.hidden?[]:site.trips) {
+    const link=node('a',undefined,'trip-tab');link.href=tripHref(site,trip.id);
+    link.append(node('strong',trip.page.city),node('small',`${trip.page.code} · ${trip.page.trip_dates}`));
+    if(trip.id===tripId)link.setAttribute('aria-current','page');
+    link.addEventListener('click',event=>{
+      if(event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)return;
+      event.preventDefault();
+      if(trip.id===tripId)return;
+      history.pushState(null,'',link.href);showTrip(trip.id);
+    });
+    box.append(link);
+  }
+}
+function showTrip(wanted) {
+  const {trip,unknown}=chooseTrip(site,wanted), changed=trip.id!==tripId;
+  tripId=trip.id;tripNotice=unknown?`The trip “${wanted}” is not tracked any more, so ${trip.page.city} is shown.`:'';
+  rootData={...trip,airlines:site.airlines,workflow_conclusion:site.workflow_conclusion};
+  if(changed) {
+    // Filters belong to one trip: airports, days and airlines differ between trips.
+    $('filters').reset();selectedAirlines.clear();airlineMode='include';selectedId=null;
+  }
+  applyPage(trip);renderSwitcher();pruneExpiredFavorites();
+  fillSelect('origin',trip.config.origins,v=>trip.places?.[v]?.city&&trip.places[v].city!==v?`${trip.places[v].city} (${v})`:v);
+  fillSelect('days',Array.from({length:trip.config.max_trip_days-trip.config.min_trip_days+1},(_,i)=>trip.config.min_trip_days+i),v=>`${v} days`);
+  activateBaggage();
+  document.documentElement.removeAttribute('data-trip-loading');
+}
 async function load() {
   $('reload').disabled=true;
   try {
     const response=await fetch('./data.json',{cache:'no-store'});if(!response.ok)throw new Error('Fetch failed');
-    const value=await response.json();if(value.version!==1||!Array.isArray(value.offers)||!value.config||!value.histories)throw new Error('Invalid data');
-    rootData=value;pruneExpiredFavorites();fillSelect('origin',value.config.origins,v=>value.places?.[v]?.city&&value.places[v].city!==v?`${value.places[v].city} (${v})`:v);
-    fillSelect('days',Array.from({length:value.config.max_trip_days-value.config.min_trip_days+1},(_,i)=>value.config.min_trip_days+i),v=>`${v} days`);
-    activateBaggage();
+    const value=await response.json();
+    if(value.version!==2 || !Array.isArray(value.trips) || !value.trips.length || !value.trips.every(t=>t.id && t.page && t.config && Array.isArray(t.offers) && t.histories))throw new Error('Invalid data');
+    site=value;showTrip(wantedTrip());
   } catch {
+    document.documentElement.removeAttribute('data-trip-loading');
     $('status-label').textContent='Loading data failed';$('warning').hidden=false;
     $('warning').textContent='The price data could not be loaded. Please refresh later or check the search runs on GitHub. Prices already shown may be out of date.';
     if(!data){$('results-count').textContent='No data loaded';$('empty').hidden=false;$('empty').textContent='No sample prices are shown.';}
@@ -239,6 +280,7 @@ $('airline-clear').addEventListener('click',()=>{
 $('filters').addEventListener('reset',()=>{setTimeout(()=>{selectedAirlines.clear();airlineMode='include';renderAirlineOptions();if(data)renderOffers();},0);});
 $('history-select').addEventListener('change',event=>{selectedId=event.target.value;renderChart();});
 $('reload').addEventListener('click',load);
+window.addEventListener('popstate',()=>{if(site)showTrip(wantedTrip());});
 $('baggage').addEventListener('change',()=>{if(rootData){selectedId=null;activateBaggage();}});
 window.addEventListener('storage',event=>{
   if(event.key!==favoritesStorageKey && event.key!==null)return;

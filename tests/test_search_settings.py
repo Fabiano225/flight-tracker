@@ -246,6 +246,17 @@ class BranchTests(unittest.TestCase):
         settings.use(self.config)
         self.assertEqual(Settings.load(self.config).primary.destination, 'AMS')
 
+    def test_the_form_s_single_trip_is_stored_in_the_flat_layout(self):
+        values = trips_values()
+        values['trips'] = values['trips'][:1]
+        values['trips'][0]['good_deal_layover_eur'] = 600
+        outcome, reply = settings.apply(body(values), self.config, TODAY)
+        self.assertEqual(outcome, 'applied')
+        self.assertIn('| Price target, with stops (€) | 650 | 600 |', reply)
+        settings.use(self.config)
+        stored = json.loads(self.config.read_text(encoding='utf-8'))
+        self.assertEqual(stored, {**json.loads(self.original), 'good_deal_layover_eur': 600})
+
     def test_rejected_settings_store_nothing(self):
         outcome, reply = settings.apply(body({**self.values, 'origins': ['XQZ']}), self.config, TODAY)
         self.assertEqual(outcome, 'rejected')
@@ -267,19 +278,27 @@ class WebsiteFormTests(unittest.TestCase):
         return json.loads(result.stdout)
 
     def test_form_issue_is_accepted_and_estimates_match(self):
-        meta = {'config': {**Config.load(ROOT / 'config.json').file_dict(), 'display_names': {}},
-                'labels': settings.LABELS, 'travel_classes': settings.CLASSES, 'marker': settings.MARKER,
-                'repository': 'Fabiano225/flight-tracker'}
-        values = {**meta['config'], 'origins': ['DUS', 'MUC'], 'destination': 'HND', 'display_names': {'HND': 'Tokio'}}
-        script = ("import {issueBody,requestEstimate} from './website/search-model.mjs';"
-                  f"const meta={json.dumps(meta)}, values={json.dumps(values)};"
-                  "console.log(JSON.stringify({body:issueBody(meta,values),"
-                  "estimate:requestEstimate(values,'2026-10-21')}));")
+        from scripts.build_site import form_data
+        meta = form_data(Settings.load(ROOT / 'config.json'))
+        main = meta['trips'][0]
+        trips = [{'id': 'main', 'config': {**main, 'origins': ['DUS', 'MUC'], 'destination': 'HND',
+                                            'display_names': {'HND': 'Tokio'}}},
+                 {'id': None, 'config': {**main, 'origins': ['FRA'], 'destination': 'AMS', 'min_trip_days': 3,
+                                         'max_trip_days': 4, 'max_stops': 0, 'airlines_exclude': ['FR']}}]
+        script = ("import {issueBody,settingsJson,settingsChanges,requestEstimate} from './website/search-model.mjs';"
+                  f"const meta={json.dumps(meta)}, trips={json.dumps(trips)};"
+                  "const settings=settingsJson(meta,trips,1);"
+                  "console.log(JSON.stringify({body:issueBody(meta,settings,settingsChanges(meta,trips,1)),"
+                  "estimates:trips.map(t=>requestEstimate(t.config,'2026-10-21'))}));")
         result = self.node(script)
-        config = settings.parse_issue(result['body'])
-        self.assertEqual(config, Config.from_dict(values))
-        expected = request_estimate(config, date(2026, 10, 21))
-        self.assertEqual({k: result['estimate'][k] for k in expected}, expected)
+        parsed = settings.parse_issue(result['body'])
+        self.assertEqual([t.id for t in parsed.trips], ['main', 'ams'])
+        self.assertEqual(parsed.primary_trip, 'ams')
+        self.assertEqual(parsed.trip('main'), Config.from_dict(trips[0]['config']))
+        self.assertEqual(parsed.trip('ams'), Config.from_dict({**trips[1]['config'], 'id': 'ams'}))
+        for trip, estimate in zip(parsed.trips, result['estimates']):
+            expected = request_estimate(trip, date(2026, 10, 21))
+            self.assertEqual({k: estimate[k] for k in expected}, expected)
 
 
 if __name__ == '__main__':

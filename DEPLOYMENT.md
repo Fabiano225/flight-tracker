@@ -151,7 +151,9 @@ branches, not workflow artifacts or pull-request code.
 
 `scripts/build_site.py` exports only configuration, scan counts and verified fare
 history. It fills the route texts in `index.html` (destination, country, origins,
-dates, cabin, thresholds) from the active configuration. The deployment artifact
+dates, cabin, thresholds) from the primary trip; `data.json` holds every trip with its
+own texts, offers and histories, and the page switches between them in the browser
+(`?trip=<id>`). The deployment artifact
 contains static assets, `data.json`, `search-config.json` (the public settings for the
 form) and `airports.json` only: no SQLite database, `.git`, notification messages,
 message IDs, channel/chat IDs or tokens. The UI does not call a private API, store
@@ -184,8 +186,9 @@ apply` validates every setting (supported airports and airlines, ranges, a depar
 day from tomorrow on, the request and time budget), then commits `config.json` to the
 `search-config` branch with a normal fast-forward push. With several trips their
 requests are added up against the shared budget, and a trip whose departure window has
-ended must be given new dates or removed. An issue with a single trip's settings (the
-current form) replaces only the primary trip. It replies with the changes,
+ended must be given new dates or removed. The form sends all trips in one issue; an
+issue with a single trip's settings (as older versions of the form sent) replaces only
+the primary trip. It replies with the changes,
 closes the issue and dispatches **Publish dashboard** and **Track flights**. Rejected
 settings are answered and closed as not planned; the running search is unchanged.
 Settings issues from anyone else are closed as not planned by a separate job that has

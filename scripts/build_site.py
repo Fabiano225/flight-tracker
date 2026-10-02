@@ -14,7 +14,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tracker.config import Settings, INT_LIMITS, FLOAT_LIMITS, MAX_DISPLAY_NAME
+from tracker.config import Settings, INT_LIMITS, FLOAT_LIMITS, MAX_DISPLAY_NAME, MAX_TRIPS, SHARED_FIELDS
 from tracker.places import AIRPORTS, airlines, places
 from tracker.alerts import search_link
 from tracker.provider import Quote
@@ -22,7 +22,7 @@ from tracker.baggage import PROFILES
 from tracker.fare_baggage import covers, public_baggage
 from scripts.search_settings import CLASSES, LABELS, MARKER
 
-ASSETS = ('index.html', 'styles.css', 'app.js', 'model.mjs', 'favicon.svg', '.nojekyll',
+ASSETS = ('index.html', 'styles.css', 'app.js', 'model.mjs', 'favicon.svg', '.nojekyll', 'trip.js', 'theme.js',
           'settings.html', 'suche.html', 'search.js', 'search-model.mjs')
 GENERATED = ('data.json', 'search-config.json', 'airports.json')
 MONTHS = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
@@ -59,7 +59,7 @@ def page_values(config):
         code=config.destination, city=city, region_upper=(country or city).upper(),
         ticket_place=f'{country.upper()} / {config.destination}' if country else config.destination,
         origin_cities=', '.join(cities[:-1]) + ' and ' + cities[-1] if len(cities) > 1 else cities[0],
-        route_origins=''.join(f'<span>{html.escape(code)}</span>' for code in config.origins),
+        route_origins=''.join(f'<span class="route-code">{html.escape(code)}</span>' for code in config.origins),
         trip_dates=date_range(config.departure_start, config.departure_end), trip_days=days,
         travel_class=CLASSES[config.travel_class],
         budget=(euro_text(config.good_deal_nonstop_eur) if config.good_deal_nonstop_eur == config.good_deal_layover_eur
@@ -99,11 +99,11 @@ def repository():
     return value if re.fullmatch(r'[A-Za-z0-9-]+/[A-Za-z0-9._-]+', value) else 'Fabiano225/flight-tracker'
 
 
-def form_data(config):
+def form_data(settings):
     # Everything here is already public in config.json; no state or credentials.
-    return dict(version=1, repository=repository(), marker=MARKER,
-                config=config.form_dict(), airlines=airlines(),
-                labels=LABELS, travel_classes=CLASSES,
+    return dict(version=2, repository=repository(), marker=MARKER, primary_trip=settings.primary_trip,
+                trips=[trip.form_dict() for trip in settings.trips], shared_fields=list(SHARED_FIELDS),
+                max_trips=MAX_TRIPS, airlines=airlines(), labels=LABELS, travel_classes=CLASSES,
                 limits=dict(int=INT_LIMITS, float=FLOAT_LIMITS, display_name=MAX_DISPLAY_NAME))
 
 
@@ -209,20 +209,31 @@ def export_data(db_path, config, now=None, variant=None):
         db.close()
 
 
-def build(db_path, output, config_path=ROOT / 'config.json'):
+def trip_data(db_path, config, now):
+    """One trip's offers, histories, baggage views and page texts for the dashboard."""
+    data = export_data(db_path, config, now)
+    data['baggage_profiles'] = {variant: export_data(db_path, config, now, variant) for variant in PROFILES}
+    for view in (data, *data['baggage_profiles'].values()):
+        del view['version'], view['generated_at']
+    # Plain texts only; the browser builds the route markup itself.
+    page = {key: value for key, value in page_values(config).items() if key != 'route_origins'}
+    return dict(id=config.id, page=page, places=places(config), **data)
+
+
+def build(db_path, output, config_path=ROOT / 'config.json', now=None):
     output = Path(output).resolve()
     # Never copy a repository tree or runtime state into a public artifact.
     if output.exists() and any(output.iterdir()):
         raise ValueError('Build output must be empty; use a fresh output directory')
-    # The dashboard shows the primary trip.
-    config = Settings.load(config_path).primary
-    data = export_data(db_path, config)
-    data['baggage_profiles'] = {variant: export_data(db_path,config,variant=variant) for variant in PROFILES}
-    data['places'] = places(config)
+    settings = Settings.load(config_path)
+    now = now or datetime.now(timezone.utc)
+    # The primary trip comes first; the page opens with it unless a link names another trip.
+    trips = [trip_data(db_path, config, now) for config in settings.ordered()]
+    data = dict(version=2, generated_at=now.isoformat(), primary_trip=settings.primary_trip, trips=trips)
     # Names for the airlines in the published offers, for the dashboard's airline filter.
     names = airlines()
-    codes = {code.strip() for view in (data, *data['baggage_profiles'].values()) for offer in view['offers']
-             for code in str(offer.get('airlines') or '').split(',') if code.strip()}
+    codes = {code.strip() for trip in trips for view in (trip, *trip['baggage_profiles'].values())
+             for offer in view['offers'] for code in str(offer.get('airlines') or '').split(',') if code.strip()}
     data['airlines'] = {code: names[code] for code in sorted(codes) if code in names}
     conclusion = os.environ.get('PUBLIC_TRACK_RUN_CONCLUSION', '')
     if conclusion in ('success', 'failure', 'cancelled', 'timed_out', 'skipped', 'action_required'):
@@ -231,11 +242,13 @@ def build(db_path, output, config_path=ROOT / 'config.json'):
     for name in ASSETS:
         shutil.copyfile(ROOT / 'website' / name, output / name)
     template = (ROOT / 'website' / 'index.html').read_text(encoding='utf-8')
-    (output / 'index.html').write_text(render_page(template, config), encoding='utf-8')
+    # Without JavaScript, and before the data loads, the page shows the primary trip.
+    (output / 'index.html').write_text(render_page(template, settings.primary), encoding='utf-8')
     (output / 'data.json').write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-    (output / 'search-config.json').write_text(json.dumps(form_data(config), ensure_ascii=False), encoding='utf-8')
+    (output / 'search-config.json').write_text(json.dumps(form_data(settings), ensure_ascii=False), encoding='utf-8')
     shutil.copyfile(AIRPORTS, output / 'airports.json')
-    print(f"Built dashboard: {len(data['offers'])} verified offers; {len(data['histories'])} history series")
+    print(f"Built dashboard: {len(trips)} trip(s); {sum(len(t['offers']) for t in trips)} verified offers; "
+          f"{sum(len(t['histories']) for t in trips)} history series")
 
 
 if __name__ == '__main__':
