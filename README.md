@@ -85,6 +85,9 @@ code (German names such as "München" work too).
 - **Several trips:** use **+ Add trip** for up to five trips, e.g. Bangkok in October
   and a weekend in Amsterdam. Each trip has its own price targets, alerts and history;
   choose which one the website shows first.
+- **Suggested prices:** a new trip gets a price target and alert amounts estimated from
+  the flight distance and cabin, filled in until you change them. Once a trip has
+  checked prices, the form suggests values based on them; one click applies them.
 - **Request estimate:** the form shows how many searches a run needs. All trips share
   one budget, so very wide date ranges or many trips are rejected before anything is
   sent.
@@ -119,17 +122,34 @@ If both are set up, Discord is used. The repository variable `NOTIFICATION_CHANN
 
 ## Run your own copy
 
-1. **Fork** this repository (it must stay public for free GitHub Actions minutes).
-2. Under **Settings → Pages**, set the source to **GitHub Actions**.
-3. Under **Actions**, enable workflows, then run **Track flights** once.
-4. Set up Discord or Telegram as above.
-5. Open your dashboard at `https://<your-user>.github.io/<repo>/` and set your trip
-   under **Change search**.
+You need a free GitHub account; no programming and no code changes. All links,
+the website address and the settings form adjust to your copy automatically.
 
-A few links still point to this repository (the dashboard URL in
-`tracker/notifications.py` and links in `website/*.html`); change them to your own.
-To pause tracking, set the repository variable `TRACKER_ENABLED` to `false`.
-Step-by-step operation and troubleshooting: [DEPLOYMENT.md](DEPLOYMENT.md).
+1. **Fork** this repository (button at the top right on GitHub). Keep "Copy the `main`
+   branch only" ticked, so you start with your own empty price history.
+2. In your copy, open the **Actions** tab and click **"I understand my workflows, go
+   ahead and enable them"**.
+3. **Settings → Pages:** under *Build and deployment*, choose **GitHub Actions** as the
+   source.
+4. **Settings → General → Features:** tick **Issues** (the settings form uses them).
+5. **Actions → Check setup → Run workflow.** The run shows a checklist of what is
+   done and what is still missing, with links to the right settings pages.
+6. **Actions → Track flights → Run workflow** for the first search. Your website is
+   at `https://<your-user-name>.github.io/<repository-name>/`.
+7. Open **Change search** on your website and set your own trip. Optional: set up
+   Discord or Telegram (above) for price alerts; without them only the website
+   updates.
+
+Good to know:
+
+- Searches then run by themselves four times a day. To pause them, add the
+  repository variable `TRACKER_ENABLED` with the value `false`
+  (**Settings → Secrets and variables → Actions → Variables**).
+- Using your own domain for GitHub Pages? Add the variable `DASHBOARD_URL` (for example
+  `https://flights.example.org/`) so links in messages point there.
+- Only you, the owner of the copy, can change its search through the form.
+
+More on operation and troubleshooting: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Costs and privacy
 
@@ -172,6 +192,7 @@ workflow is running.
 | `Publish dashboard` | Builds the website from the saved data |
 | `Apply search settings` | Applies settings issues from the owner |
 | `Tests` | Offline tests; no secrets, no live searches |
+| `Check setup` | Checklist of what a copy still needs |
 | `Test Discord` / `Test Telegram` / `Telegram setup` | Notification setup and tests |
 
 History lives in a SQLite database on the `tracker-state` branch. Old observations are

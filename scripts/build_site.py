@@ -9,6 +9,7 @@ import os
 import re
 from pathlib import Path
 import shutil
+import tempfile
 import sqlite3
 import sys
 
@@ -18,9 +19,11 @@ from tracker.config import Settings, INT_LIMITS, FLOAT_LIMITS, MAX_DISPLAY_NAME,
 from tracker.places import AIRPORTS, airlines, places
 from tracker.alerts import search_link
 from tracker.provider import Quote
+from tracker.store import Store
 from tracker.baggage import PROFILES
 from tracker.fare_baggage import covers, public_baggage
 from scripts.search_settings import CLASSES, LABELS, MARKER
+from tracker.project import repository, repository_url
 
 ASSETS = ('index.html', 'styles.css', 'app.js', 'model.mjs', 'favicon.svg', '.nojekyll', 'trip.js', 'theme.js',
           'settings.html', 'suche.html', 'search.js', 'search-model.mjs')
@@ -82,9 +85,11 @@ def filter_summary(config):
     return ''.join(' · ' + part for part in parts)
 
 
-def render_page(template, config):
-    """Fill {{name}} placeholders; every value except prebuilt markup is HTML-escaped."""
-    values = page_values(config)
+def render_page(template, config=None):
+    """Fill {{name}} placeholders; every value except prebuilt markup is HTML-escaped.
+    Without a trip only the repository link is filled (settings page)."""
+    # Links point to the repository the site is built from, so a fork links to itself.
+    values = {**(page_values(config) if config else {}), 'repo_url': repository_url()}
 
     def fill(match):
         if match.group(1) not in values:
@@ -92,11 +97,6 @@ def render_page(template, config):
         value = values[match.group(1)]
         return value if match.group(1) in RAW_PLACEHOLDERS else html.escape(value)
     return re.sub(r'\{\{(\w+)\}\}', fill, template)
-
-
-def repository():
-    value = os.environ.get('GITHUB_REPOSITORY', '')
-    return value if re.fullmatch(r'[A-Za-z0-9-]+/[A-Za-z0-9._-]+', value) else 'Fabiano225/flight-tracker'
 
 
 def form_data(settings):
@@ -220,7 +220,16 @@ def trip_data(db_path, config, now):
     return dict(id=config.id, page=page, places=places(config), **data)
 
 
-def build(db_path, output, config_path=ROOT / 'config.json', now=None):
+def build(db_path, output, config_path=ROOT / 'config.json', now=None, empty=False):
+    if not empty:
+        return publish(db_path, output, config_path, now)
+    # A new copy has no state before its first search run: publish an empty dashboard.
+    with tempfile.TemporaryDirectory() as empty:
+        Store(empty, 'live').close()
+        return publish(Path(empty) / 'history.sqlite3', output, config_path, now)
+
+
+def publish(db_path, output, config_path, now):
     output = Path(output).resolve()
     # Never copy a repository tree or runtime state into a public artifact.
     if output.exists() and any(output.iterdir()):
@@ -244,6 +253,8 @@ def build(db_path, output, config_path=ROOT / 'config.json', now=None):
     template = (ROOT / 'website' / 'index.html').read_text(encoding='utf-8')
     # Without JavaScript, and before the data loads, the page shows the primary trip.
     (output / 'index.html').write_text(render_page(template, settings.primary), encoding='utf-8')
+    settings_page = (ROOT / 'website' / 'settings.html').read_text(encoding='utf-8')
+    (output / 'settings.html').write_text(render_page(settings_page), encoding='utf-8')
     (output / 'data.json').write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     (output / 'search-config.json').write_text(json.dumps(form_data(settings), ensure_ascii=False), encoding='utf-8')
     shutil.copyfile(AIRPORTS, output / 'airports.json')
@@ -256,5 +267,6 @@ if __name__ == '__main__':
     parser.add_argument('--state', default='state/history.sqlite3')
     parser.add_argument('--output', default='_site')
     parser.add_argument('--config', default=str(ROOT / 'config.json'))
+    parser.add_argument('--empty', action='store_true', help='no search has run yet: publish without prices')
     args = parser.parse_args()
-    build(args.state, args.output, args.config)
+    build(args.state, args.output, args.config, empty=args.empty)

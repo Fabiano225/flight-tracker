@@ -1,0 +1,30 @@
+name: Check setup
+# A checklist of what this copy of the tracker still needs: website, settings form,
+# first search, trips and notifications. Reads settings only; changes nothing.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Load search settings
+        run: python scripts/search_settings.py use
+      - name: Check setup
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Only whether each secret is set; their values never reach this job.
+          HAS_DISCORD: ${{ secrets.DISCORD_WEBHOOK_URL != '' }}
+          HAS_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
+          HAS_TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT_ID != '' }}
+          NOTIFICATION_CHANNEL: ${{ vars.NOTIFICATION_CHANNEL }}
+          TRACKER_ENABLED: ${{ vars.TRACKER_ENABLED }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+        run: python scripts/setup_check.py

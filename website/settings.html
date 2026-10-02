@@ -16,7 +16,7 @@
   <a class="skip" href="#settings">Skip to the form</a>
   <header class="header wrap">
     <a class="brand" href="./" aria-label="Flightwatch home"><span class="brand-mark">↗</span>flightwatch<span class="brand-tag">SETTINGS</span></a>
-    <nav aria-label="Main navigation"><a href="./#offers">Flights</a><a href="./#history">Price history</a><a href="./settings.html" aria-current="page">Change search</a><a href="https://github.com/Fabiano225/flight-tracker" target="_blank" rel="noopener noreferrer">GitHub ↗</a><label class="theme-switch" title="Color theme"><span class="theme-option" data-for="auto" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg><span class="theme-word">Auto</span></span><span class="theme-option" data-for="light" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.05 3.05l1.13 1.13M11.82 11.82l1.13 1.13M3.05 12.95l1.13-1.13M11.82 4.18l1.13-1.13"/></svg><span class="theme-word">Light</span></span><span class="theme-option" data-for="dark" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M13.6 10.1A6 6 0 0 1 5.9 2.4a6 6 0 1 0 7.7 7.7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="theme-word">Dark</span></span><select class="theme-select" aria-label="Color theme"><option value="auto">Automatic (system)</option><option value="light">Light</option><option value="dark">Dark</option></select></label></nav>
+    <nav aria-label="Main navigation"><a href="./#offers">Flights</a><a href="./#history">Price history</a><a href="./settings.html" aria-current="page">Change search</a><a href="{{repo_url}}" target="_blank" rel="noopener noreferrer">GitHub ↗</a><label class="theme-switch" title="Color theme"><span class="theme-option" data-for="auto" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg><span class="theme-word">Auto</span></span><span class="theme-option" data-for="light" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.05 3.05l1.13 1.13M11.82 11.82l1.13 1.13M3.05 12.95l1.13-1.13M11.82 4.18l1.13-1.13"/></svg><span class="theme-word">Light</span></span><span class="theme-option" data-for="dark" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M13.6 10.1A6 6 0 0 1 5.9 2.4a6 6 0 1 0 7.7 7.7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="theme-word">Dark</span></span><select class="theme-select" aria-label="Color theme"><option value="auto">Automatic (system)</option><option value="light">Light</option><option value="dark">Dark</option></select></label></nav>
   </header>
   <main class="wrap">
     <section class="settings-intro" aria-labelledby="settings-title">
@@ -26,7 +26,7 @@
       <div id="current-search" class="current-search" role="status">Loading the current search …</div>
     </section>
     <div id="load-error" class="warning" role="alert" hidden></div>
-    <noscript><p class="warning">The form needs JavaScript. Alternatively, edit <a href="https://github.com/Fabiano225/flight-tracker/blob/main/config.json">config.json on GitHub</a>.</p></noscript>
+    <noscript><p class="warning">The form needs JavaScript. Alternatively, edit <a href="{{repo_url}}/blob/main/config.json">config.json on GitHub</a>.</p></noscript>
 
     <form id="settings" class="settings-form" novalidate hidden>
       <section class="settings-card trips-card" aria-labelledby="trips-title">
@@ -186,6 +186,6 @@
       </section>
     </form>
   </main>
-  <footer class="wrap"><span class="footer-brand">flightwatch <span>/ settings</span></span><p>Changes are applied through a GitHub issue, only from the repository owner.<br>The current search keeps running until a new one is applied.</p><a href="https://github.com/Fabiano225/flight-tracker#search-settings-website">How it works ↗</a></footer>
+  <footer class="wrap"><span class="footer-brand">flightwatch <span>/ settings</span></span><p>Changes are applied through a GitHub issue, only from the repository owner.<br>The current search keeps running until a new one is applied.</p><a href="{{repo_url}}#search-settings-website">How it works ↗</a></footer>
 </body>
 </html>
