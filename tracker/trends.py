@@ -116,7 +116,7 @@ def block(quote, history, prior, config):
                      f"{history['count']} checks since {history['first_at'][:10]}.")
     else:
         lines.append("No price history for these dates yet.")
-    threshold = config.threshold(quote.category)
+    threshold = config.threshold(quote.category, quote.origin)
     if quote.price <= threshold:
         if history["low"] is not None and quote.price - history["low"] >= cents(config.realert_improvement_eur):
             lines.append(f"WITHIN BUDGET, but {eur(quote.price - history['low'])} above the previous low.")
@@ -164,7 +164,7 @@ def queue_trends(store, config, scope, run_id, verified, now, demo=False):
         history = context(store, scope, selected, now, config, run_id)
         same_dates = prior is not None and (prior["departure"], prior["return_date"]) == (
             selected.departure, selected.return_date)
-        threshold = config.threshold(category)
+        threshold = config.threshold(category, origin)
         # Small changes accumulate against the last notification, not every run.
         changed = prior is None or (
             same_dates and (abs(selected.price - prior["price"]) >= cents(config.realert_improvement_eur)

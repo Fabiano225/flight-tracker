@@ -183,3 +183,10 @@ test('every page sets its theme before the styles load and offers all three choi
   // Dark rules follow the resolved theme only, so a saved choice always wins over the system.
   assert.ok(!readFileSync(new URL('../website/styles.css',import.meta.url),'utf8').includes('prefers-color-scheme'));
 });
+test('each flight is judged by the price target of its departure airport',()=>{
+  const targets={...config,good_deal_nonstop_eur:650,origin_targets:{DUS:{layover:700}}};
+  assert.equal(comparison({...offer,origin:'DUS',price:68000},[],targets).verdict,'Check to buy');
+  assert.equal(comparison({...offer,origin:'DUS',price:68000},[],targets).threshold,70000);
+  assert.equal(comparison({...offer,origin:'FRA',price:68000},[],targets).verdict,'Watch');
+  assert.equal(comparison({...offer,origin:'DUS',category:'nonstop',price:68000},[],targets).threshold,65000);
+});

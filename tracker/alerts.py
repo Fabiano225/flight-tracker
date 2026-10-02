@@ -9,9 +9,9 @@ def is_drop(price, baseline, config):
         Decimal(baseline - price) * 100 >= Decimal(baseline) * Decimal(str(config.drop_percent)))
 
 
-def reason_for(price, baseline, category, config):
+def reason_for(price, baseline, category, config, origin=None):
     reasons = []
-    if price <= config.threshold(category):
+    if price <= config.threshold(category, origin):
         reasons.append("good deal")
     if is_drop(price, baseline, config):
         reasons.append(f"drop from EUR {baseline / 100:.2f} ({(baseline-price)/baseline:.0%})")

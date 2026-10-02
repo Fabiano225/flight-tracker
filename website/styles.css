@@ -171,6 +171,12 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 /* Settings: suggested price targets. */
 .price-suggestion{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin:0 0 18px;padding:12px 14px;border:1px dashed #b9c9ad;border-radius:10px;background:#f4f7ec;font-size:12px;line-height:1.6}
 .price-suggestion p{margin:0;flex:1 1 320px}
+.airport-targets{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.airport-targets .footnote{margin:4px 0 12px}
+.target-rows{display:grid;gap:10px}
+.target-row{display:grid;grid-template-columns:minmax(140px,1fr) 1fr 1fr;gap:12px 20px;align-items:end}
+.target-row>strong{font-size:12px;padding-bottom:12px}
+@media(max-width:480px){.target-row{grid-template-columns:1fr 1fr}.target-row>strong{grid-column:1/-1;padding-bottom:0}}
 /* Theme selector in the header: a native select over the current choice's icon and name. */
 .header nav{align-items:center}
 .theme-switch{position:relative;display:inline-flex;align-items:center;min-height:32px;padding:0 11px;border:1px solid var(--line);border-radius:999px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap}

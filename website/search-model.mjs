@@ -112,6 +112,11 @@ export function tripErrors(config, meta, table, today) {
   }
   const both=config.airlines.filter(code=>config.airlines_exclude.includes(code));
   if(both.length)error('airlines_exclude',`${both.join(', ')} cannot be both included and excluded.`);
+  for(const [code,targets] of Object.entries(config.origin_targets||{})) {
+    if(!config.origins.includes(code))error('origin_targets',`${code} is not a departure airport of this trip.`);
+    for(const value of Object.values(targets))
+      if(!Number.isFinite(value) || value<0.01 || value>10000000)error('origin_targets',`Price target for ${code}: enter an amount above €0.`);
+  }
   for(const [code,name] of Object.entries(config.display_names))
     if(!name || name.length>maxName || name!==name.trim() || !printable(name))error('display_names',`Name for ${code}: 1–${maxName} characters, no control characters.`);
   return {errors,estimate:Object.keys(errors).length?null:requestEstimate(config,today)};
@@ -168,6 +173,8 @@ export function shownValue(key, value, meta) {
   if(key==='airlines_exclude')return value.join(', ')||'none';
   if(key==='max_stops')return value===null?'any':value===0?'non-stop only':`up to ${value}`;
   if(key==='display_names')return Object.entries(value).sort().map(([k,v])=>`${k}: ${v}`).join(', ')||'automatic';
+  if(key==='origin_targets')return Object.entries(value).sort().map(([code,targets])=>`${code}: `+
+    ['nonstop','layover'].filter(k=>k in targets).map(k=>`${k==='nonstop'?'non-stop':'with stops'} €${targets[k]}`).join(', ')).join('; ')||'same for all airports';
   if(key==='travel_class')return meta.travel_classes[value]||value;
   if(typeof value==='boolean')return value?'yes':'no';
   return String(value);
@@ -197,7 +204,7 @@ export function tripSummary(config) {
 }
 
 // Optional settings at these values are left out of the issue (as in config.json).
-const optional={max_stops:null,airlines:[],airlines_exclude:[],display_names:{}};
+const optional={max_stops:null,airlines:[],airlines_exclude:[],origin_targets:{},display_names:{}};
 
 // The issue's settings block: every trip in config.json field order, shared request settings once.
 export function settingsJson(meta, trips, primary) {
@@ -285,17 +292,25 @@ function percentile(values, p) {
   return sorted[low]+(sorted[Math.ceil(index)]-sorted[low])*(index-low);
 }
 export const MIN_PRICES=8;
-// Checked prices (cents) of a trip's current offers within its comparison period, by category.
+// Checked prices (cents) of a trip's current offers within its comparison period,
+// by category and by departure airport.
 export function observedPrices(trip, now=Date.now()) {
-  const since=now-trip.config.history_window_days*86400000, prices={nonstop:[],layover:[]};
+  const since=now-trip.config.history_window_days*86400000, prices={nonstop:[],layover:[],byOrigin:{}};
   for(const offer of trip.offers||[]) {
+    if(!prices[offer.category])continue;
+    const own=(prices.byOrigin[offer.origin]??={nonstop:[],layover:[]});
     for(const point of trip.histories?.[offer.id]||[]) {
       const at=Date.parse(point.at);
-      if(at>=since && at<=now && Number.isInteger(point.price) && prices[offer.category])prices[offer.category].push(point.price);
+      if(at>=since && at<=now && Number.isInteger(point.price)){prices[offer.category].push(point.price);own[offer.category].push(point.price);}
     }
   }
   return prices;
 }
+const median=values=>percentile(values,0.5);
+// Suggested price targets. With enough checked prices: per airport and category the
+// price a quarter of them reached; the trip's targets are the middle of those, and an
+// airport keeps its own target only where it differs by more than 5%. Without prices,
+// a rough guide from the distance that knows nothing about differences between airports.
 export function suggestPrices(config, table, observed=null) {
   const distances=config.origins.map(origin=>distanceKm(table,origin,config.destination)).filter(km=>km!==null);
   let estimate=null;
@@ -305,21 +320,27 @@ export function suggestPrices(config, table, observed=null) {
     // Long-haul non-stop flights usually cost more than connections.
     estimate={km,layover,nonstop:layover*(km>3000?1.15:1)};
   }
+  const airports={};
+  for(const origin of config.origins)for(const category of ['nonstop','layover']) {
+    const prices=observed?.byOrigin?.[origin]?.[category]||[];
+    if(prices.length>=MIN_PRICES)(airports[origin]??={})[category]=niceEuro(percentile(prices,0.25)/100);
+  }
   const counts={nonstop:observed?.nonstop?.length||0,layover:observed?.layover?.length||0};
-  const seen=Object.fromEntries(Object.entries(counts).filter(([,n])=>n>=MIN_PRICES)
-    .map(([category])=>[category,percentile(observed[category],0.25)/100]));
-  let nonstop, layover, source;
-  if(Object.keys(seen).length) {
-    source='prices';
-    const ratio=estimate?estimate.nonstop/estimate.layover:1;
-    layover=seen.layover??seen.nonstop/ratio;
-    nonstop=seen.nonstop??seen.layover*ratio;
-  } else if(estimate) {
-    source='estimate';({layover,nonstop}=estimate);
-  } else return null;
-  const target={nonstop:niceEuro(nonstop),layover:niceEuro(layover)};
-  const amounts=alertAmounts(Math.min(target.nonstop,target.layover));
-  return {source,km:estimate?.km??null,counts,
-    values:{good_deal_nonstop_eur:target.nonstop,good_deal_layover_eur:target.layover,
-      realert_improvement_eur:amounts.realert,drop_eur:amounts.drop}};
+  const finish=(source,nonstop,layover,own)=>{
+    const amounts=alertAmounts(Math.min(nonstop,layover));
+    return {source,km:estimate?.km??null,counts,airports,values:{good_deal_nonstop_eur:nonstop,good_deal_layover_eur:layover,
+      realert_improvement_eur:amounts.realert,drop_eur:amounts.drop,...(own?{origin_targets:own}:{})}};
+  };
+  if(!Object.keys(airports).length)
+    return estimate?finish('estimate',niceEuro(estimate.nonstop),niceEuro(estimate.layover),null):null;
+  const middle=category=>{const values=Object.values(airports).map(t=>t[category]).filter(v=>v!==undefined);return values.length?niceEuro(median(values)):null;};
+  const ratio=estimate?estimate.nonstop/estimate.layover:1;
+  let nonstop=middle('nonstop'), layover=middle('layover');
+  layover??=niceEuro(nonstop/ratio);nonstop??=niceEuro(layover*ratio);
+  const own={};
+  for(const origin of config.origins)for(const category of ['nonstop','layover']) {
+    const value=airports[origin]?.[category], trip=category==='nonstop'?nonstop:layover;
+    if(value!==undefined && Math.abs(value-trip)>trip*0.05)(own[origin]??={})[category]=value;
+  }
+  return finish('prices',nonstop,layover,own);
 }

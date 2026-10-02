@@ -67,6 +67,16 @@ into `data-theme` on the root element, so pages render in the right colors witho
 flash. Dark rules in `styles.css` are scoped with `:where([data-theme="dark"])`, which
 keeps their specificity.
 
+## Price targets
+
+`good_deal_nonstop_eur` and `good_deal_layover_eur` are a trip's price targets; the
+optional `origin_targets` (`{"DUS": {"layover": 700}}`) override them per departure
+airport and category. `Config.threshold(category, origin)` picks the right one for
+alert texts, and the dashboard's `targetFor` does the same. Targets are not part of
+the history scope. The settings form suggests targets from the published prices per
+airport (25th percentile; airport targets only where they differ by more than 5%
+from the trip's), or a rough distance-based guide for a trip without prices.
+
 ## Copies of the project
 
 `tracker/project.py` derives the repository from `GITHUB_REPOSITORY` (or the `origin`

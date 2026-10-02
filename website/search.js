@@ -13,7 +13,7 @@ const routeFields = ['origins','destination','departure_start','departure_end','
 let meta, table, numberFields, fieldOrder, trips=[], active=0, primaryKey, nextKey=1, state, lastResult;
 // Published prices per saved trip (data.json), for price suggestions; optional.
 let published=new Map();
-// Suggested settings; a new trip takes them until you edit one of them yourself.
+// Settings a price suggestion can fill in (plus the airport targets).
 const suggestedFields=['good_deal_nonstop_eur','good_deal_layover_eur','realert_improvement_eur','drop_eur'];
 const euroText=value=>`€${value.toLocaleString('en-GB')}`;
 
@@ -47,7 +47,9 @@ function selected(kind) {return kind==='destination'?(state.destination?[state.d
 // Show one trip in the form. Shared request settings are the same for every trip.
 function fill(config) {
   state={origins:[...config.origins],destination:config.destination,airlines:[...config.airlines],
-    airlines_exclude:[...config.airlines_exclude],names:{...config.display_names}};
+    airlines_exclude:[...config.airlines_exclude],names:{...config.display_names},
+    targets:Object.fromEntries(Object.entries(config.origin_targets||{}).map(([code,own])=>
+      [code,Object.fromEntries(Object.entries(own).map(([k,v])=>[k,String(v)]))]))};
   for(const name of [...numberFields,'departure_start','departure_end','travel_class'])field(name).value=config[name];
   field('max_stops').value=config.max_stops===null?'':String(config.max_stops);
   field('duration_hours').value=Math.floor(config.max_direction_minutes/60);
@@ -69,6 +71,10 @@ function collect() {
   config.hide_separate_tickets=field('hide_separate_tickets').checked;
   config.carry_on_bags=field('carry_on_bags').checked?1:0;
   config.checked_bags=field('checked_bags').checked?1:0;
+  // Airport targets: departure airports as listed, non-stop before with stops; empty fields use the trip's.
+  config.origin_targets=state.origins.length<2?{}:Object.fromEntries(state.origins.map(code=>[code,Object.fromEntries(
+    ['nonstop','layover'].filter(k=>String(state.targets[code]?.[k]??'').trim()!=='').map(k=>[k,numberValue(state.targets[code][k])]))])
+    .filter(([,own])=>Object.keys(own).length));
   config.display_names=Object.fromEntries(routeCodes().map(code=>[code,(state.names[code]||'').trim()])
     .filter(([code,name])=>name && name!==cityOf(code)));
   // Keep the field order of config.json so the stored file stays readable.
@@ -110,6 +116,27 @@ function renderNames() {
     input.addEventListener('input',()=>{state.names[code]=input.value;});
     label.append(input);box.append(label);
   }
+  renderTargets();
+}
+
+// Optional price targets per departure airport; shown with two or more airports.
+function renderTargets() {
+  const rows=$('airport-target-rows');rows.replaceChildren();
+  $('airport-targets').hidden=state.origins.length<2;
+  for(const code of state.origins) {
+    const row=node('div',undefined,'target-row');
+    row.append(node('strong',`${code} · ${cityOf(code)}`));
+    for(const [category,label] of [['nonstop','Non-stop (€)'],['layover','With stops (€)']]) {
+      const field=node('label',label,'field'), input=node('input');
+      input.type='number';input.inputMode='decimal';input.step='0.01';input.min='0.01';
+      input.value=state.targets[code]?.[category]??'';input.dataset.category=category;
+      input.setAttribute('aria-label',`${label.replace(' (€)','')} price target from ${cityOf(code)} (${code})`);
+      input.setAttribute('aria-describedby','origin_targets-error');
+      input.addEventListener('input',()=>{(state.targets[code]??={})[category]=input.value;});
+      field.append(input);row.append(field);
+    }
+    rows.append(row);
+  }
 }
 
 function renderTrips() {
@@ -146,9 +173,9 @@ function addTrip() {
   sync();
   // A new trip starts as a copy of the trip shown, without destination and names.
   const base=trips[active].config;
-  trips.push({key:nextKey++,id:null,priceEdited:false,config:{...structuredClone(base),destination:'',display_names:{}}});
+  trips.push({key:nextKey++,id:null,config:{...structuredClone(base),destination:'',display_names:{},origin_targets:{}}});
   active=trips.length-1;fill(trips[active].config);update();
-  $('trip-note').textContent='New trip: settings copied from the trip you were editing. Choose a destination: price targets and alerts are then suggested for it.';
+  $('trip-note').textContent='New trip: settings copied from the trip you were editing. Choose a destination and check the price targets: the form shows a rough guide for them.';
   $('destination-input').focus();
 }
 
@@ -212,24 +239,34 @@ function suggestionFor(trip) {
 function renderSuggestion(trip, suggestion) {
   const box=$('price-suggestion');box.hidden=!suggestion;
   if(!suggestion)return;
-  const v=suggestion.values, days=trip.config.history_window_days;
-  const values=`non-stop ${euroText(v.good_deal_nonstop_eur)} · with stops ${euroText(v.good_deal_layover_eur)} · new alert from a change of ${euroText(v.realert_improvement_eur)} · strong deal at least ${euroText(v.drop_eur)} below the low`;
-  const source=suggestion.source==='prices'
-    ?`Based on ${suggestion.counts.nonstop+suggestion.counts.layover} checked prices of the last ${days} days (the price a quarter of them reached)`
-    :`Rough estimate for about ${suggestion.km.toLocaleString('en-GB')} km per direction, until there are checked prices`;
-  const same=suggestedFields.every(key=>trip.config[key]===v[key]);
-  $('suggestion-text').textContent=`${!trip.id && !trip.priceEdited?'Filled in automatically. ':''}Suggested: ${values}. ${source}.`;
+  const v=suggestion.values, days=trip.config.history_window_days, words={nonstop:'non-stop',layover:'with stops'};
+  const amounts=`new alert from a change of ${euroText(v.realert_improvement_eur)} · strong deal at least ${euroText(v.drop_eur)} below the low`;
+  let text;
+  if(suggestion.source==='prices') {
+    const perAirport=['layover','nonstop'].map(category=>{
+      const list=Object.entries(suggestion.airports).filter(([,own])=>category in own).map(([code,own])=>`${code} ${euroText(own[category])}`);
+      return list.length?`${words[category]}: ${list.join(' · ')}`:'';
+    }).filter(Boolean).join('; ');
+    text=`From ${suggestion.counts.nonstop+suggestion.counts.layover} checked prices of the last ${days} days, the price a quarter of them reached per airport – ${perAirport}. `+
+      `Suggested: trip targets non-stop ${euroText(v.good_deal_nonstop_eur)}, with stops ${euroText(v.good_deal_layover_eur)}`+
+      (Object.keys(v.origin_targets).length?`, own targets where an airport differs (${Object.keys(v.origin_targets).join(', ')})`:'')+`; ${amounts}.`;
+  } else {
+    text=`Rough guide for about ${suggestion.km.toLocaleString('en-GB')} km per direction: non-stop ${euroText(v.good_deal_nonstop_eur)} · with stops ${euroText(v.good_deal_layover_eur)} · ${amounts}. `+
+      'It cannot know price differences between airports or seasons; after the first searches this suggestion uses real prices per airport.';
+  }
+  const same=suggestedFields.every(key=>trip.config[key]===v[key])
+    && (!v.origin_targets || JSON.stringify(trip.config.origin_targets)===JSON.stringify(v.origin_targets));
+  $('suggestion-text').textContent=text;
+  $('use-suggestion').textContent=suggestion.source==='prices'?'Use suggested values':'Use rough guide';
   $('use-suggestion').hidden=same;
 }
 
 function update() {
   sync();
-  const trip=trips[active], suggestion=suggestionFor(trip);
-  if(suggestion && !trip.id && !trip.priceEdited && suggestedFields.some(key=>trip.config[key]!==suggestion.values[key])) {
-    for(const key of suggestedFields)field(key).value=suggestion.values[key];
-    sync();
-  }
-  renderSuggestion(trip,suggestion);
+  renderSuggestion(trips[active],suggestionFor(trips[active]));
+  // Empty airport fields use the trip's targets; show them as placeholders.
+  for(const input of $('airport-target-rows').querySelectorAll('input'))
+    input.placeholder=`trip: ${trips[active].config[input.dataset.category==='nonstop'?'good_deal_nonstop_eur':'good_deal_layover_eur']}`;
   const result=validateTrips(configs(),meta,table,berlinToday()), errors={...result.trips[active],...result.errors};
   lastResult=result;
   for(const output of form.querySelectorAll('.field-error')){
@@ -242,6 +279,7 @@ function update() {
   }
   for(const kind of Object.keys(pickers))$(`${kind}-input`).toggleAttribute('aria-invalid',Boolean(errors[kind]));
   for(const input of $('display-names').querySelectorAll('input'))input.toggleAttribute('aria-invalid',Boolean(errors.display_names));
+  for(const input of $('airport-target-rows').querySelectorAll('input'))input.toggleAttribute('aria-invalid',Boolean(errors.origin_targets));
   renderTrips();
   const e=result.estimate, budget=trips[0].config, several=trips.length>1;
   $('estimate').textContent=e
@@ -298,7 +336,6 @@ function start() {
 
 const edited=event=>{
   if(event.target.id==='primary-trip')primaryKey=Number(event.target.value);
-  if(suggestedFields.includes(event.target.name))trips[active].priceEdited=true;
   if(!event.target.closest('.combo'))update();
 };
 form.addEventListener('input',edited);
@@ -309,6 +346,11 @@ $('add-trip').addEventListener('click',addTrip);
 $('use-suggestion').addEventListener('click',()=>{
   const suggestion=suggestionFor(trips[active]);if(!suggestion)return;
   for(const key of suggestedFields)field(key).value=suggestion.values[key];
+  if(suggestion.values.origin_targets) {
+    state.targets=Object.fromEntries(Object.entries(suggestion.values.origin_targets).map(([code,own])=>
+      [code,Object.fromEntries(Object.entries(own).map(([k,v])=>[k,String(v)]))]));
+    renderTargets();
+  }
   update();
 });
 $('remove-trip').addEventListener('click',removeTrip);

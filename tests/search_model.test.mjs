@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {searchAirports,searchAirlines,validate,validateTrips,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
-  tripIds,settingsJson,settingsChanges,MAX_URL,distanceKm,niceEuro,suggestPrices,observedPrices,alertAmounts,MIN_PRICES} from '../website/search-model.mjs';
+  tripIds,tripErrors,settingsJson,settingsChanges,MAX_URL,distanceKm,niceEuro,suggestPrices,observedPrices,alertAmounts,MIN_PRICES} from '../website/search-model.mjs';
 
 const table=JSON.parse(readFileSync(new URL('../tracker/airports.json',import.meta.url),'utf8'));
 const airlines=JSON.parse(readFileSync(new URL('../tracker/airlines.json',import.meta.url),'utf8')).airlines;
@@ -191,20 +191,39 @@ test('price suggestions start from the flight distance',()=>{
   assert.equal(suggestPrices(config({destination:''}),table),null);
 });
 
-test('checked prices replace the estimate once there are enough of them',()=>{
+test('checked prices give targets per airport where airports differ',()=>{
   const now=Date.parse('2026-10-01T12:00:00Z'), at=days=>new Date(now-days*86400000).toISOString();
-  const points=prices=>prices.map((price,i)=>({at:at(i%20),price}));
+  const points=(base,step)=>Array.from({length:10},(_,i)=>({at:at(i),price:(base+i*step)*100}));
   const trip={config:{history_window_days:30},
-    offers:[{id:'a',category:'layover'},{id:'b',category:'nonstop'}],
-    histories:{a:[...points([50000,52000,54000,56000,58000,60000,62000,64000,66000]),{at:at(40),price:1000}],
-      b:points([70000,72000])}};
+    offers:[{id:'a',origin:'AMS',category:'layover'},{id:'f',origin:'FRA',category:'layover'},
+      {id:'d',origin:'DUS',category:'layover'},{id:'n',origin:'FRA',category:'nonstop'},{id:'o',origin:'AMS',category:'nonstop'}],
+    histories:{a:[...points(500,2),{at:at(40),price:1000}],f:points(520,4),d:points(680,10),n:points(610,1),o:[{at:at(1),price:82000}]}};
   const observed=observedPrices(trip,now);
-  assert.equal(observed.layover.length,9);  // The 40-day-old price is outside the comparison period.
-  const suggestion=suggestPrices(config({origins:['FRA']}),table,observed);
+  assert.equal(observed.byOrigin.AMS.layover.length,10);  // The 40-day-old price is outside the comparison period.
+  assert.equal(observed.layover.length,30);
+  const suggestion=suggestPrices(config(),table,observed);
   assert.equal(suggestion.source,'prices');
-  assert.deepEqual(suggestion.counts,{nonstop:2,layover:9});
-  // A quarter of the checked prices reached €540; too few non-stop prices, so their target follows the estimate's ratio.
-  assert.equal(suggestion.values.good_deal_layover_eur,540);
-  assert.equal(suggestion.values.good_deal_nonstop_eur,620);
-  assert.equal(suggestPrices(config({origins:['FRA']}),table,{layover:observed.layover.slice(0,MIN_PRICES-1),nonstop:[]}).source,'estimate');
+  // A quarter of each airport's prices: AMS €500, FRA €530, DUS €700; too few AMS non-stop prices.
+  assert.deepEqual(suggestion.airports,{DUS:{layover:700},FRA:{nonstop:610,layover:530},AMS:{layover:500}});
+  // The trip's targets are the middle of the airports; only airports more than 5% away keep their own.
+  assert.equal(suggestion.values.good_deal_layover_eur,530);
+  assert.equal(suggestion.values.good_deal_nonstop_eur,610);
+  assert.deepEqual(suggestion.values.origin_targets,{DUS:{layover:700},AMS:{layover:500}});
+  assert.deepEqual(alertAmounts(530),{realert:20,drop:40});
+  // Too few prices everywhere: only the rough guide, which leaves airport targets alone.
+  const few={nonstop:[],layover:[],byOrigin:{AMS:{layover:observed.byOrigin.AMS.layover.slice(0,MIN_PRICES-1),nonstop:[]}}};
+  const guide=suggestPrices(config(),table,few);
+  assert.equal(guide.source,'estimate');
+  assert.ok(!('origin_targets' in guide.values));
+});
+
+test('airport price targets are checked and shown in plain words',()=>{
+  const errors=c=>tripErrors(config(c),meta,table,today).errors;
+  assert.deepEqual(errors({origin_targets:{AMS:{layover:510},FRA:{nonstop:610,layover:530}}}),{});
+  assert.ok(errors({origin_targets:{MUC:{layover:510}}}).origin_targets);
+  assert.ok(errors({origin_targets:{AMS:{layover:0}}}).origin_targets);
+  assert.ok(errors({origin_targets:{AMS:{layover:Number.NaN}}}).origin_targets);
+  assert.equal(shownValue('origin_targets',{},meta),'same for all airports');
+  assert.equal(shownValue('origin_targets',{FRA:{nonstop:610,layover:530},AMS:{layover:510}},meta),
+    'AMS: with stops €510; FRA: non-stop €610, with stops €530');
 });
