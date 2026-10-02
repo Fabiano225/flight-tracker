@@ -254,3 +254,72 @@ export function issueUrl(meta, settings, changes, withBody=true) {
   if(withBody)params.set('body',issueBody(meta,settings,changes));
   return `https://github.com/${meta.repository}/issues/new?${params}`;
 }
+
+// Price suggestions. Before a trip has prices, a rough estimate from the flight
+// distance; once it has checked prices, the price that a quarter of them reached.
+const EARTH_KM=6371;
+export function distanceKm(table, from, to) {
+  const a=table.airports[from], b=table.airports[to];
+  if(!a || !b || typeof a[3]!=='number' || typeof b[3]!=='number')return null;
+  const rad=x=>x*Math.PI/180, [lat1,lon1,lat2,lon2]=[a[3],a[4],b[3],b[4]].map(rad);
+  const h=Math.sin((lat2-lat1)/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin((lon2-lon1)/2)**2;
+  return Math.round(2*EARTH_KM*Math.asin(Math.sqrt(h)));
+}
+// Round to amounts people would choose: €5 steps below €100, €10 below €1,000, then €50.
+export function niceEuro(value) {
+  const step=value<100?5:value<1000?10:50;
+  return Math.max(step,Math.round(value/step)*step);
+}
+const CABIN_FACTOR={economy:1,premium_economy:1.6,business:3.2,first_class:5};
+// A good round-trip economy price from Central Europe, by one-way distance: about €90
+// for Frankfurt–Amsterdam, €490 for New York, €650 for Bangkok, €1,100 for Sydney.
+export function estimatedTarget(km) {
+  return km<=3000?60+0.08*km:300+0.059*(km-3000);
+}
+// Strong-deal and re-alert amounts follow the price target (€650 → €50 and €25).
+export function alertAmounts(target) {
+  return {realert:Math.max(5,niceEuro(target*0.04)),drop:Math.max(10,niceEuro(target*0.08))};
+}
+function percentile(values, p) {
+  const sorted=[...values].sort((a,b)=>a-b), index=(sorted.length-1)*p, low=Math.floor(index);
+  return sorted[low]+(sorted[Math.ceil(index)]-sorted[low])*(index-low);
+}
+export const MIN_PRICES=8;
+// Checked prices (cents) of a trip's current offers within its comparison period, by category.
+export function observedPrices(trip, now=Date.now()) {
+  const since=now-trip.config.history_window_days*86400000, prices={nonstop:[],layover:[]};
+  for(const offer of trip.offers||[]) {
+    for(const point of trip.histories?.[offer.id]||[]) {
+      const at=Date.parse(point.at);
+      if(at>=since && at<=now && Number.isInteger(point.price) && prices[offer.category])prices[offer.category].push(point.price);
+    }
+  }
+  return prices;
+}
+export function suggestPrices(config, table, observed=null) {
+  const distances=config.origins.map(origin=>distanceKm(table,origin,config.destination)).filter(km=>km!==null);
+  let estimate=null;
+  if(config.destination && distances.length) {
+    const km=Math.round(distances.reduce((a,b)=>a+b,0)/distances.length);
+    const layover=estimatedTarget(km)*(CABIN_FACTOR[config.travel_class]||1)+(config.checked_bags && km<3000?40:0);
+    // Long-haul non-stop flights usually cost more than connections.
+    estimate={km,layover,nonstop:layover*(km>3000?1.15:1)};
+  }
+  const counts={nonstop:observed?.nonstop?.length||0,layover:observed?.layover?.length||0};
+  const seen=Object.fromEntries(Object.entries(counts).filter(([,n])=>n>=MIN_PRICES)
+    .map(([category])=>[category,percentile(observed[category],0.25)/100]));
+  let nonstop, layover, source;
+  if(Object.keys(seen).length) {
+    source='prices';
+    const ratio=estimate?estimate.nonstop/estimate.layover:1;
+    layover=seen.layover??seen.nonstop/ratio;
+    nonstop=seen.nonstop??seen.layover*ratio;
+  } else if(estimate) {
+    source='estimate';({layover,nonstop}=estimate);
+  } else return null;
+  const target={nonstop:niceEuro(nonstop),layover:niceEuro(layover)};
+  const amounts=alertAmounts(Math.min(target.nonstop,target.layover));
+  return {source,km:estimate?.km??null,counts,
+    values:{good_deal_nonstop_eur:target.nonstop,good_deal_layover_eur:target.layover,
+      realert_improvement_eur:amounts.realert,drop_eur:amounts.drop}};
+}

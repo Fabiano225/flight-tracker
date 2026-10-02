@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {searchAirports,searchAirlines,validate,validateTrips,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
-  tripIds,settingsJson,settingsChanges,MAX_URL} from '../website/search-model.mjs';
+  tripIds,settingsJson,settingsChanges,MAX_URL,distanceKm,niceEuro,suggestPrices,observedPrices,alertAmounts,MIN_PRICES} from '../website/search-model.mjs';
 
 const table=JSON.parse(readFileSync(new URL('../tracker/airports.json',import.meta.url),'utf8'));
 const airlines=JSON.parse(readFileSync(new URL('../tracker/airlines.json',import.meta.url),'utf8')).airlines;
@@ -172,4 +172,39 @@ test('five full trips still fit into the issue link',()=>{
     display_names:{[code]:names[code]},good_deal_nonstop_eur:1234.5,good_deal_layover_eur:999.99})}));
   const settings=settingsJson(meta,trips,0), changes=settingsChanges(meta,trips,0);
   assert.ok(issueUrl(meta,settings,changes).length<MAX_URL);
+});
+
+test('price suggestions start from the flight distance',()=>{
+  assert.equal(distanceKm(table,'FRA','FRA'),0);
+  assert.ok(Math.abs(distanceKm(table,'FRA','BKK')-9000)<50);
+  assert.equal(distanceKm(table,'FRA','XQZ'),null);
+  assert.deepEqual([niceEuro(3),niceEuro(87),niceEuro(652),niceEuro(1234)],[5,85,650,1250]);
+  assert.deepEqual(alertAmounts(650),{realert:25,drop:50});
+  const bangkok=suggestPrices(config({origins:['FRA']}),table);
+  assert.equal(bangkok.source,'estimate');
+  assert.deepEqual(bangkok.values,{good_deal_nonstop_eur:750,good_deal_layover_eur:650,realert_improvement_eur:25,drop_eur:50});
+  const amsterdam=suggestPrices(config({origins:['FRA'],destination:'AMS'}),table).values;
+  assert.equal(amsterdam.good_deal_layover_eur,amsterdam.good_deal_nonstop_eur);  // Short trips: no non-stop premium.
+  assert.ok(amsterdam.good_deal_layover_eur<150);
+  const business=suggestPrices(config({origins:['FRA'],travel_class:'business'}),table).values;
+  assert.ok(business.good_deal_layover_eur>3*bangkok.values.good_deal_layover_eur);
+  assert.equal(suggestPrices(config({destination:''}),table),null);
+});
+
+test('checked prices replace the estimate once there are enough of them',()=>{
+  const now=Date.parse('2026-10-01T12:00:00Z'), at=days=>new Date(now-days*86400000).toISOString();
+  const points=prices=>prices.map((price,i)=>({at:at(i%20),price}));
+  const trip={config:{history_window_days:30},
+    offers:[{id:'a',category:'layover'},{id:'b',category:'nonstop'}],
+    histories:{a:[...points([50000,52000,54000,56000,58000,60000,62000,64000,66000]),{at:at(40),price:1000}],
+      b:points([70000,72000])}};
+  const observed=observedPrices(trip,now);
+  assert.equal(observed.layover.length,9);  // The 40-day-old price is outside the comparison period.
+  const suggestion=suggestPrices(config({origins:['FRA']}),table,observed);
+  assert.equal(suggestion.source,'prices');
+  assert.deepEqual(suggestion.counts,{nonstop:2,layover:9});
+  // A quarter of the checked prices reached €540; too few non-stop prices, so their target follows the estimate's ratio.
+  assert.equal(suggestion.values.good_deal_layover_eur,540);
+  assert.equal(suggestion.values.good_deal_nonstop_eur,620);
+  assert.equal(suggestPrices(config({origins:['FRA']}),table,{layover:observed.layover.slice(0,MIN_PRICES-1),nonstop:[]}).source,'estimate');
 });

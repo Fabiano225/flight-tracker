@@ -120,6 +120,10 @@
 
       <fieldset class="settings-card">
         <legend><span class="eyebrow">04 · PRICE ALERTS</span>When should it tell you?</legend>
+        <div id="price-suggestion" class="price-suggestion" role="status" hidden>
+          <p id="suggestion-text"></p>
+          <button type="button" id="use-suggestion" class="chart-button">Use suggested values</button>
+        </div>
         <div class="field-grid">
           <label class="field">Price target, non-stop (€)<input type="number" inputmode="decimal" step="0.01" min="0.01" name="good_deal_nonstop_eur" aria-describedby="good_deal_nonstop_eur-error"><span class="field-error" id="good_deal_nonstop_eur-error"></span></label>
           <label class="field">Price target, with stops (€)<input type="number" inputmode="decimal" step="0.01" min="0.01" name="good_deal_layover_eur" aria-describedby="good_deal_layover_eur-error"><span class="field-error" id="good_deal_layover_eur-error"></span></label>

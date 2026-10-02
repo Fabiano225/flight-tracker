@@ -168,6 +168,9 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 .copy-body textarea{display:block;width:100%;margin:6px 0 8px;padding:10px;border-radius:8px;border:1px solid #ffffff33;font:11px/1.5 ui-monospace,monospace;background:#ffffff14;color:white;resize:vertical}
 .copy-body .field-label{color:#d5e3cc;font-size:11px}
 @media(max-width:760px){.trips-head{flex-direction:column}.trip-choice{flex:1 1 calc(50% - 5px);padding:9px 12px}}
+/* Settings: suggested price targets. */
+.price-suggestion{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin:0 0 18px;padding:12px 14px;border:1px dashed #b9c9ad;border-radius:10px;background:#f4f7ec;font-size:12px;line-height:1.6}
+.price-suggestion p{margin:0;flex:1 1 320px}
 /* Theme selector in the header: a native select over the current choice's icon and name. */
 .header nav{align-items:center}
 .theme-switch{position:relative;display:inline-flex;align-items:center;min-height:32px;padding:0 11px;border:1px solid var(--line);border-radius:999px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap}
@@ -227,6 +230,7 @@ html[data-trip-loading] [data-page],html[data-trip-loading] .route-origins,html[
 :where([data-theme="dark"]) .chip-remove:hover{background:#3a1d18}
 :where([data-theme="dark"]) .trip-tab:hover,:where([data-theme="dark"]) .theme-switch:hover{border-color:#4a5f55}
 :where([data-theme="dark"]) .trip-choice{background:var(--white)}
+:where([data-theme="dark"]) .price-suggestion{background:#15231d;border-color:#2f4a3c}
 :where([data-theme="dark"]) .trip-choice[aria-pressed="true"]{background:var(--green)}
 :where([data-theme="dark"]) .trip-choice.has-error small{color:var(--red)}
 :where([data-theme="dark"]) .message.error{background:#4a221c;color:#f6c4b8}:where([data-theme="dark"]) .message.warn{background:#43361b;color:#f0d59a}
