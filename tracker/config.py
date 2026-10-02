@@ -48,7 +48,9 @@ TRIP_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,19}")
 SHARED_FIELDS = ("pending_ttl_hours", "max_http_attempts_per_run", "max_run_seconds", "http_timeout_seconds",
                  "http_attempts", "request_interval_seconds", "max_parallel_requests")
 # Optional settings: config.json leaves them out while they have these values.
-OPTIONAL = {"max_stops": None, "airlines": (), "airlines_exclude": (), "display_names": {}, "id": MAIN_TRIP}
+OPTIONAL = {"max_stops": None, "airlines": (), "airlines_exclude": (), "origin_targets": {}, "display_names": {},
+            "id": MAIN_TRIP}
+TARGET_CATEGORIES = ("nonstop", "layover")
 
 
 @dataclass(frozen=True)
@@ -72,6 +74,9 @@ class Config:
     airlines_exclude: tuple = ()
     good_deal_nonstop_eur: float = 650
     good_deal_layover_eur: float = 650
+    # Optional price targets per departure airport, e.g. {"AMS": {"layover": 510}};
+    # airports or categories without one use the two targets above.
+    origin_targets: dict = field(default_factory=dict)
     drop_percent: float = 10
     drop_eur: float = 50
     history_window_days: int = 30
@@ -132,6 +137,16 @@ class Config:
                 raise ValueError(f"{name} must list up to {MAX_AIRLINES} unique two-character airline codes")
         if set(self.airlines) & set(self.airlines_exclude):
             raise ValueError("An airline cannot be both included and excluded")
+        if not isinstance(self.origin_targets, dict):
+            raise ValueError("origin_targets must map departure airports to price targets")
+        for code, targets in self.origin_targets.items():
+            if code not in self.origins:
+                raise ValueError(f"origin_targets: {code} is not a departure airport of this trip")
+            if (not isinstance(targets, dict) or not targets
+                    or not set(targets) <= set(TARGET_CATEGORIES)):
+                raise ValueError(f"origin_targets for {code} must set nonstop and/or layover")
+            for value in targets.values():
+                cents(value)
         if not isinstance(self.display_names, dict):
             raise ValueError("display_names must map airport codes to names")
         for code, name in self.display_names.items():
@@ -187,7 +202,11 @@ class Config:
         return {name: value for name, value in self.form_dict().items()
                 if name not in OPTIONAL or getattr(self, name) != OPTIONAL[name]}
 
-    def threshold(self, category):
+    def threshold(self, category, origin=None):
+        """Price target in cents: the departure airport's own one, if set, else the trip's."""
+        own = self.origin_targets.get(origin, {}).get(category)
+        if own is not None:
+            return cents(own)
         return cents(self.good_deal_nonstop_eur if category == "nonstop" else self.good_deal_layover_eur)
 
 

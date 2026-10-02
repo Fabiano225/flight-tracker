@@ -21,7 +21,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tracker.config import MAX_TRIPS, OPTIONAL, SHARED_FIELDS, Config, Settings, shared_values, trips_of
+from tracker.config import MAX_TRIPS, OPTIONAL, SHARED_FIELDS, TARGET_CATEGORIES, Config, Settings, shared_values, trips_of
 from tracker.places import airline_supported, place, supported
 from tracker.planner import plan, request_estimate, settings_estimate
 
@@ -35,7 +35,7 @@ LABELS = {
     "travel_class": "Cabin", "max_direction_minutes": "Max. travel time per direction (minutes)",
     "hide_separate_tickets": "Hide separate tickets", "carry_on_bags": "Cabin bag in the base search",
     "checked_bags": "Checked bag in the base search", "good_deal_nonstop_eur": "Price target, non-stop (€)",
-    "good_deal_layover_eur": "Price target, with stops (€)", "drop_percent": "Strong deal: at least % below the low",
+    "good_deal_layover_eur": "Price target, with stops (€)", "origin_targets": "Price targets per airport", "drop_percent": "Strong deal: at least % below the low",
     "drop_eur": "Strong deal: at least € below the low", "history_window_days": "Comparison period (days)",
     "realert_improvement_eur": "New price alert from a change of (€)", "max_deals_per_run": "Max. offers per message",
     "pending_ttl_hours": "Undelivered messages expire after (hours)",
@@ -147,7 +147,14 @@ def normalize(settings):
     codes = (*config.origins, config.destination)
     names = {code: name for code, name in config.display_names.items()
              if code in codes and name != place(code)["city"]}
-    return Config.from_dict({**config.form_dict(), "display_names": names})
+    # An airport's own price target equal to the trip's adds nothing.
+    trip = {"nonstop": config.good_deal_nonstop_eur, "layover": config.good_deal_layover_eur}
+    # Same order as the form: departure airports as listed, non-stop before with stops.
+    targets = {code: {k: config.origin_targets[code][k] for k in TARGET_CATEGORIES
+                      if k in config.origin_targets[code] and config.origin_targets[code][k] != trip[k]}
+               for code in config.origins if code in config.origin_targets}
+    return Config.from_dict({**config.form_dict(), "display_names": names,
+                             "origin_targets": {code: own for code, own in targets.items() if own}})
 
 
 def trip_name(trip, trips):
@@ -191,6 +198,10 @@ def shown(name, value):
         return "any" if value is None else "non-stop only" if value == 0 else f"up to {value}"
     if name == "display_names":
         return ", ".join(f"{k}: {v}" for k, v in sorted(value.items())) or "automatic"
+    if name == "origin_targets":
+        words = {"nonstop": "non-stop", "layover": "with stops"}
+        return "; ".join(f"{code}: " + ", ".join(f"{words[k]} €{v:g}" for k, v in sorted(targets.items(), key=lambda x: x[0] != "nonstop"))
+                         for code, targets in sorted(value.items())) or "same for all airports"
     if name == "travel_class":
         return CLASSES.get(value, value)
     if isinstance(value, bool):

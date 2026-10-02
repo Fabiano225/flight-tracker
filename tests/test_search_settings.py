@@ -282,7 +282,7 @@ class WebsiteFormTests(unittest.TestCase):
         meta = form_data(Settings.load(ROOT / 'config.json'))
         main = meta['trips'][0]
         trips = [{'id': 'main', 'config': {**main, 'origins': ['DUS', 'MUC'], 'destination': 'HND',
-                                            'display_names': {'HND': 'Tokio'}}},
+                                            'display_names': {'HND': 'Tokio'}, 'origin_targets': {'MUC': {'layover': 720.5}}}},
                  {'id': None, 'config': {**main, 'origins': ['FRA'], 'destination': 'AMS', 'min_trip_days': 3,
                                          'max_trip_days': 4, 'max_stops': 0, 'airlines_exclude': ['FR']}}]
         script = ("import {issueBody,settingsJson,settingsChanges,requestEstimate} from './website/search-model.mjs';"

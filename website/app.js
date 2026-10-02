@@ -1,4 +1,4 @@
-import {filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref} from './model.mjs';
+import {targetFor, filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const day = s => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'Europe/Berlin'}).format(new Date(s+'T12:00:00Z'));
@@ -129,8 +129,13 @@ function renderSummary() {
     $('best-'+type+'-info').textContent=q?`from ${q.origin} · ${q.days} days · ${day(q.departure)}`:'No checked offer in the latest prices';
   }
   const c=data.config;
-  $('budget-value').textContent=c.good_deal_layover_eur===c.good_deal_nonstop_eur?euro(c.good_deal_layover_eur*100):'Separate targets';
-  $('budget-note').textContent=c.good_deal_layover_eur===c.good_deal_nonstop_eur?'per person · round trip':`With stops ${euro(c.good_deal_layover_eur*100)} / non-stop ${euro(c.good_deal_nonstop_eur*100)}`;
+  const perAirport=Object.keys(c.origin_targets||{}).length>0;
+  $('budget-value').textContent=perAirport?'Per airport':c.good_deal_layover_eur===c.good_deal_nonstop_eur?euro(c.good_deal_layover_eur*100):'Separate targets';
+  // With airport targets, list them for the airport filter's choice (or all airports).
+  const airports=$('origin').value?[$('origin').value]:c.origins;
+  $('budget-note').textContent=perAirport
+    ?airports.map(code=>`${code} ${euro(targetFor(c,code,'layover')*100)}`+(targetFor(c,code,'nonstop')!==targetFor(c,code,'layover')?` / non-stop ${euro(targetFor(c,code,'nonstop')*100)}`:'')).join(' · ')
+    :c.good_deal_layover_eur===c.good_deal_nonstop_eur?'per person · round trip':`With stops ${euro(c.good_deal_layover_eur*100)} / non-stop ${euro(c.good_deal_nonstop_eur*100)}`;
   $('offer-count').textContent=data.offers.length;
   $('trip-dates').textContent=`${day(c.departure_start)} – ${day(c.departure_end)} ${c.departure_end.slice(0,4)}`;
   $('trip-days').textContent=c.min_trip_days===c.max_trip_days?`${c.min_trip_days} day${c.min_trip_days===1?'':'s'}`:`${c.min_trip_days}–${c.max_trip_days} days`;
@@ -273,6 +278,7 @@ $('filters').addEventListener('change',event=>{
   if(event.target.name==='airline-mode') {
     airlineMode=event.target.value;updateAirlineSummary();
   }
+  if(data && event.target.name==='origin')renderSummary();  // Airport price targets follow the filter.
   if(data)renderOffers();
 });
 $('airline-clear').addEventListener('click',()=>{

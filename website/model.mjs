@@ -87,6 +87,11 @@ export function unavailableFavorites(keys, offers, destination, profile, config=
     .map(fav=>({...fav,reason:fav.profile===profile?'No checked offer at the moment':'Saved with another baggage choice'}))
     .sort((a,b)=>(a.profile!==profile)-(b.profile!==profile) || a.departure.localeCompare(b.departure) || a.return_date.localeCompare(b.return_date));
 }
+// Price target in euros: the departure airport's own one, if set, else the trip's.
+export function targetFor(config, origin, category) {
+  return config.origin_targets?.[origin]?.[category]
+    ?? (category === 'nonstop' ? config.good_deal_nonstop_eur : config.good_deal_layover_eur);
+}
 export function comparison(offer, history, config) {
   const prior = history.filter(p => Date.parse(p.at) < Date.parse(offer.at)).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
   const previous = prior.length ? prior[prior.length-1].price : null;
@@ -94,7 +99,7 @@ export function comparison(offer, history, config) {
   const low = prior.length ? Math.min(...prior.map(p => p.price)) : null;
   // Most recent observation at the low: the most relevant "it was this cheap on ...".
   const lowAt = low === null ? null : prior.filter(p => p.price === low).at(-1).at;
-  const threshold = 100 * (offer.category === 'nonstop' ? config.good_deal_nonstop_eur : config.good_deal_layover_eur);
+  const threshold = 100 * targetFor(config, offer.origin, offer.category);
   const delta = previous === null ? null : offer.price - previous;
   const verdict = offer.price > threshold ? 'Watch'
     : low !== null && offer.price-low >= config.realert_improvement_eur*100 ? 'Within budget, above low' : 'Check to buy';

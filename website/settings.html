@@ -133,6 +133,12 @@
           <label class="field">… and at least € below the low<input type="number" inputmode="decimal" step="0.01" min="0.01" name="drop_eur" aria-describedby="drop_eur-error"><span class="field-error" id="drop_eur-error"></span></label>
           <label class="field">Max. offers per message<input type="number" inputmode="numeric" step="1" name="max_deals_per_run" aria-describedby="max_deals_per_run-error"><span class="field-error" id="max_deals_per_run-error"></span></label>
         </div>
+        <div id="airport-targets" class="airport-targets" hidden>
+          <p class="field-label">Price targets per departure airport</p>
+          <p class="footnote">Optional, for airports whose prices differ: empty fields use the trip's targets above. Alerts and the website judge each flight by the target of its airport.</p>
+          <div id="airport-target-rows" class="target-rows"></div>
+          <p class="field-error" id="origin_targets-error"></p>
+        </div>
       </fieldset>
 
       <fieldset class="settings-card">

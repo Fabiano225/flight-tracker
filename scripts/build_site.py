@@ -65,8 +65,8 @@ def page_values(config):
         route_origins=''.join(f'<span class="route-code">{html.escape(code)}</span>' for code in config.origins),
         trip_dates=date_range(config.departure_start, config.departure_end), trip_days=days,
         travel_class=CLASSES[config.travel_class],
-        budget=(euro_text(config.good_deal_nonstop_eur) if config.good_deal_nonstop_eur == config.good_deal_layover_eur
-                else 'Separate targets'),
+        budget=('Per airport' if config.origin_targets else euro_text(config.good_deal_nonstop_eur)
+                if config.good_deal_nonstop_eur == config.good_deal_layover_eur else 'Separate targets'),
         realert=euro_text(config.realert_improvement_eur), history_days=str(config.history_window_days),
         duration_limit=(f'under {(minutes + 1) // 60} hours' if (minutes + 1) % 60 == 0
                         else f'up to {minutes // 60} h {minutes % 60:02d} min'),
@@ -121,7 +121,7 @@ def export_data(db_path, config, now=None, variant=None):
     public_config = {key: getattr(config, key) for key in (
         'origins', 'destination', 'departure_start', 'departure_end', 'min_trip_days',
         'max_trip_days', 'max_direction_minutes', 'good_deal_nonstop_eur',
-        'good_deal_layover_eur', 'history_window_days', 'realert_improvement_eur')}
+        'good_deal_layover_eur', 'origin_targets', 'history_window_days', 'realert_improvement_eur')}
     result = dict(version=1, generated_at=now.isoformat(), config=public_config,
                   scan=None, offers_as_of=None, offers=[], histories={})
     db = sqlite3.connect(f'{Path(db_path).resolve().as_uri()}?mode=ro', uri=True)

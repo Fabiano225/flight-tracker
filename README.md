@@ -85,9 +85,14 @@ code (German names such as "München" work too).
 - **Several trips:** use **+ Add trip** for up to five trips, e.g. Bangkok in October
   and a weekend in Amsterdam. Each trip has its own price targets, alerts and history;
   choose which one the website shows first.
-- **Suggested prices:** a new trip gets a price target and alert amounts estimated from
-  the flight distance and cabin, filled in until you change them. Once a trip has
-  checked prices, the form suggests values based on them; one click applies them.
+- **Price targets per airport:** prices can differ a lot between departure airports
+  (for Bangkok, Amsterdam is often well over €100 cheaper than Düsseldorf). Optionally
+  give an airport its own target; alerts and the website then judge each flight by
+  the target of its airport.
+- **Suggested prices:** once a trip has checked prices, the form suggests targets per
+  airport from them (the price a quarter of them reached) and fills them in with one
+  click. A new trip only gets a rough guide from the flight distance, which knows
+  nothing about differences between airports.
 - **Request estimate:** the form shows how many searches a run needs. All trips share
   one budget, so very wide date ranges or many trips are rejected before anything is
   sent.
