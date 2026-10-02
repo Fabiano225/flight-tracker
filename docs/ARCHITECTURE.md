@@ -61,6 +61,12 @@ trip, adds up the request estimate and builds the issue's settings block, which 
 out shared settings per trip and optional settings at their defaults to keep the
 issue link short.
 
+`theme.js` runs in the head of both pages before the styles load. It resolves the saved
+theme (`flightwatch:theme` in local storage; automatic follows `prefers-color-scheme`)
+into `data-theme` on the root element, so pages render in the right colors without a
+flash. Dark rules in `styles.css` are scoped with `:where([data-theme="dark"])`, which
+keeps their specificity.
+
 ## Search pipeline
 
 `tracker/planner.py` creates exact departure/return pairs. `tracker/provider.py`

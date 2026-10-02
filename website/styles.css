@@ -142,7 +142,7 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 #submit-note a{color:var(--lime);text-decoration:underline;text-underline-offset:3px}
 @media(max-width:760px){.settings-intro{padding:34px 0 22px}.settings-intro h1{font-size:44px;letter-spacing:-2px}.settings-card{padding:20px 18px}.settings-summary{grid-template-columns:1fr;gap:18px;padding:22px 20px}.changes li{grid-template-columns:1fr;gap:3px}.field-grid{grid-template-columns:1fr 1fr;gap:14px}}
 @media(max-width:480px){.field-grid{grid-template-columns:1fr}nav{gap:12px}nav a{white-space:nowrap}}
-@media(max-width:360px){.brand{font-size:21px}nav a[href^="https://github.com"]{display:none}}
+@media(max-width:360px){.brand{font-size:21px}.header nav a:first-child{display:none}.theme-switch{padding:0 7px}}
 @media(prefers-reduced-motion:reduce){.meter span{transition:none}}
 /* Settings: the trip bar above the form. */
 .trips-head{display:flex;justify-content:space-between;align-items:start;gap:16px;margin-bottom:16px}
@@ -168,6 +168,16 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 .copy-body textarea{display:block;width:100%;margin:6px 0 8px;padding:10px;border-radius:8px;border:1px solid #ffffff33;font:11px/1.5 ui-monospace,monospace;background:#ffffff14;color:white;resize:vertical}
 .copy-body .field-label{color:#d5e3cc;font-size:11px}
 @media(max-width:760px){.trips-head{flex-direction:column}.trip-choice{flex:1 1 calc(50% - 5px);padding:9px 12px}}
+/* Theme selector in the header: a native select over the current choice's icon and name. */
+.header nav{align-items:center}
+.theme-switch{position:relative;display:inline-flex;align-items:center;min-height:32px;padding:0 11px;border:1px solid var(--line);border-radius:999px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap}
+.theme-switch:hover{border-color:#9baa91}
+.theme-switch:focus-within{outline:3px solid #b48436;outline-offset:3px}
+.theme-switch select{position:absolute;inset:0;width:100%;height:100%;min-height:0;margin:0;padding:0;border:0;opacity:0;cursor:pointer;appearance:none}
+.theme-option{display:none;align-items:center;gap:6px}
+.theme-option svg{display:block;flex:none}
+:root:not([data-theme-choice]) .theme-option[data-for="auto"],[data-theme-choice="auto"] .theme-option[data-for="auto"],[data-theme-choice="light"] .theme-option[data-for="light"],[data-theme-choice="dark"] .theme-option[data-for="dark"]{display:inline-flex}
+@media(max-width:760px){.theme-switch{padding:0 8px;min-height:30px}.theme-word{display:none}.header nav a[href^="https://github.com"]{display:none}}
 /* Trip switcher: one tab per tracked trip, shown with two or more trips. */
 .trip-switcher{display:flex;flex-wrap:wrap;gap:10px;padding:22px 0 0}
 .trip-tab{display:grid;gap:3px;min-width:0;padding:10px 16px;border:1px solid var(--line);border-radius:12px;background:var(--white);font-size:13px;line-height:1.3}
@@ -182,45 +192,44 @@ html[data-trip-loading] [data-page],html[data-trip-loading] .route-origins,html[
 /* Long place names must wrap instead of widening the page. */
 .hero>*{min-width:0}.hero h1,.ticket-city{overflow-wrap:anywhere;hyphens:auto}
 
-/* Dark mode follows the system setting. */
-:root{color-scheme:light dark}
-@media (prefers-color-scheme:dark){
-:root{--paper:#0f1a16;--ink:#e3ebe4;--muted:#9aa99f;--line:#2a3a33;--green:#24533f;--white:#16241f;--amber:#e0ad5f;--red:#e88b78;--field:#111d18;--accent:#9ccc85}
-.skip,.table-scroll,.chart-card,.current-search,.settings-card,.airline-popover,.suggestions{background:var(--white)}
-select,.settings-form input[type=text],.settings-form input[type=date],.settings-form input[type=number],.settings-form select,.baggage-panel select,#history-select,.airline-filter>summary,.chip-remove{background:var(--field);color:var(--ink)}
-.hero h1 em{color:#a3c495}
-nav a:hover,nav a[aria-current="page"]{color:var(--accent)}
-.warning{background:#3a2f17;color:#f0d59a;border-color:#5a4826}
-.filters{background:#15221d;border-color:#253630}
-thead{background:#13201b}
-td{border-top-color:#22312b}
-.down,.baggage-included{color:var(--accent)}
-.pill.good{background:#24402c;color:#c4e3ac}.pill.mid{background:#43361b;color:#ecc882}.pill.watch{background:#26302b;color:#b2bdb5}
-.chart-button,.favorite-button{background:var(--white)}
-.chart-button:hover,.favorite-button:hover,.airline-option:hover{background:#1e3029}
-.favorite-button{color:var(--accent)}
-.favorite-button[aria-pressed="true"]{background:#43361b;color:#ecc882;border-color:#6b5426}
-.selected-row{background:#1a2a23}
-.chart-grid{stroke:#2a3a33}.chart-label{fill:#9aa99f}.chart-line{stroke:var(--accent)}.chart-area{fill:#1b3027}
-.chart-point{fill:var(--accent);stroke:var(--paper)}.chart-budget{stroke:#e0ad5f}
-.chart-legend i{background:var(--accent)}.chart-legend i.budget-line{border-bottom-color:#e0ad5f}
-.guide-card{background:#182a20}.guide-row p,.guide-footer{color:#a7b5aa}.guide-footer{border-top-color:#2c3f35}
-.baggage-panel{background:#15231d}.baggage-panel select{border-color:#2f4239}.baggage-caution{border-top-color:#2c3f35}
-.reset:hover{color:#cfe3b8}
-.airline-filter[open]>summary,.suggestions{border-color:#4a5f55}
-.airline-clear{color:var(--accent)}
-.airline-option:has(input:checked),.suggestions li:hover,.suggestions li.active{background:#213a2e}
-.airline-count{background:#22312b}
-.favorites-missing li{border-top-color:#22312b}
-.settings-form [aria-invalid]{background:#3a1d18!important}
-.chip{background:#1b2f25;border-color:#2f4a3c}
-.chip-remove:hover{background:#3a1d18}
-.trip-tab:hover{border-color:#4a5f55}
-.trip-choice{background:var(--white)}
-.trip-choice[aria-pressed="true"]{background:var(--green)}
-.trip-choice.has-error small{color:var(--red)}
-.message.error{background:#4a221c;color:#f6c4b8}.message.warn{background:#43361b;color:#f0d59a}
-.trip-card{box-shadow:0 14px 35px #0006}
-.airline-popover{box-shadow:0 14px 30px #0008}
-}
-@media (prefers-color-scheme:dark) and (max-width:760px){tr{background:var(--white)}}
+/* Dark mode: theme.js sets data-theme from the saved choice (automatic follows the system).
+   :where() keeps every rule's specificity as it was. */
+:root{color-scheme:light}:root:where([data-theme="dark"]){color-scheme:dark}
+:root:where([data-theme="dark"]){--paper:#0f1a16;--ink:#e3ebe4;--muted:#9aa99f;--line:#2a3a33;--green:#24533f;--white:#16241f;--amber:#e0ad5f;--red:#e88b78;--field:#111d18;--accent:#9ccc85}
+:where([data-theme="dark"]) .skip,:where([data-theme="dark"]) .table-scroll,:where([data-theme="dark"]) .chart-card,:where([data-theme="dark"]) .current-search,:where([data-theme="dark"]) .settings-card,:where([data-theme="dark"]) .airline-popover,:where([data-theme="dark"]) .suggestions{background:var(--white)}
+:where([data-theme="dark"]) select,:where([data-theme="dark"]) .settings-form input[type=text],:where([data-theme="dark"]) .settings-form input[type=date],:where([data-theme="dark"]) .settings-form input[type=number],:where([data-theme="dark"]) .settings-form select,:where([data-theme="dark"]) .baggage-panel select,:where([data-theme="dark"]) #history-select,:where([data-theme="dark"]) .airline-filter>summary,:where([data-theme="dark"]) .chip-remove{background:var(--field);color:var(--ink)}
+:where([data-theme="dark"]) .hero h1 em{color:#a3c495}
+:where([data-theme="dark"]) nav a:hover,:where([data-theme="dark"]) nav a[aria-current="page"]{color:var(--accent)}
+:where([data-theme="dark"]) .warning{background:#3a2f17;color:#f0d59a;border-color:#5a4826}
+:where([data-theme="dark"]) .filters{background:#15221d;border-color:#253630}
+:where([data-theme="dark"]) thead{background:#13201b}
+:where([data-theme="dark"]) td{border-top-color:#22312b}
+:where([data-theme="dark"]) .down,:where([data-theme="dark"]) .baggage-included{color:var(--accent)}
+:where([data-theme="dark"]) .pill.good{background:#24402c;color:#c4e3ac}:where([data-theme="dark"]) .pill.mid{background:#43361b;color:#ecc882}:where([data-theme="dark"]) .pill.watch{background:#26302b;color:#b2bdb5}
+:where([data-theme="dark"]) .chart-button,:where([data-theme="dark"]) .favorite-button{background:var(--white)}
+:where([data-theme="dark"]) .chart-button:hover,:where([data-theme="dark"]) .favorite-button:hover,:where([data-theme="dark"]) .airline-option:hover{background:#1e3029}
+:where([data-theme="dark"]) .favorite-button{color:var(--accent)}
+:where([data-theme="dark"]) .favorite-button[aria-pressed="true"]{background:#43361b;color:#ecc882;border-color:#6b5426}
+:where([data-theme="dark"]) .selected-row{background:#1a2a23}
+:where([data-theme="dark"]) .chart-grid{stroke:#2a3a33}:where([data-theme="dark"]) .chart-label{fill:#9aa99f}:where([data-theme="dark"]) .chart-line{stroke:var(--accent)}:where([data-theme="dark"]) .chart-area{fill:#1b3027}
+:where([data-theme="dark"]) .chart-point{fill:var(--accent);stroke:var(--paper)}:where([data-theme="dark"]) .chart-budget{stroke:#e0ad5f}
+:where([data-theme="dark"]) .chart-legend i{background:var(--accent)}:where([data-theme="dark"]) .chart-legend i.budget-line{border-bottom-color:#e0ad5f}
+:where([data-theme="dark"]) .guide-card{background:#182a20}:where([data-theme="dark"]) .guide-row p,:where([data-theme="dark"]) .guide-footer{color:#a7b5aa}:where([data-theme="dark"]) .guide-footer{border-top-color:#2c3f35}
+:where([data-theme="dark"]) .baggage-panel{background:#15231d}:where([data-theme="dark"]) .baggage-panel select{border-color:#2f4239}:where([data-theme="dark"]) .baggage-caution{border-top-color:#2c3f35}
+:where([data-theme="dark"]) .reset:hover{color:#cfe3b8}
+:where([data-theme="dark"]) .airline-filter[open]>summary,:where([data-theme="dark"]) .suggestions{border-color:#4a5f55}
+:where([data-theme="dark"]) .airline-clear{color:var(--accent)}
+:where([data-theme="dark"]) .airline-option:has(input:checked),:where([data-theme="dark"]) .suggestions li:hover,:where([data-theme="dark"]) .suggestions li.active{background:#213a2e}
+:where([data-theme="dark"]) .airline-count{background:#22312b}
+:where([data-theme="dark"]) .favorites-missing li{border-top-color:#22312b}
+:where([data-theme="dark"]) .settings-form [aria-invalid]{background:#3a1d18!important}
+:where([data-theme="dark"]) .chip{background:#1b2f25;border-color:#2f4a3c}
+:where([data-theme="dark"]) .chip-remove:hover{background:#3a1d18}
+:where([data-theme="dark"]) .trip-tab:hover,:where([data-theme="dark"]) .theme-switch:hover{border-color:#4a5f55}
+:where([data-theme="dark"]) .trip-choice{background:var(--white)}
+:where([data-theme="dark"]) .trip-choice[aria-pressed="true"]{background:var(--green)}
+:where([data-theme="dark"]) .trip-choice.has-error small{color:var(--red)}
+:where([data-theme="dark"]) .message.error{background:#4a221c;color:#f6c4b8}:where([data-theme="dark"]) .message.warn{background:#43361b;color:#f0d59a}
+:where([data-theme="dark"]) .trip-card{box-shadow:0 14px 35px #0006}
+:where([data-theme="dark"]) .airline-popover{box-shadow:0 14px 30px #0008}
+@media(max-width:760px){:where([data-theme="dark"]) tr{background:var(--white)}}

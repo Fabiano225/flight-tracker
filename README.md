@@ -5,7 +5,8 @@
 Mobile-friendly price tables, date and duration filters, separate direct/connecting
 fares, and real price-history charts. Data updates automatically after each tracker
 workflow. The dashboard explicitly labels incomplete searches and stale observations.
-It follows the device's light or dark mode.
+The theme selector in the header switches between **Auto** (follows the device's light
+or dark mode), **Light** and **Dark**; the choice is remembered in this browser.
 
 Use the **Airlines** filter to keep selected carriers in the results or hide them.
 Airline names are shown with their carrier code. For connections involving several

@@ -158,3 +158,28 @@ test('favorites of every trip are kept and listed only with their own trip',()=>
   assert.deepEqual(unavailableFavorites(result.keys,[],'AMS','base',ams).map(f=>f.key),[toAmsterdam]);
   assert.deepEqual(unavailableFavorites(result.keys,[],'BKK','base',bkk).map(f=>f.key),[toBangkok]);
 });
+test('the theme script applies the saved choice, also without browser storage',()=>{
+  const source=readFileSync(new URL('../website/theme.js',import.meta.url),'utf8');
+  const run=(stored,systemDark,storageFails=false)=>{
+    const root={dataset:{},style:{}}, ignore=()=>{};
+    const storage={getItem:()=>{if(storageFails)throw new Error('blocked');return stored;}};
+    new Function('window','document','localStorage','matchMedia',source)({matchMedia:true,addEventListener:ignore},
+      {documentElement:root,querySelectorAll:()=>[],addEventListener:ignore},storage,()=>({matches:systemDark,addEventListener:ignore}));
+    return [root.dataset.themeChoice,root.dataset.theme,root.style.colorScheme];
+  };
+  assert.deepEqual(run(null,false),['auto','light','light']);
+  assert.deepEqual(run(null,true),['auto','dark','dark']);
+  assert.deepEqual(run('light',true),['light','light','light']);
+  assert.deepEqual(run('dark',false),['dark','dark','dark']);
+  assert.deepEqual(run('purple',true),['auto','dark','dark']);
+  assert.deepEqual(run('dark',false,true),['auto','light','light']);
+});
+test('every page sets its theme before the styles load and offers all three choices',()=>{
+  for(const name of ['index.html','settings.html']) {
+    const html=readFileSync(new URL(`../website/${name}`,import.meta.url),'utf8');
+    assert.ok(html.indexOf('src="./theme.js"')>0 && html.indexOf('src="./theme.js"')<html.indexOf('styles.css'),name);
+    assert.deepEqual([...html.matchAll(/<option value="(auto|light|dark)">/g)].map(m=>m[1]),['auto','light','dark'],name);
+  }
+  // Dark rules follow the resolved theme only, so a saved choice always wins over the system.
+  assert.ok(!readFileSync(new URL('../website/styles.css',import.meta.url),'utf8').includes('prefers-color-scheme'));
+});
