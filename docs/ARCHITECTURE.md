@@ -67,6 +67,17 @@ into `data-theme` on the root element, so pages render in the right colors witho
 flash. Dark rules in `styles.css` are scoped with `:where([data-theme="dark"])`, which
 keeps their specificity.
 
+## Copies of the project
+
+`tracker/project.py` derives the repository from `GITHUB_REPOSITORY` (or the `origin`
+remote locally) and the dashboard address from it (`https://<owner>.github.io/<name>/`,
+or the `DASHBOARD_URL` variable for a custom domain). Message links, the Telegram
+setup reply, the settings form's issue link and the `{{repo_url}}` links in both web
+pages use it, so a fork needs no code changes. Before the first search a fork has no
+`tracker-state` branch; the dashboard build then publishes an empty dashboard. Without
+Discord or Telegram secrets the `notify` step only prints a notice (messages wait and
+expire). `scripts/setup_check.py` (workflow **Check setup**) lists what is missing.
+
 ## Search pipeline
 
 `tracker/planner.py` creates exact departure/return pairs. `tracker/provider.py`

@@ -1,4 +1,4 @@
-import {airportInfo, searchAirports, searchAirlines, validateTrips, changedFields, settingsJson, settingsChanges, issueUrl, issueBody, MAX_URL, scopeFields, priceFields} from './search-model.mjs';
+import {airportInfo, searchAirports, searchAirlines, validateTrips, changedFields, settingsJson, settingsChanges, issueUrl, issueBody, MAX_URL, scopeFields, priceFields, suggestPrices, observedPrices} from './search-model.mjs';
 
 const $ = id => document.getElementById(id);
 const form = $('settings');
@@ -11,6 +11,11 @@ const routeFields = ['origins','destination','departure_start','departure_end','
 // meta: the saved settings (search-config.json). trips: the edited trips, each
 // {key, id (null for a new trip), config}; one of them is shown in the form.
 let meta, table, numberFields, fieldOrder, trips=[], active=0, primaryKey, nextKey=1, state, lastResult;
+// Published prices per saved trip (data.json), for price suggestions; optional.
+let published=new Map();
+// Suggested settings; a new trip takes them until you edit one of them yourself.
+const suggestedFields=['good_deal_nonstop_eur','good_deal_layover_eur','realert_improvement_eur','drop_eur'];
+const euroText=value=>`€${value.toLocaleString('en-GB')}`;
 
 function cityOf(code) {return airportInfo(table,code)?.city || code;}
 function routeCodes() {return [...new Set([...state.origins,state.destination].filter(Boolean))];}
@@ -141,9 +146,9 @@ function addTrip() {
   sync();
   // A new trip starts as a copy of the trip shown, without destination and names.
   const base=trips[active].config;
-  trips.push({key:nextKey++,id:null,config:{...structuredClone(base),destination:'',display_names:{}}});
+  trips.push({key:nextKey++,id:null,priceEdited:false,config:{...structuredClone(base),destination:'',display_names:{}}});
   active=trips.length-1;fill(trips[active].config);update();
-  $('trip-note').textContent='New trip: settings copied from the trip you were editing. Choose a destination and check the dates and price targets.';
+  $('trip-note').textContent='New trip: settings copied from the trip you were editing. Choose a destination: price targets and alerts are then suggested for it.';
   $('destination-input').focus();
 }
 
@@ -197,8 +202,34 @@ function combo(kind) {
   });
 }
 
+// Prices of a saved trip count only while its route and comparable settings are unchanged.
+function suggestionFor(trip) {
+  const saved=meta.trips.find(config=>config.id===trip.id), data=trip.id?published.get(trip.id):null;
+  const comparable=saved && data && !changedFields(saved,trip.config).some(key=>[...scopeFields,'origins'].includes(key));
+  return suggestPrices(trip.config,table,comparable?observedPrices(data):null);
+}
+
+function renderSuggestion(trip, suggestion) {
+  const box=$('price-suggestion');box.hidden=!suggestion;
+  if(!suggestion)return;
+  const v=suggestion.values, days=trip.config.history_window_days;
+  const values=`non-stop ${euroText(v.good_deal_nonstop_eur)} · with stops ${euroText(v.good_deal_layover_eur)} · new alert from a change of ${euroText(v.realert_improvement_eur)} · strong deal at least ${euroText(v.drop_eur)} below the low`;
+  const source=suggestion.source==='prices'
+    ?`Based on ${suggestion.counts.nonstop+suggestion.counts.layover} checked prices of the last ${days} days (the price a quarter of them reached)`
+    :`Rough estimate for about ${suggestion.km.toLocaleString('en-GB')} km per direction, until there are checked prices`;
+  const same=suggestedFields.every(key=>trip.config[key]===v[key]);
+  $('suggestion-text').textContent=`${!trip.id && !trip.priceEdited?'Filled in automatically. ':''}Suggested: ${values}. ${source}.`;
+  $('use-suggestion').hidden=same;
+}
+
 function update() {
   sync();
+  const trip=trips[active], suggestion=suggestionFor(trip);
+  if(suggestion && !trip.id && !trip.priceEdited && suggestedFields.some(key=>trip.config[key]!==suggestion.values[key])) {
+    for(const key of suggestedFields)field(key).value=suggestion.values[key];
+    sync();
+  }
+  renderSuggestion(trip,suggestion);
   const result=validateTrips(configs(),meta,table,berlinToday()), errors={...result.trips[active],...result.errors};
   lastResult=result;
   for(const output of form.querySelectorAll('.field-error')){
@@ -267,6 +298,7 @@ function start() {
 
 const edited=event=>{
   if(event.target.id==='primary-trip')primaryKey=Number(event.target.value);
+  if(suggestedFields.includes(event.target.name))trips[active].priceEdited=true;
   if(!event.target.closest('.combo'))update();
 };
 form.addEventListener('input',edited);
@@ -274,6 +306,11 @@ form.addEventListener('change',edited);
 form.addEventListener('reset',()=>setTimeout(()=>{start();$('submit-note').replaceChildren();$('copy-body').hidden=true;
   $('trip-note').textContent='All trips are back to the current settings.';},0));
 $('add-trip').addEventListener('click',addTrip);
+$('use-suggestion').addEventListener('click',()=>{
+  const suggestion=suggestionFor(trips[active]);if(!suggestion)return;
+  for(const key of suggestedFields)field(key).value=suggestion.values[key];
+  update();
+});
 $('remove-trip').addEventListener('click',removeTrip);
 $('copy-button').addEventListener('click',async()=>{
   const text=$('issue-body');text.select();
@@ -312,6 +349,11 @@ async function load() {
     }));
     if(settings.version!==2 || !Array.isArray(settings.trips) || !settings.trips.length || !settings.airlines || !airports.airports)throw new Error('Invalid data');
     meta=settings;table=airports;fieldOrder=Object.keys(meta.trips[0]);
+    // Price suggestions from checked prices; the form works without them.
+    try {
+      const response=await fetch('./data.json',{cache:'no-store'}), data=response.ok?await response.json():null;
+      if(data?.version===2 && Array.isArray(data.trips))published=new Map(data.trips.map(trip=>[trip.id,trip]));
+    } catch {}
     numberFields=[...Object.keys(meta.limits.int),...Object.keys(meta.limits.float),...priceFields]
       .filter(name=>!['max_direction_minutes','carry_on_bags','checked_bags'].includes(name));
     for(const [name,[low,high]] of Object.entries({...meta.limits.int,...meta.limits.float})){

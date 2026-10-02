@@ -4,6 +4,10 @@ import os
 import sys
 import time
 from urllib import request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from tracker.project import repository_url  # noqa: E402
 
 
 def call(token, method, payload):
@@ -36,7 +40,7 @@ def main():
     call(token, "sendMessage", {"chat_id": chat_id, "text":
         f"Your Telegram chat ID: {chat_id}\n\n"
         "Add this number in GitHub as the Actions secret TELEGRAM_CHAT_ID:\n"
-        "https://github.com/Fabiano225/flight-tracker/settings/secrets/actions\n\n"
+        f"{repository_url()}/settings/secrets/actions\n\n"
         "Keep the bot token secret."})
     print("Chat ID sent privately through your bot. Add TELEGRAM_CHAT_ID in GitHub, then run the flight tracker.")
 

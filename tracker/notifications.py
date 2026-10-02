@@ -3,10 +3,11 @@ import os
 
 from .config import trips_of
 from .network import ServiceError
+from .project import dashboard_url
 from .store import stamp
 
 ARCHIVE_PREFIX = "Copied price update"
-DASHBOARD = "https://fabiano225.github.io/flight-tracker/"
+DASHBOARD = dashboard_url()
 SETTINGS = DASHBOARD + "settings.html"
 
 
@@ -20,6 +21,14 @@ def message_labels(settings):
     for trip in reversed(trips):  # The first trip's names win for a shared airport.
         names.update(trip.display_names)
     return (trips[0].destination if len(trips) == 1 else None), names
+
+
+def notifications_configured():
+    """Whether any message channel is set up. Without one, messages wait undelivered and
+    expire; an explicitly chosen channel (NOTIFICATION_CHANNEL) must be set up."""
+    channel = os.environ.get("NOTIFICATION_CHANNEL", "auto").strip().lower() or "auto"
+    return channel != "auto" or any(os.environ.get(name, "").strip() for name in
+                                     ("DISCORD_WEBHOOK_URL", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"))
 
 
 def configured_sender(settings=None):

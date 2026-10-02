@@ -6,8 +6,9 @@ import re
 
 from .check_status import TELEGRAM_REPLY_HINT
 from .network import JsonHttp, ServiceError
-from .notifications import ARCHIVE_PREFIX, DASHBOARD, SETTINGS
+from .notifications import ARCHIVE_PREFIX, DASHBOARD
 from .places import city
+from .project import repository_url
 
 GREEN, RED, AMBER, BLUE = 0x22C55E, 0xEF4444, 0xF59E0B, 0x5865F2
 # Message kinds named in the first line; the German names are legacy messages.
@@ -61,7 +62,7 @@ def payload_for(text, reference_url=None, code=None, names=None):
         title, color = '✅ Flight search recovered', GREEN
     elif kind and kind.group(2) == 'search window ended':
         title = '🏁 ' + place + 'Search window ended'
-        text = text.replace('Set up a new search: ' + SETTINGS, '[Set up a new search →](' + SETTINGS + ')')
+        text = re.sub(r'Set up a new search: (https://\S+)', r'[Set up a new search →](\1)', text)
 
     embeds = []
     # The outbox text is also the durable, human-readable audit record. Split
@@ -100,7 +101,7 @@ def payload_for(text, reference_url=None, code=None, names=None):
         raise ValueError('Discord embed limits exceeded')
     return {'username': (code + ' ' if code else '') + 'Flight Tracker', 'allowed_mentions': {'parse': []},
             'content': '[Open dashboard](<' + DASHBOARD + '>) · '
-                       '[Search runs](<https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml>)',
+                       '[Search runs](<' + repository_url() + '/actions/workflows/track-flights.yml>)',
             'embeds': embeds}
 
 

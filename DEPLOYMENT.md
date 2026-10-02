@@ -177,6 +177,33 @@ Synthetic demo state is deliberately rejected by the public exporter. Website
 logic tests run with `node --test tests/site_model.test.mjs tests/search_model.test.mjs`
 (Node.js 22+).
 
+### Several trips in config.json
+
+A `config.json` with a single trip uses the flat layout (one object with all
+settings). Several trips (at most five) use a `trips` list. Each trip has an `id`
+(lowercase letters, digits and dashes) and its own route, dates, filters and price
+targets; `primary_trip` names the trip the website shows first. The request settings
+(`max_http_attempts_per_run`, `max_run_seconds`, `http_timeout_seconds`,
+`http_attempts`, `request_interval_seconds`, `max_parallel_requests`,
+`pending_ttl_hours`) are shared by all trips and set once:
+
+```json
+{
+  "primary_trip": "main",
+  "trips": [
+    {"id": "main", "origins": ["DUS", "FRA", "AMS"], "destination": "BKK", "...": "..."},
+    {"id": "ams", "origins": ["FRA"], "destination": "AMS", "...": "..."}
+  ],
+  "max_http_attempts_per_run": 1600,
+  "max_run_seconds": 2400,
+  "...": "the other request settings"
+}
+```
+
+The original single search is the trip `main`; it keeps its price history. Every
+other trip's id is part of its history scope, so renaming a trip's id starts a new
+history.
+
 ### Changing the search from the website
 
 The dashboard page **Change search** (`settings.html`; the old `suche.html` redirects)

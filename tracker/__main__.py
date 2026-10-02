@@ -14,7 +14,7 @@ from .service import scan_trips
 from .store import Store, utcnow
 from .telegram import Telegram
 from .discord import Discord
-from .notifications import configured_sender, deliver, message_labels
+from .notifications import configured_sender, deliver, message_labels, notifications_configured
 
 
 def plan_summary(config, today):
@@ -79,6 +79,11 @@ def main():
                 print("DEMO ONLY - no network or notification messages. Outbox contains synthetic alerts.")
             return 1 if any(summary["status"] == "partial" for summary in summaries) else 0
         if args.command == "notify":
+            if not notifications_configured():
+                # A new copy works without Discord or Telegram; the dashboard still updates.
+                print("::notice::No Discord or Telegram set up, so price alerts are not sent. "
+                      "See 'Get notifications' in README.md.")
+                return 0
             print(f"Delivered {deliver(store, settings, now, configured_sender(settings))} messages")
         elif args.command == "report":
             print(report(store))

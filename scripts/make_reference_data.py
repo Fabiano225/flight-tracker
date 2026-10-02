@@ -53,7 +53,7 @@ LCY NCL LPL BFS CRL EIN RTM LUX BIO SVQ IBZ ACE FUE MAH FNC PDL SPU DBV ZAG LJU 
 PRN RIX TLL VNO KEF BGO TRD GOT BLL AAR SVO DME VKO LED KBP TBS EVN GYD ALA NQZ TAS SVX OVB
 '''.split()
 # Metropolitan codes the source accepts that have no single-airport entry.
-EXTRA = {'SAO': ('BR', 'São Paulo (all airports)')}
+EXTRA = {'SAO': ('BR', 'São Paulo (all airports)', -23.5, -46.6)}
 AIRLINE_NAMES = {'LH': 'Lufthansa'}
 
 
@@ -88,7 +88,9 @@ def main():
     for code in sorted(a.name for a in Airport):
         if code in source:
             entry = source[code]
-            airports[code] = [city_for(code, entry), entry['country'], entry['name']]
+            # Position to one decimal (about 10 km): enough for the form's fare estimate.
+            airports[code] = [city_for(code, entry), entry['country'], entry['name'],
+                              round(entry['lat'], 1), round(entry['lon'], 1)]
         elif code in EXTRA:
             airports[code] = [CITY[code], *EXTRA[code]]
         else:
