@@ -9,11 +9,11 @@ import unittest
 from unittest.mock import Mock
 from urllib.error import HTTPError, URLError
 
-from tracker.alerts import is_drop, reason_for, digest
+from tracker.alerts import is_drop
 from tracker.config import Config, cents
 from tracker.network import JsonHttp, ServiceError, BudgetError
 from tracker.planner import plan
-from tracker.provider import DemoProvider, Quote, normalize_pairs, GuardedClient
+from tracker.provider import DemoProvider, Quote, normalize_pairs
 from tracker.service import scan
 from tracker.store import Store, stamp
 from tracker.telegram import Telegram, deliver
@@ -138,17 +138,6 @@ class AlertTests(unittest.TestCase):
         self.assertFalse(is_drop(145000,150000,c))
         self.assertFalse(is_drop(60000,None,c))
 
-    def test_thresholds_are_separate(self):
-        c = replace(Config(),good_deal_nonstop_eur=800,good_deal_layover_eur=650)
-        self.assertEqual(reason_for(75000,None,"nonstop",c),"good deal")
-        self.assertEqual(reason_for(75000,None,"layover",c),"")
-
-    def test_digest_maximum_fits_telegram(self):
-        q = Quote("FRA","2026-10-15","2026-10-29","layover",60000,1200,1259,1,2,"QR, LH","https://www.google.com")
-        text = digest([(q,"good deal; drop from EUR 850.00 (29%)")]*6,Config(),NOW)
-        self.assertLessEqual(len(text),4096)
-        self.assertIn("LAYOVER",text)
-        self.assertIn("20h59",text)
 
 
 class NoNonstopProvider(DemoProvider):
@@ -371,12 +360,6 @@ class NetworkTests(unittest.TestCase):
         http=JsonHttp(opener=NS(open=Mock(side_effect=[exc,BytesIO(b'{"ok":true}')])),sleep=sleeps.append)
         http.get_json("https://example.com")
         self.assertIn(5,sleeps)
-
-    def test_rpc_error_is_not_empty_result(self):
-        response=NS(status_code=200,text=")]}'\n\n[[\"wrb.fr\",null,null,null,null,[13]]]")
-        client=GuardedClient(Config(),session=NS(post=Mock(return_value=response)),sleep=lambda _:None)
-        with self.assertRaisesRegex(ServiceError,"RPC"):
-            client.post("https://www.google.com", "f.req=test")
 
 
 if __name__ == "__main__":

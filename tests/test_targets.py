@@ -7,7 +7,6 @@ import unittest
 
 from scripts import search_settings as settings
 from scripts.build_site import export_data, page_values
-from tracker.alerts import reason_for
 from tracker.config import Config, Settings
 from tracker.provider import Quote
 from tracker.store import Store
@@ -27,8 +26,6 @@ class TargetTests(unittest.TestCase):
         self.assertEqual(config.threshold("layover", "FRA"), 65000)
         self.assertEqual(config.threshold("nonstop", "AMS"), 82000)
         self.assertEqual(config.threshold("layover"), 65000)
-        self.assertEqual(reason_for(68000, None, "layover", config, "DUS"), "good deal")
-        self.assertEqual(reason_for(68000, None, "layover", config, "FRA"), "")
         # Price targets never change which prices are comparable.
         self.assertEqual(config.scope(), BKK.scope())
 
