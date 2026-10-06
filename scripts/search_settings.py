@@ -265,8 +265,9 @@ def save(text, parent, message):
     return commit
 
 
-def apply(body, path, today, issue=None):
-    """Return (outcome, reply markdown). Outcomes: applied, unchanged, rejected."""
+def apply(body, path, today, issue=None, paused=False):
+    """Return (outcome, reply markdown). Outcomes: applied, unchanged, rejected.
+    `paused`: searches are switched off (TRACKER_ENABLED=false), so none starts."""
     parent, text = stored()
     current = Settings.from_dict(json.loads(text)) if parent else Settings.load(path)
     try:
@@ -303,10 +304,15 @@ def apply(body, path, today, issue=None):
         lines += [f"All {len(new.trips)} trips are searched in every run and share its budget of "
                   f"{new.trips[0].max_http_attempts_per_run} requests. Messages for all trips go to the same "
                   "channel; each names its destination.", ""]
-    lines += [f"The website shows the new {'searches' if several else 'search'} in about 2 minutes. A search run "
-              f"has started (about {estimate['requests']} requests); first prices appear after about 10–40 minutes.", "",
-              f"Stored on the `search-config` branch (commit {commit[:7]}). `config.json` on main stays "
-              "unchanged and applies again only if you delete that branch."]
+    if paused:
+        lines += ["⏸️ Searches are paused (repository variable `TRACKER_ENABLED` is `false`): the website shows "
+                  "the new settings in about 2 minutes, but no prices are searched until you turn searches back on.", ""]
+    else:
+        lines += [f"A search has started (about {estimate['requests']} requests). The website shows the new "
+                  f"{'searches' if several else 'search'} with first prices once it has finished, usually after "
+                  "5–15 minutes.", ""]
+    lines.append(f"Stored on the `search-config` branch (commit {commit[:7]}). `config.json` on main stays "
+                 "unchanged and applies again only if you delete that branch.")
     return "applied", "\n".join(lines)
 
 
@@ -320,7 +326,8 @@ def main():
         use(args.config)
         return
     outcome, reply = apply(os.environ.get("ISSUE_BODY", ""), args.config, datetime.now(timezone.utc).date(),
-                           os.environ.get("ISSUE_NUMBER"))
+                           os.environ.get("ISSUE_NUMBER"),
+                           os.environ.get("SEARCHES_PAUSED") == "true")
     if args.reply:
         Path(args.reply).write_text(reply + "\n", encoding="utf-8")
     if os.environ.get("GITHUB_OUTPUT"):

@@ -209,13 +209,17 @@ class BranchTests(unittest.TestCase):
         self.assertEqual(outcome, 'applied')
         self.assertIn('| Destination | BKK | HND |', reply)
         self.assertIn('price history and alerts start over', reply)
+        self.assertIn('A search has started', reply)
         # main's config.json is not touched by apply.
         self.assertEqual(self.config.read_text(encoding='utf-8'), self.original)
         settings.use(self.config)
         self.assertEqual(Config.load(self.config).destination, 'HND')
         self.assertEqual(settings.apply(body(self.values), self.config, TODAY)[0], 'unchanged')
         later = {**self.values, 'good_deal_layover_eur': 700}
-        self.assertEqual(settings.apply(body(later), self.config, TODAY)[0], 'applied')
+        outcome, reply = settings.apply(body(later), self.config, TODAY, paused=True)
+        self.assertEqual(outcome, 'applied')
+        self.assertIn('Searches are paused', reply)
+        self.assertNotIn('A search has started', reply)
         log = subprocess.run(['git', '--git-dir=../remote.git', 'log', '--format=%s', 'search-config'],
                              capture_output=True, text=True, check=True)
         self.assertEqual(log.stdout.splitlines(), ['Search settings: DUS, FRA, AMS → HND',

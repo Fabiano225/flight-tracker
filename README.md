@@ -101,8 +101,9 @@ code (German names such as "München" work too).
   one budget, so very wide date ranges or many trips are rejected before anything is
   sent.
 - **Applying:** the form opens a prefilled GitHub issue. Once you create it, a workflow
-  checks the settings, saves them, replies in the issue and starts a new search. First
-  prices appear after about 10–40 minutes.
+  checks the settings, saves them, replies in the issue and starts a new search. When
+  that search has finished, the website shows the new settings with their first
+  prices, usually after 5–15 minutes.
 
 Only issues from the repository owner are applied; anyone else's are closed
 automatically. Settings are stored on the `search-config` branch; deleting that
