@@ -249,3 +249,16 @@ html[data-trip-loading] [data-page],html[data-trip-loading] .route-origins,html[
 :where([data-theme="dark"]) .trip-card{box-shadow:0 14px 35px #0006}
 :where([data-theme="dark"]) .airline-popover{box-shadow:0 14px 30px #0008}
 @media(max-width:760px){:where([data-theme="dark"]) tr{background:var(--white)}}
+/* Flight times: one block per direction, departure → arrival in local time. */
+.th-note{font-weight:500;letter-spacing:.3px;text-transform:none;opacity:.8;margin-left:4px}
+.legs{display:grid;gap:11px;min-width:172px}
+.leg{display:grid;grid-template-columns:36px auto;column-gap:8px;row-gap:2px;align-items:baseline}
+.leg-label{font-size:8.5px;font-weight:650;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
+.leg-time{display:flex;align-items:baseline;gap:6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.leg-time strong{display:inline;font-size:13px}
+.leg-arrow{color:#a2af9c;font-size:12px}
+.leg-shift{align-self:flex-start;margin-left:-3px;font-size:9px;font-weight:650;color:#896420;line-height:1}
+td small.leg-meta{grid-column:2;margin-top:0}
+:where([data-theme="dark"]) .leg-arrow{color:#6f8076}
+:where([data-theme="dark"]) .leg-shift{color:var(--amber)}
+@media(max-width:760px){td:nth-child(3),td:nth-child(6){grid-column:1/-1}td:nth-child(4){grid-column:auto;grid-row:auto}td:nth-child(5){justify-self:end}.legs{grid-template-columns:1fr 1fr;gap:12px;min-width:0;padding:12px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)}.leg{grid-template-columns:1fr}.leg-label{margin-bottom:3px}td small.leg-meta{grid-column:1}}

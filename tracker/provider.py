@@ -28,6 +28,8 @@ class Quote:
     link: str
     itinerary_id: str | None = None
     baggage: dict | None = None
+    # Local times at each airport: outbound departs, arrives, return departs, arrives.
+    schedule: tuple | None = None
 
     def to_dict(self):
         return asdict(self)
@@ -430,6 +432,17 @@ def itinerary_id(pair):
     return hashlib.sha256(json.dumps(legs).encode()).hexdigest()
 
 
+def schedule(pair):
+    """Local departure and arrival times of both directions ("YYYY-MM-DDTHH:MM"),
+    or None if the source no longer provides them."""
+    try:
+        times = [moment for direction in pair
+                 for moment in (direction.legs[0].departure_datetime, direction.legs[-1].arrival_datetime)]
+        return tuple(moment.strftime("%Y-%m-%dT%H:%M") for moment in times)
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
 def normalize_pairs(pairs, origin, departure, return_date, profile, config, make_link):
     best = {}
     for pair in pairs:
@@ -466,7 +479,8 @@ def normalize_pairs(pairs, origin, departure, return_date, profile, config, make
             continue
         airlines = ", ".join(sorted(carriers))
         quote = Quote(origin, departure, return_date, category, price, outbound.duration, inbound.duration,
-                      outbound.stops, inbound.stops, airlines, make_link(pair), itinerary_id(pair))
+                      outbound.stops, inbound.stops, airlines, make_link(pair), itinerary_id(pair),
+                      schedule=schedule(pair))
         if category not in best or price < best[category].price:
             best[category] = quote
     return list(best.values())
@@ -489,10 +503,15 @@ class DemoProvider:
     def verify(self, origin, departure, return_date, profile):
         self.http.used += 1
         category = "nonstop" if profile == "nonstop" else "layover"
+        out_minutes, in_minutes = (700, 740) if category == "nonstop" else (990, 1050)
+        # Synthetic local times: the destination is assumed 5 hours ahead.
+        leaves, returns = datetime.fromisoformat(f"{departure}T10:15"), datetime.fromisoformat(f"{return_date}T23:50")
+        times = (leaves, leaves + timedelta(minutes=out_minutes + 300),
+                 returns, returns + timedelta(minutes=in_minutes - 300))
         return [Quote(origin, departure, return_date, category, self.price(origin, departure, profile),
-                      700 if category == "nonstop" else 990, 740 if category == "nonstop" else 1050,
-                      int(category == "layover"), int(category == "layover"), "DEMO",
-                      "https://www.google.com/travel/flights")]
+                      out_minutes, in_minutes, int(category == "layover"), int(category == "layover"), "DEMO",
+                      "https://www.google.com/travel/flights",
+                      schedule=tuple(t.strftime("%Y-%m-%dT%H:%M") for t in times))]
 
     def close(self):
         pass

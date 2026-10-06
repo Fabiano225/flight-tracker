@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref} from '../website/model.mjs';
+import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -195,4 +195,15 @@ test('favorites returning after the latest return date are removed',()=>{
   const key=(dep,ret)=>JSON.stringify(['BKK','FRA',dep,ret,'layover','base']);
   const result=pruneFavorites(new Set([key('2026-10-20','2026-11-08'),key('2026-10-21','2026-11-09')]),cfg,'2026-10-06');
   assert.deepEqual([...result.keys],[key('2026-10-20','2026-11-08')]);
+});
+test('flight times per direction: local times, day shift and a fallback without times',()=>{
+  const q={outbound_minutes:1085,inbound_minutes:920,outbound_stops:1,inbound_stops:0,
+    schedule:['2026-10-15T16:35','2026-10-16T12:40','2026-10-29T20:05','2026-10-29T23:30']};
+  assert.deepEqual(flightLegs(q),[
+    {label:'Out',minutes:1085,stops:1,departs:'16:35',arrives:'12:40',dayShift:1},
+    {label:'Back',minutes:920,stops:0,departs:'20:05',arrives:'23:30',dayShift:0}]);
+  // Westbound across the date line a flight can land on the previous day.
+  assert.equal(flightLegs({...q,schedule:['2026-10-15T08:00','2026-10-14T22:00',...q.schedule.slice(2)]})[0].dayShift,-1);
+  for(const schedule of [undefined,null,q.schedule.slice(0,3),[...q.schedule.slice(0,3),'23:30'],'2026-10-15T16:35'])
+    assert.deepEqual(flightLegs({...q,schedule}),[{label:'Out',minutes:1085,stops:1},{label:'Back',minutes:920,stops:0}]);
 });

@@ -196,6 +196,7 @@ def export_data(db_path, config, now=None, variant=None):
             item = {k: getattr(q, k) for k in ('origin', 'departure', 'return_date', 'category',
                     'price', 'outbound_minutes', 'inbound_minutes', 'outbound_stops', 'inbound_stops', 'airlines')}
             item.update(id=key, days=days, at=observed_at, link=search_link(q, config.destination, config.travel_class))
+            item['schedule'] = public_schedule(q)
             item['itinerary_id'] = q.itinerary_id if isinstance(q.itinerary_id,str) and re.fullmatch(r'[a-f0-9]{64}',q.itinerary_id) else None
             if variant:
                 item['baggage'] = dict(bag, profile=variant, allowance_confirmed=True, checked_at=observed_at)
@@ -210,6 +211,22 @@ def export_data(db_path, config, now=None, variant=None):
         return result
     finally:
         db.close()
+
+
+def public_schedule(quote):
+    """The four local flight times, only if well-formed and on the quote's travel dates."""
+    times = quote.schedule
+    if not isinstance(times, (list, tuple)) or len(times) != 4:
+        return None
+    try:
+        if not all(isinstance(t, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}', t)
+                   and datetime.fromisoformat(t) for t in times):
+            return None
+    except ValueError:
+        return None
+    if times[0][:10] != quote.departure or times[2][:10] != quote.return_date:
+        return None
+    return list(times)
 
 
 def trip_data(db_path, config, now):
