@@ -1,5 +1,5 @@
 """Stable date watches: new date combinations alone must not cause deal spam."""
-from datetime import timedelta
+from datetime import date, timedelta
 import hashlib
 import json
 
@@ -81,6 +81,30 @@ def latest_alert(store, scope, quote, config):
          config.min_trip_days, config.max_trip_days, config.latest_return, config.latest_return)).fetchone()
 
 
+def connections(stops):
+    return "non-stop" if not stops else "via " + ", ".join(f"{airport} {hours(wait)}" for airport, wait in stops)
+
+
+def flight_lines(quote):
+    """One line per direction: local departure -> arrival (+days), travel time, connections."""
+    times = quote.schedule if isinstance(quote.schedule, (list, tuple)) and len(quote.schedule) == 4 else None
+    stops = quote.layovers if isinstance(quote.layovers, (list, tuple)) and len(quote.layovers) == 2 else None
+    if times is None and stops is None:
+        return [f"Out {hours(quote.outbound_minutes)} / back {hours(quote.inbound_minutes)}"]
+    lines = []
+    for i, (label, minutes) in enumerate((("Out", quote.outbound_minutes), ("Back", quote.inbound_minutes))):
+        parts = []
+        if times:
+            leaves, lands = times[2 * i], times[2 * i + 1]
+            shift = (date.fromisoformat(lands[:10]) - date.fromisoformat(leaves[:10])).days
+            parts.append(f"{leaves[11:]} -> {lands[11:]}" + (f" ({shift:+d} day{'s' if abs(shift) > 1 else ''})" if shift else ""))
+        parts.append(hours(minutes))
+        if stops:
+            parts.append(connections(stops[i]))
+        lines.append(f"{label}: " + " | ".join(parts))
+    return lines
+
+
 def eur(price):
     return f"{price / 100:.2f} EUR"
 
@@ -130,7 +154,7 @@ def block(quote, history, prior, config):
         lines.append("At or below the previous observed low.")
     if history["count"] < 3:
         lines.append("Little history: judged mainly against your price target.")
-    lines.append(f"Out {hours(quote.outbound_minutes)} / back {hours(quote.inbound_minutes)}")
+    lines.extend(flight_lines(quote))
     lines.append(search_link(quote, config.destination, config.travel_class))
     return "\n".join(lines)
 

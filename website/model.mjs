@@ -165,10 +165,13 @@ export function tripHref(site, id, page='./') {
 }
 // Both directions of an offer; with the local times at each airport when the search
 // had them. dayShift counts calendar days from departure to arrival (+1: next day).
+// `connections` lists [airport, minutes waiting] per stop when the search recorded them.
 export function flightLegs(offer) {
   const times=Array.isArray(offer.schedule)&&offer.schedule.length===4&&offer.schedule.every(t=>/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(t))?offer.schedule:null;
+  const stops=Array.isArray(offer.layovers)&&offer.layovers.length===2&&offer.layovers.every(Array.isArray)?offer.layovers:null;
   const dayNumber=t=>Date.parse(t.slice(0,10)+'T00:00:00Z')/864e5;
-  return [['Out',0,offer.outbound_minutes,offer.outbound_stops],['Back',2,offer.inbound_minutes,offer.inbound_stops]].map(([label,i,minutes,stops])=>({
-    label,minutes,stops,
-    ...(times?{departs:times[i].slice(11),arrives:times[i+1].slice(11),dayShift:dayNumber(times[i+1])-dayNumber(times[i])}:{})}));
+  return [['Out',0,offer.outbound_minutes,offer.outbound_stops],['Back',2,offer.inbound_minutes,offer.inbound_stops]].map(([label,i,minutes,count],n)=>({
+    label,minutes,stops:count,
+    ...(times?{departs:times[i].slice(11),arrives:times[i+1].slice(11),dayShift:dayNumber(times[i+1])-dayNumber(times[i])}:{}),
+    ...(stops?{connections:stops[n].map(([airport,wait])=>({airport,minutes:wait}))}:{})}));
 }

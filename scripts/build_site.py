@@ -197,6 +197,7 @@ def export_data(db_path, config, now=None, variant=None):
                     'price', 'outbound_minutes', 'inbound_minutes', 'outbound_stops', 'inbound_stops', 'airlines')}
             item.update(id=key, days=days, at=observed_at, link=search_link(q, config.destination, config.travel_class))
             item['schedule'] = public_schedule(q)
+            item['layovers'] = public_layovers(q)
             item['itinerary_id'] = q.itinerary_id if isinstance(q.itinerary_id,str) and re.fullmatch(r'[a-f0-9]{64}',q.itinerary_id) else None
             if variant:
                 item['baggage'] = dict(bag, profile=variant, allowance_confirmed=True, checked_at=observed_at)
@@ -227,6 +228,26 @@ def public_schedule(quote):
     if times[0][:10] != quote.departure or times[2][:10] != quote.return_date:
         return None
     return list(times)
+
+
+def public_layovers(quote):
+    """Connections per direction as [airport, minutes]; None unless well-formed."""
+    value = quote.layovers
+    if not isinstance(value, (list, tuple)) or len(value) != 2:
+        return None
+    result = []
+    for direction in value:
+        if not isinstance(direction, (list, tuple)) or len(direction) > 4:
+            return None
+        stops = []
+        for stop in direction:
+            if (not isinstance(stop, (list, tuple)) or len(stop) != 2 or not isinstance(stop[0], str)
+                    or not re.fullmatch(r'[A-Z]{3}(/[A-Z]{3})?', stop[0])
+                    or type(stop[1]) is not int or not 0 <= stop[1] <= 3 * 24 * 60):
+                return None
+            stops.append([stop[0], stop[1]])
+        result.append(stops)
+    return result
 
 
 def trip_data(db_path, config, now):

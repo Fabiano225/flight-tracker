@@ -7,6 +7,23 @@ const category = q => q.category==='nonstop' ? 'Non-stop · both directions' : '
 const hours = m => `${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')}`;
 const stopsText = n => n===0?'Non-stop':`${n} stop${n===1?'':'s'}`;
 const shiftText = n => `${n>0?'+':'−'}${Math.abs(n)}`;
+// Travel time and stops; with recorded connections their airports and waiting times.
+// Waits under an hour or of six hours and more are marked.
+function legMeta(leg, prefix) {
+  const meta=node('small',prefix,'leg-meta');
+  if(!leg.connections){meta.append(stopsText(leg.stops));return meta;}
+  if(!leg.connections.length){meta.append('Non-stop');return meta;}
+  meta.append('via ');
+  leg.connections.forEach(({airport,minutes},i)=>{
+    if(i)meta.append(', ');
+    const stop=node('span',`${airport} ${hours(minutes)}`,'layover');
+    if(minutes<60){stop.classList.add('layover-alert');stop.title='Short connection: under 1 hour';}
+    else if(minutes>=360){stop.classList.add('layover-alert');stop.title='Long wait: 6 hours or more';}
+    if(airport.includes('/'))stop.title='Change of airport'+(stop.title?` · ${stop.title}`:'');
+    meta.append(stop);
+  });
+  return meta;
+}
 // One line per direction: departure → arrival (local times), then travel time and stops.
 function flightsCell(q) {
   const cell=node('td'),legs=node('div',undefined,'legs');
@@ -19,10 +36,10 @@ function flightsCell(q) {
         shift.title=`Arrives ${Math.abs(leg.dayShift)} day${Math.abs(leg.dayShift)===1?'':'s'} ${leg.dayShift>0?'later':'earlier'}`;
         time.append(shift,node('span',` (${shift.title.toLowerCase()})`,'sr-only'));
       }
-      row.append(node('span',leg.label,'leg-label'),time,node('small',`${hours(leg.minutes)} · ${stopsText(leg.stops)}`,'leg-meta'));
+      row.append(node('span',leg.label,'leg-label'),time,legMeta(leg,`${hours(leg.minutes)} · `));
     } else {
       time.append(node('strong',hours(leg.minutes)));
-      row.append(node('span',leg.label,'leg-label'),time,node('small',stopsText(leg.stops),'leg-meta'));
+      row.append(node('span',leg.label,'leg-label'),time,legMeta(leg,''));
     }
     legs.append(row);
   }

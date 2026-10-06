@@ -257,6 +257,8 @@ html[data-trip-loading] [data-page],html[data-trip-loading] .route-origins,html[
 .leg-arrow{color:#a2af9c;font-size:12px}
 .leg-shift{align-self:flex-start;margin-left:-3px;font-size:9px;font-weight:650;color:#896420;line-height:1}
 td small.leg-meta{grid-column:2;margin-top:0}
+.layover{white-space:nowrap}.layover-alert{color:#896420;font-weight:600;cursor:help}
+:where([data-theme="dark"]) .layover-alert{color:var(--amber)}
 :where([data-theme="dark"]) .leg-arrow{color:#6f8076}
 :where([data-theme="dark"]) .leg-shift{color:var(--amber)}
 @media(max-width:760px){td:nth-child(3),td:nth-child(6){grid-column:1/-1}td:nth-child(4){grid-column:auto;grid-row:auto}td:nth-child(5){justify-self:end}.legs{grid-template-columns:1fr 1fr;gap:12px;min-width:0;padding:12px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)}.leg{grid-template-columns:1fr}.leg-label{margin-bottom:3px}td small.leg-meta{grid-column:1}}

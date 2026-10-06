@@ -206,4 +206,7 @@ test('flight times per direction: local times, day shift and a fallback without 
   assert.equal(flightLegs({...q,schedule:['2026-10-15T08:00','2026-10-14T22:00',...q.schedule.slice(2)]})[0].dayShift,-1);
   for(const schedule of [undefined,null,q.schedule.slice(0,3),[...q.schedule.slice(0,3),'23:30'],'2026-10-15T16:35'])
     assert.deepEqual(flightLegs({...q,schedule}),[{label:'Out',minutes:1085,stops:1},{label:'Back',minutes:920,stops:0}]);
+  const legs=flightLegs({...q,layovers:[[['DOH',115]],[]]});
+  assert.deepEqual(legs.map(leg=>leg.connections),[[{airport:'DOH',minutes:115}],[]]);
+  assert.equal(flightLegs({...q,layovers:[[['DOH',115]]]})[0].connections,undefined);
 });
