@@ -33,30 +33,55 @@ package for the airports `flights` supports) plus optional `display_names`; they
 the website and messages and are not part of the history scope. `tracker/airlines.json`
 names the airlines the filters can use.
 
-The optional filters `max_stops`, `airlines` and `airlines_exclude` are passed to
-Google with every calendar and itinerary search, and `normalize_pairs` rechecks each
-itinerary. They join the history scope only when set, so a search without filters
-keeps its existing scope. With `max_stops: 0` the planner skips the any-stops profile.
+The optional filters `max_stops`, `airlines`, `airlines_exclude` and `flight_times` are
+passed to Google with every calendar and itinerary search, and `normalize_pairs`
+rechecks each itinerary. They join the history scope only when set, so a search without
+filters keeps its existing scope. With `max_stops: 0` the planner skips the any-stops
+profile. `flight_times` windows are `[from hour, until hour)` in local time per
+direction (`outbound_departure`, `outbound_arrival`, `return_departure`,
+`return_arrival`); Google gets them widened to whole hours, and an itinerary counts only
+if its first departure and last arrival lie inside the exact windows (unknown times
+never do).
+
+`adults` (1–9) is part of the scope. Google prices the whole party; calendar, itinerary
+and booking prices are divided per person (`per_person`), so targets, history and
+alerts stay per person, and messages and the dashboard add the party's total.
+
+A trip's `more_destinations` (up to four) are searched like separate trips:
+`Config.searches()` and `Settings.searches()` give one single-destination `Config` per
+destination, and scans, watches, alerts, check statuses, expiry and baggage checks all
+work on these. The first destination keeps the trip's scope (`more_destinations` is not
+part of it); every destination's scope depends only on its code and the trip's other
+settings, so reordering destinations keeps their histories. A trip whose window ends
+sends one notice from its first destination. The settings reply reports a history
+restart only when no destination stays or a comparable-price setting changes.
 
 `Settings` holds one to five trips (each a `Config` with an `id`) and the primary trip.
 A flat `config.json` is the single trip `main`, whose scope omits the id so its history
 continues; every other trip's id is part of its scope, so trips never share price
 history, date watches or alerts. `SHARED_FIELDS` (request budget, pacing, timeouts and
 message expiry) apply to the whole run and must be equal for all trips.
-`scan_trips` searches the trips in order (primary first) with one `GuardedClient`, so
-the request cap, time budget and pacing are shared; providers do not close a client
-they did not create, and each trip caches its itinerary searches in its own file.
+`scan_trips` searches the trips' destinations in order (primary first) with one
+`GuardedClient`, so the request cap, time budget and pacing are shared; providers do not
+close a client they did not create, and each trip and destination caches its itinerary
+searches in its own file.
 Expiry is trip-aware: a scan or delivery expires only alerts whose scope is not among
 the active trips, check statuses are replaced per trip (matched by their run's scope),
 and pending digests are validated against their own trip's window. Health messages are
 aggregated per run, and pruning runs once with the longest comparison period.
 
 The dashboard's `data.json` (version 2) lists the trips primary first; each carries its
-configuration, page texts, offers, histories and baggage views. An offer's `schedule`
-holds the local departure and arrival times of both directions (first departure, last
-arrival), taken from the checked itinerary; it is `null` for quotes stored before times
-were recorded or when the source omits them, and the table then shows travel times
-only. `index.html` is
+configuration (`destinations` lists all of them), page texts, offers, histories,
+baggage views and `calendar`. A trip's destinations are exported one by one and merged:
+offers carry their `destination`, history keys include it, and the search status adds
+up. An offer's `schedule` holds the local departure and arrival times of both
+directions (first departure, last arrival) and `layovers` the connection airports with
+their waiting minutes, both taken from the checked itinerary; they are `null` for quotes
+stored before they were recorded or when the source omits them. `calendar` has the
+latest date search per destination (`[origin, destination, departure, days, profile,
+price]`, price per person or `null`), which the price calendar shows as a grid in five
+price bands; the 7-day trend per offer and the cheapest offer per airport are computed
+in the browser from the exported offers and histories. `index.html` is
 prerendered for the primary trip; `app.js` replaces the texts marked `data-page` when
 another trip is chosen, and `trip.js` hides them before the first paint while a
 `?trip=` link loads. `search-config.json` (version 2) gives the form every trip, the

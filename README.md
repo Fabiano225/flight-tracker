@@ -18,13 +18,16 @@ trips can be tracked at once.
 
 ## What you get
 
-- **A dashboard** with the cheapest checked flights and their departure and arrival
-  times, filters for airport, dates, trip length, stops and airlines, and a
-  price-history chart for every flight comparison.
+- **A dashboard** with the cheapest checked flights, their departure and arrival
+  times and connections, the cheapest price per airport, a price calendar, a 7-day
+  trend, filters for airport, destination, dates, trip length, stops, flight times and
+  airlines, and a price-history chart for every flight comparison.
 - **Price alerts** when a fare drops, rises, reaches your price target or hits a new
   low, plus a short "no change" note after searches without news.
 - **Flexible dates:** every departure day in your window is combined with every trip
   length you allow (for example 14–21 days).
+- **Several destinations and travellers:** one trip can compare up to five destinations
+  (e.g. Bangkok, Phuket and Chiang Mai) for 1–9 travellers.
 - **Fair comparisons:** non-stop and connecting flights are kept apart, overly long
   journeys are filtered out, and only actually checked round trips count.
 - **Baggage views** that show fares whose booking offer includes a cabin bag, a
@@ -47,9 +50,19 @@ trips can be tracked at once.
   its own link, e.g. `…/flight-tracker/?trip=ams`.
 - **Flight times:** each offer shows when the outbound and return flights leave and
   land, in the local time of each airport (*+1* means the next day), with travel time
-  and stops.
-- **Filters:** departure airport, connection type, outbound day, trip length and
-  airlines (show only or hide selected airlines).
+  and connections, e.g. "via DOH 1 h 55". Waits under 1 hour or of 6 hours and more are
+  marked.
+- **Cheapest per airport:** a chip per departure airport shows its cheapest offer;
+  click one to see only that airport.
+- **Filters:** departure airport, destination (for trips with several), connection
+  type, outbound day, trip length, departure and arrival time, and airlines (show only
+  or hide selected airlines).
+- **Price calendar:** the cheapest price the date search found for every outbound day
+  and trip length, coloured from cheaper to pricier. These prices are indicative (the
+  return flight is not chosen yet); days with a checked offer can be clicked.
+- **7-day trend:** each offer says how its price moved against the earliest check of
+  the last week. It describes the past; it is not a forecast.
+- **Several travellers:** prices are per person; the dashboard also shows the total.
 - **Price history:** pick a flight to see every checked price, your price target and
   the lowest price of the comparison period.
 - **Baggage:** choose *Base price*, *1 cabin bag*, *1 checked bag* or both. Baggage views
@@ -82,13 +95,22 @@ treated as a price change.
 ## Search settings (website)
 
 Open **Change search** on the dashboard to change what is tracked: departure airports,
-destination, travel dates, trip length, cabin, stops, airlines, maximum travel time,
-price targets and when to alert. Airports can be searched by city, airport name or
+destinations, travellers, travel dates, trip length, cabin, stops, airlines, flight
+times, maximum travel time, price targets and when to alert. Airports can be searched by city, airport name or
 code (German names such as "München" work too).
 
 - **Several trips:** use **+ Add trip** for up to five trips, e.g. Bangkok in October
   and a weekend in Amsterdam. Each trip has its own price targets, alerts and history;
   choose which one the website shows first.
+- **Several destinations:** add up to five destinations to a trip. Each is searched on
+  its own, with its own price history and alerts, and costs its own requests; the
+  dashboard shows them together with a destination filter.
+- **Travellers:** 1–9 adults. Google searches seats for all of them; prices and price
+  targets stay per person. Changing it starts a new price history.
+- **Flight times:** limit when the outbound and return flights may leave and land
+  (local time), e.g. not before 08:00 or no landing at night. Google then searches only
+  such flights, so alerts and history follow them. Changing them starts a new price
+  history.
 - **Trip length or return date:** limit trips by their longest length, or switch to
   **Return date** to say when you must be back. Each departure day is then only
   combined with the lengths that return in time (from 20 Oct up to 19 days, from
