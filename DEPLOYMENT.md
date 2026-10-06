@@ -146,8 +146,10 @@ changed.
 
 Pages uses **GitHub Actions** as its publishing source. `Publish dashboard` runs
 after `Track flights` completes (including failed scans), on website/config changes,
-or on manual dispatch. It reads the latest trusted `main` and `tracker-state`
-branches, not workflow artifacts or pull-request code.
+or on manual dispatch. GitHub doesn't start it after a `Track flights` run that the
+settings workflow started with its workflow token, so such a run starts it itself as
+its last step (this needs `actions: write`). It reads the latest trusted `main` and
+`tracker-state` branches, not workflow artifacts or pull-request code.
 
 `scripts/build_site.py` exports only configuration, scan counts and verified fare
 history. It fills the route texts in `index.html` (destination, country, origins,
@@ -216,7 +218,8 @@ requests are added up against the shared budget, and a trip whose departure wind
 ended must be given new dates or removed. The form sends all trips in one issue; an
 issue with a single trip's settings (as older versions of the form sent) replaces only
 the primary trip. It replies with the changes,
-closes the issue and dispatches **Publish dashboard** and **Track flights**. Rejected
+closes the issue and dispatches **Publish dashboard** (the new search without prices)
+and **Track flights**, which publishes the dashboard again when it ends. Rejected
 settings are answered and closed as not planned; the running search is unchanged.
 Settings issues from anyone else are closed as not planned by a separate job that has
 only `issues: write` and never reads their content.
