@@ -2,7 +2,7 @@
 // (tracker/config.py, scripts/search_settings.py); these checks give early feedback.
 
 // Settings that start a separate price history (tracker/config.py: Config.scope).
-export const scopeFields=['destination','travel_class','max_direction_minutes','hide_separate_tickets','carry_on_bags','checked_bags',
+export const scopeFields=['destination','adults','travel_class','max_direction_minutes','hide_separate_tickets','carry_on_bags','checked_bags',
   'max_stops','airlines','airlines_exclude'];
 export const priceFields=['good_deal_nonstop_eur','good_deal_layover_eur','drop_eur','realert_improvement_eur'];
 const MAX_AIRLINES=25;

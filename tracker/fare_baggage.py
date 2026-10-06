@@ -8,7 +8,7 @@ by this decoder. Source inclusion is not a guarantee of the final checkout price
 from dataclasses import replace
 import re
 
-from .config import cents
+from .config import cents, per_person
 
 SOURCE = 'google_booking_v1'
 STATUSES = ('included', 'chargeable', 'not_included', 'unknown')
@@ -61,7 +61,7 @@ def covers(value, profile):
     return bool(bags and profile in required and all(bags[k]['status'] == 'included' for k in required[profile]))
 
 
-def decode_booking_quotes(text, pair, quote):
+def decode_booking_quotes(text, pair, quote, adults=1):
     from fli.search._wire import iter_wrb_chunks
     from fli.search._decoders import _try_parse_booking_row
     expected = [(leg.airline.name.removeprefix('_'), str(leg.flight_number)) for direction in pair for leg in direction.legs]
@@ -78,7 +78,8 @@ def decode_booking_quotes(text, pair, quote):
         if option.currency != 'EUR' or option.flights != expected:
             return
         try:
-            price = cents(option.price)
+            # Booking offers price the whole party, like the search; keep per-person prices.
+            price = per_person(cents(option.price), adults)
         except (TypeError, ValueError):
             return
         block = node[21][7] if len(node) > 21 and isinstance(node[21], list) and len(node[21]) > 7 else None
@@ -109,4 +110,5 @@ def booking_quotes(search, http, pair, filters, quote):
         search.get_booking_options(pair, filters, currency='EUR', language='en', country='DE')
     finally:
         search.client = previous
-    return decode_booking_quotes(captured[-1], pair, quote) if captured else []
+    adults = getattr(getattr(filters, 'passenger_info', None), 'adults', 1)
+    return decode_booking_quotes(captured[-1], pair, quote, adults) if captured else []

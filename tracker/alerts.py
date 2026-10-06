@@ -13,9 +13,14 @@ def hours(minutes):
     return f"{minutes // 60}h{minutes % 60:02d}"
 
 
-def search_link(quote, destination, cabin="economy"):
+def travellers(adults):
+    return "one adult" if adults == 1 else f"{adults} adults"
+
+
+def search_link(quote, destination, cabin="economy", adults=1):
     # Compact research link, not a guaranteed booking offer or locked fare.
-    query = f"Round trip flights {quote.origin} to {destination} {quote.departure} return {quote.return_date} {cabin} one adult"
+    query = (f"Round trip flights {quote.origin} to {destination} {quote.departure} return {quote.return_date} "
+             f"{cabin} {travellers(adults)}")
     return "https://www.google.com/travel/flights?" + urlencode({"q": query, "curr": "EUR", "hl": "en"})
 
 

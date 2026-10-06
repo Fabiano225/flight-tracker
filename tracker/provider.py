@@ -9,7 +9,8 @@ from pathlib import Path
 import threading
 import time
 
-from .config import MAIN_TRIP, cents
+from .alerts import travellers
+from .config import MAIN_TRIP, cents, per_person
 from .network import ServiceError, BudgetError, TransientSourceError
 
 
@@ -301,7 +302,7 @@ class FreeProvider:
                  2: MaxStops.TWO_OR_FEWER_STOPS}[self.config.max_stops]
         # The library names codes that start with a digit "_4U".
         airline = lambda code: Airline[code] if code in Airline.__members__ else Airline["_" + code]
-        return dict(trip_type=trip, passenger_info=PassengerInfo(adults=1), flight_segments=segments,
+        return dict(trip_type=trip, passenger_info=PassengerInfo(adults=self.config.adults), flight_segments=segments,
                     stops=MaxStops.NON_STOP if profile == "nonstop" else stops,
                     seat_type=seats[self.config.travel_class], max_duration=self.config.max_direction_minutes,
                     airlines=[airline(c) for c in self.config.airlines] or None,
@@ -330,7 +331,7 @@ class FreeProvider:
                 continue
             if row.currency != "EUR":
                 raise ServiceError("Calendar currency is missing or differs from EUR")
-            result[pair] = cents(row.price)
+            result[pair] = per_person(cents(row.price), self.config.adults)
         return result
 
     def verify(self, origin, departure, return_date, profile):
@@ -351,7 +352,7 @@ class FreeProvider:
             self.searches[self.search_key(origin, departure, return_date, profile)] = (pairs, session)
         return normalize_pairs(pairs or [], origin, departure, return_date, profile, self.config,
             lambda pair: "https://www.google.com/travel/flights?" + urlencode({"q":
-                f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} {self.config.travel_class} one adult",
+                f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} {self.config.travel_class} {travellers(self.config.adults)}",
                 "curr": "EUR", "hl": "en"}))
 
     def baggage_offers(self, origin, departure, return_date, profile):
@@ -387,7 +388,7 @@ class FreeProvider:
             for pair in pairs:
                 quotes = normalize_pairs([pair], origin, departure, return_date, profile, self.config,
                     lambda _: "https://www.google.com/travel/flights?" + urlencode({"q":
-                        f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} economy one adult",
+                        f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} economy {travellers(self.config.adults)}",
                         "curr": "EUR", "hl": "en"}))
                 if quotes and quotes[0].itinerary_id:
                     candidates.append((quotes[0], pair))
@@ -494,8 +495,9 @@ def normalize_pairs(pairs, origin, departure, return_date, profile, config, make
         # On the return-selection response, price is the total round-trip fare.
         # Adding outbound.price would double-count; outbound.price is a minimum
         # over still-unselected return options, not a standalone one-way fare.
+        # With several travellers it covers all of them; prices are kept per person.
         try:
-            price = cents(inbound.price)
+            price = per_person(cents(inbound.price), config.adults)
         except (ValueError, TypeError):
             continue
         airlines = ", ".join(sorted(carriers))

@@ -23,9 +23,14 @@ def cents(value):
         raise ValueError("Invalid price") from None
 
 
+def per_person(total, travellers):
+    """A party's total price in cents, per traveller (rounded to the cent)."""
+    return (2 * total + travellers) // (2 * travellers)
+
+
 # Integer settings and their accepted ranges, shared with the website's settings form.
 INT_LIMITS = {
-    "min_trip_days": (1, 90), "max_trip_days": (1, 90),
+    "min_trip_days": (1, 90), "max_trip_days": (1, 90), "adults": (1, 9),
     "history_window_days": (1, 365), "max_deals_per_run": (1, 6),
     "pending_ttl_hours": (1, 24), "max_http_attempts_per_run": (1, 2000),
     "http_timeout_seconds": (1, 120), "http_attempts": (1, 4),
@@ -123,9 +128,9 @@ class Config:
                 raise ValueError("latest_return must be a date (YYYY-MM-DD) or null")
             if (date.fromisoformat(self.latest_return) - start).days < self.min_trip_days:
                 raise ValueError("latest_return is too early: even the shortest trip from the earliest departure returns later")
-        # A single adult removes ambiguous per-person vs party-total pricing.
-        if self.adults != 1 or isinstance(self.adults, bool) or self.currency != "EUR":
-            raise ValueError("This tracker supports one adult and EUR prices")
+        # With several travellers Google prices the whole party; the tracker keeps per-person prices.
+        if self.currency != "EUR":
+            raise ValueError("This tracker supports EUR prices only")
         if self.travel_class not in TRAVEL_CLASSES:
             raise ValueError("Invalid travel class")
         if type(self.hide_separate_tickets) is not bool:

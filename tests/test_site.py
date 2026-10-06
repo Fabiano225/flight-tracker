@@ -148,7 +148,7 @@ class SiteTests(unittest.TestCase):
                      'flights from Düsseldorf, Frankfurt and Amsterdam,',
                      '<span class="route-code">DUS</span><span class="route-code">FRA</span><span class="route-code">AMS</span>',
                      '<span data-page="city">Bangkok</span><span class="ticket-place" data-page="ticket_place">THAILAND / BKK</span>',
-                     '20–23 Oct 2026','14–21 days','1 adult · <span data-page="travel_class">Economy</span> · Round trip<span data-page="filter_summary"></span></p>',
+                     '20–23 Oct 2026','14–21 days','<span data-page="travellers">1 adult</span> · <span data-page="travel_class">Economy</span> · Round trip<span data-page="filter_summary"></span></p>',
                      'less than <span data-page="realert">€25</span> above',
                      'travel times <span data-page="duration_limit">under 21 hours</span> per direction',
                      '/ <span data-page="city">Bangkok</span> edition'):

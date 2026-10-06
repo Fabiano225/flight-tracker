@@ -67,6 +67,7 @@ def page_values(config):
         origin_cities=', '.join(cities[:-1]) + ' and ' + cities[-1] if len(cities) > 1 else cities[0],
         route_origins=''.join(f'<span class="route-code">{html.escape(code)}</span>' for code in config.origins),
         trip_dates=date_range(config.departure_start, config.departure_end), trip_days=days,
+        travellers='1 adult' if config.adults == 1 else f'{config.adults} adults',
         travel_class=CLASSES[config.travel_class],
         budget=('Per airport' if config.origin_targets else euro_text(config.good_deal_nonstop_eur)
                 if config.good_deal_nonstop_eur == config.good_deal_layover_eur else 'Separate targets'),
@@ -122,7 +123,7 @@ def export_data(db_path, config, now=None, variant=None):
         raise ValueError('Unknown baggage profile')
     now = now or datetime.now(timezone.utc)
     public_config = {key: getattr(config, key) for key in (
-        'origins', 'destination', 'departure_start', 'departure_end', 'min_trip_days',
+        'origins', 'destination', 'adults', 'departure_start', 'departure_end', 'min_trip_days',
         'max_trip_days', 'latest_return', 'max_direction_minutes', 'good_deal_nonstop_eur',
         'good_deal_layover_eur', 'origin_targets', 'history_window_days', 'realert_improvement_eur')}
     result = dict(version=1, generated_at=now.isoformat(), config=public_config,
@@ -195,7 +196,7 @@ def export_data(db_path, config, now=None, variant=None):
             # are exported. Research URLs are rebuilt, never trusted from state.
             item = {k: getattr(q, k) for k in ('origin', 'departure', 'return_date', 'category',
                     'price', 'outbound_minutes', 'inbound_minutes', 'outbound_stops', 'inbound_stops', 'airlines')}
-            item.update(id=key, days=days, at=observed_at, link=search_link(q, config.destination, config.travel_class))
+            item.update(id=key, days=days, at=observed_at, link=search_link(q, config.destination, config.travel_class, config.adults))
             item['schedule'] = public_schedule(q)
             item['layovers'] = public_layovers(q)
             item['itinerary_id'] = q.itinerary_id if isinstance(q.itinerary_id,str) and re.fullmatch(r'[a-f0-9]{64}',q.itinerary_id) else None

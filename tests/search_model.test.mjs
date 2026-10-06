@@ -16,7 +16,7 @@ const meta={trips:[main],primary_trip:'main',shared_fields:shared,max_trips:5,ai
   travel_classes:{economy:'Economy',premium_economy:'Premium Economy',business:'Business',first_class:'First'},
   limits:{display_name:40,float:{drop_percent:[0.01,100],request_interval_seconds:[0,30]},
     int:{min_trip_days:[1,90],max_trip_days:[1,90],history_window_days:[1,365],max_deals_per_run:[1,6],pending_ttl_hours:[1,24],
-      max_http_attempts_per_run:[1,2000],http_timeout_seconds:[1,120],http_attempts:[1,4],carry_on_bags:[0,1],checked_bags:[0,1],
+      adults:[1,9],max_http_attempts_per_run:[1,2000],http_timeout_seconds:[1,120],http_attempts:[1,4],carry_on_bags:[0,1],checked_bags:[0,1],
       max_direction_minutes:[1,1259],max_verifications_per_run:[6,100],outbound_candidates:[1,10],max_run_seconds:[60,2400],max_parallel_requests:[1,6]}}};
 const today='2026-10-01';
 const config=changes=>({...main,...changes});

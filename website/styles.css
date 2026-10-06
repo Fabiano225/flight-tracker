@@ -257,6 +257,7 @@ html[data-trip-loading] [data-page],html[data-trip-loading] .route-origins,html[
 .leg-arrow{color:#a2af9c;font-size:12px}
 .leg-shift{align-self:flex-start;margin-left:-3px;font-size:9px;font-weight:650;color:#896420;line-height:1}
 td small.leg-meta{grid-column:2;margin-top:0}
+td small.party-price{margin-top:2px}
 .layover{white-space:nowrap}.layover-alert{color:#896420;font-weight:600;cursor:help}
 :where([data-theme="dark"]) .layover-alert{color:var(--amber)}
 :where([data-theme="dark"]) .leg-arrow{color:#6f8076}

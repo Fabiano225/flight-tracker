@@ -209,7 +209,11 @@ function renderOffers() {
     route.append(routeTitle,node('small',`${category(q)} · ${q.airlines}`));
     const dates=node('td');dates.append(node('strong',`${day(q.departure)} – ${day(q.return_date)}`),node('small',`${q.days} days · ${q.departure.slice(0,4)}`));
     const flights=flightsCell(q);
-    const price=node('td'),status=priceStatus(c);price.append(node('strong',euro(q.price),'price'),node('div',status.main,`delta ${status.tone}`));
+    const price=node('td'),status=priceStatus(c);price.append(node('strong',euro(q.price),'price'));
+    // Prices are per person; with several travellers the party's total follows.
+    const adults=data.config.adults||1;
+    if(adults>1)price.append(node('small',`per person · ${euro(q.price*adults)} for ${adults}`,'party-price'));
+    price.append(node('div',status.main,`delta ${status.tone}`));
     if(status.detail)price.append(node('small',status.detail,'delta-detail'));
     price.append(node('small',baggageDescription(q.baggage,'cabin'),'baggage-detail'));
     price.append(node('small',baggageDescription(q.baggage,'checked'),'baggage-detail'));

@@ -86,6 +86,7 @@
       <fieldset class="settings-card">
         <legend><span class="eyebrow">03 · FLIGHTS</span>Which flights count?</legend>
         <div class="field-grid">
+          <label class="field">Travellers<input type="number" inputmode="numeric" step="1" name="adults" aria-describedby="adults-error"><span class="field-error" id="adults-error"></span></label>
           <label class="field">Cabin<select name="travel_class" aria-describedby="travel_class-error"></select><span class="field-error" id="travel_class-error"></span></label>
           <label class="field">Max. stops per direction<select name="max_stops" aria-describedby="max_stops-error"><option value="">Any number</option><option value="0">Non-stop only</option><option value="1">Up to 1 stop</option><option value="2">Up to 2 stops</option></select><span class="field-error" id="max_stops-error"></span></label>
           <div class="field">
@@ -123,7 +124,7 @@
           <label class="check"><input type="checkbox" name="carry_on_bags"> Cabin bag in the base search <small>Search base prices only with 1 cabin bag.</small></label>
           <label class="check"><input type="checkbox" name="checked_bags"> Checked bag in the base search <small>Search base prices only with 1 checked bag.</small></label>
         </div>
-        <p class="footnote">Fixed: 1 adult, prices in EUR. The tracker supports no other values.</p>
+        <p class="footnote">Travellers are adults; Google searches seats for all of them. Prices and price targets stay per person, in EUR; with several travellers the dashboard and alerts also show the total.</p>
       </fieldset>
 
       <fieldset class="settings-card">

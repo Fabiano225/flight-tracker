@@ -56,7 +56,7 @@ class PlanningTests(unittest.TestCase):
         self.assertEqual(c.scope(), replace(c, good_deal_layover_eur=600).scope())
 
     def test_invalid_config(self):
-        for kwargs in ({"min_trip_days":22}, {"currency":"USD"}, {"adults":2},
+        for kwargs in ({"min_trip_days":22}, {"currency":"USD"}, {"adults":0}, {"adults":10},
                        {"origins":("DUS","DUS")}, {"max_direction_minutes":1260},
                        {"good_deal_nonstop_eur":0}, {"departure_end":"2026-01-01"}):
             with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
