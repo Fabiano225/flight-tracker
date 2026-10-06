@@ -5,9 +5,6 @@ on:
     paths:
       - 'website/**'
       - 'scripts/build_site.py'
-      - 'tests/test_site.py'
-      - 'tests/site_model.test.mjs'
-      - 'tests/search_model.test.mjs'
       - 'config.json'
       - 'tracker/config.py'
       - 'tracker/places.py'

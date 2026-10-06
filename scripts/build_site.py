@@ -25,8 +25,8 @@ from tracker.fare_baggage import covers, public_baggage
 from scripts.search_settings import CLASSES, LABELS, MARKER
 from tracker.project import repository, repository_url
 
-ASSETS = ('index.html', 'styles.css', 'app.js', 'model.mjs', 'favicon.svg', '.nojekyll', 'trip.js', 'theme.js',
-          'settings.html', 'suche.html', 'search.js', 'search-model.mjs')
+ASSETS = ('index.html', 'styles.css', 'app.js', 'model.mjs', 'favicon.svg', 'trip.js', 'theme.js',
+          'settings.html', 'search.js', 'search-model.mjs')
 GENERATED = ('data.json', 'search-config.json', 'airports.json')
 MONTHS = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 RAW_PLACEHOLDERS = {'route_origins'}

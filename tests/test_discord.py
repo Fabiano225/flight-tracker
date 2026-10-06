@@ -14,11 +14,10 @@ from tracker.network import JsonHttp, ServiceError
 from tracker.check_status import TELEGRAM_REPLY_HINT
 from tracker.notifications import ARCHIVE_PREFIX, SETTINGS, configured_sender, deliver
 from tracker.provider import Quote, DemoProvider
-from tracker.service import scan
 from tracker.store import Store, stamp
 from tracker.telegram import Telegram
 from tracker.trends import block
-from test_tracker import NOW
+from test_tracker import NOW, scan
 
 WEBHOOK = 'https://discord.com/api/webhooks/123456/fake-test-token'
 
@@ -97,18 +96,6 @@ class DiscordTests(unittest.TestCase):
         rise = text.replace('PRICE DROPPED', 'PRICE ROSE')
         self.assertEqual(payload_for(rise)['embeds'][1]['color'], RED)
         self.assertIn('Not a forecast', str(payload))
-
-    def test_legacy_german_messages_still_render(self):
-        # Messages queued before the switch to English may still be pending.
-        text = ('BKK Preisalarm\n' + stamp(NOW) + '\nPREIS GESUNKEN | FRA-BKK | DIREKT (beide Richtungen)\n'
-                '2026-10-20 bis 2026-11-03 | 600.00 EUR\nKAUF PRUEFEN: innerhalb deiner Zielgrenze.\n'
-                'https://www.google.com/travel/flights?q=x')
-        payload = payload_for(text)
-        self.assertEqual(payload['embeds'][1]['color'], GREEN)
-        self.assertIn('**KAUF PRÜFEN:', payload['embeds'][1]['description'])
-        self.assertEqual(payload_for('BKK Suchstatus\nKeine Preisänderung')['embeds'][0]['color'], GREEN)
-        self.assertEqual(payload_for('BKK Suchstatus\nPrüfung unvollständig')['embeds'][0]['color'], AMBER)
-        self.assertIn('historical', payload_for('Übernommener Preisstand – alt')['embeds'][0]['title'])
 
     def test_titles_name_the_destination_of_each_message(self):
         older = payload_for('BKK price alert\n' + stamp(NOW) + '\n\nNot a forecast.', code='HND')

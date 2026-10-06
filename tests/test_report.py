@@ -5,9 +5,8 @@ import unittest
 from tracker.config import Config
 from tracker.provider import DemoProvider
 from tracker.report import report
-from tracker.service import scan
 from tracker.store import Store
-from test_tracker import NOW
+from test_tracker import NOW, scan
 
 
 class ReportTests(unittest.TestCase):

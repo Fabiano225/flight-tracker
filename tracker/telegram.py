@@ -24,7 +24,3 @@ class Telegram:
         if data.get("ok") is not True or not isinstance(data.get("result"), dict) or "message_id" not in data["result"]:
             raise ServiceError("Telegram did not acknowledge delivery")
         return str(data["result"]["message_id"])
-
-
-# Backwards-compatible import for callers of the original delivery module.
-from .notifications import deliver  # noqa: E402,F401

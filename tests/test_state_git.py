@@ -1,5 +1,4 @@
 """Real local Git round-trips; no internet, account, or API credentials."""
-import os
 from pathlib import Path
 import sqlite3
 import subprocess

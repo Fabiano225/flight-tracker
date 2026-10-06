@@ -10,15 +10,13 @@ export function filteredOffers(offers, filters) {
     .sort((a,b) => a.price-b.price || a.departure.localeCompare(b.departure));
 }
 
-// Fallback when the published data has no name list (data.json `airlines`).
-export const airlineNames={DE:'Condor',EY:'Etihad Airways',QR:'Qatar Airways',TG:'Thai Airways',WY:'Oman Air'};
 export function airlineCodes(offer) {
   return [...new Set(String(offer?.airlines||'').split(',').map(code=>code.trim().toUpperCase()).filter(Boolean))];
 }
 export function airlineChoices(offers, names={}) {
   const counts=new Map();
   for(const offer of offers)for(const code of airlineCodes(offer))counts.set(code,(counts.get(code)||0)+1);
-  return [...counts].map(([code,count])=>{const name=names[code]||airlineNames[code];return {code,count,label:name?`${name} (${code})`:code};})
+  return [...counts].map(([code,count])=>{const name=names[code];return {code,count,label:name?`${name} (${code})`:code};})
     .sort((a,b)=>a.label.localeCompare(b.label,'en'));
 }
 

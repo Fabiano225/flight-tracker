@@ -99,7 +99,7 @@ class Store:
                         (stamp(now - timedelta(hours=ttl_hours)),))
         if scopes:
             scopes = [scopes] if isinstance(scopes, str) else sorted(scopes)
-            self.db.execute(f"""UPDATE outbox SET status='expired' WHERE status='pending' AND kind IN ('deal','trend','check_status')
+            self.db.execute(f"""UPDATE outbox SET status='expired' WHERE status='pending' AND kind IN ('trend','check_status')
               AND id IN (SELECT outbox_id FROM alert_items WHERE scope NOT IN ({','.join('?' * len(scopes))}))""", scopes)
 
     def expire_check_status(self, scope):
@@ -120,7 +120,7 @@ class Store:
         # a previously queued digest containing a now-excluded trip.
         mode = self.get_meta('mode') or 'live'
         by_scope = {config.scope(mode): config for config in trips}
-        for message in self.db.execute("SELECT id,kind,run_id FROM outbox WHERE status='pending' AND kind IN ('deal','trend','check_status')").fetchall():
+        for message in self.db.execute("SELECT id,kind,run_id FROM outbox WHERE status='pending' AND kind IN ('trend','check_status')").fetchall():
             items=self.db.execute("SELECT scope,origin,departure,return_date FROM alert_items WHERE outbox_id=?",(message[0],)).fetchall()
             # A message belongs to the trip of its items' scope; a check status to the trip of its run.
             run = None

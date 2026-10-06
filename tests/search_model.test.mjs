@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {searchAirports,searchAirlines,validate,validateTrips,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
+import {searchAirports,searchAirlines,validateTrips,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
   tripIds,tripErrors,settingsJson,settingsChanges,MAX_URL,distanceKm,niceEuro,suggestPrices,observedPrices,alertAmounts,MIN_PRICES} from '../website/search-model.mjs';
 
 const table=JSON.parse(readFileSync(new URL('../tracker/airports.json',import.meta.url),'utf8'));
@@ -54,7 +54,7 @@ test('airline search finds codes and names',()=>{
 });
 
 test('the current search is valid and its request estimate matches the tracker',()=>{
-  const result=validate(main,meta,table,today);
+  const result=tripErrors(main,meta,table,today);
   assert.deepEqual(result.errors,{});
   assert.deepEqual(result.estimate,{days:4,calendar:192,verification:72,requests:264,seconds:211});
   // Only departures from tomorrow on are searched; non-stop only skips the any-stops profile.
@@ -65,7 +65,7 @@ test('the current search is valid and its request estimate matches the tracker',
 });
 
 test('invalid settings are reported per field',()=>{
-  const errors=c=>validate(config(c),meta,table,today).errors;
+  const errors=c=>tripErrors(config(c),meta,table,today).errors;
   assert.ok(errors({origins:[]}).origins);
   assert.ok(errors({origins:['XQZ']}).origins);
   assert.ok(errors({destination:'DUS'}).destination);
@@ -88,9 +88,10 @@ test('invalid settings are reported per field',()=>{
 });
 
 test('searches beyond the request or time budget are blocked, near-limit ones warned',()=>{
-  assert.match(validate(config({departure_end:'2026-12-31'}),meta,table,today).errors.estimate,/Too many requests/);
-  assert.match(validate(config({request_interval_seconds:30}),meta,table,today).errors.estimate,/Search too long/);
-  const near=validate(config({max_http_attempts_per_run:300}),meta,table,today);
+  const check=c=>validateTrips([config(c)],meta,table,today);
+  assert.match(check({departure_end:'2026-12-31'}).errors.estimate,/Too many requests/);
+  assert.match(check({request_interval_seconds:30}).errors.estimate,/Search too long/);
+  const near=check({max_http_attempts_per_run:300});
   assert.deepEqual(near.errors,{});
   assert.equal(near.warnings.length,1);
 });

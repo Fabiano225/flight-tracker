@@ -8,9 +8,10 @@ from unittest.mock import Mock
 
 from tracker.check_status import queue_check_status
 from tracker.config import Config
+from tracker.notifications import deliver
 from tracker.provider import Quote
 from tracker.store import Store, stamp
-from tracker.telegram import Telegram, deliver
+from tracker.telegram import Telegram
 from tracker.trends import watch_key
 from test_tracker import NOW
 

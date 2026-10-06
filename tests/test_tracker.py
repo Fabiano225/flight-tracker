@@ -2,7 +2,6 @@ from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from io import BytesIO
 import json
-from pathlib import Path
 import tempfile
 from types import SimpleNamespace as NS
 import unittest
@@ -12,13 +11,19 @@ from urllib.error import HTTPError, URLError
 from tracker.alerts import is_drop
 from tracker.config import Config, cents
 from tracker.network import JsonHttp, ServiceError, BudgetError
+from tracker.notifications import deliver
 from tracker.planner import plan
 from tracker.provider import DemoProvider, Quote, normalize_pairs
-from tracker.service import scan
+from tracker.service import scan_trips
 from tracker.store import Store, stamp
-from tracker.telegram import Telegram, deliver
+from tracker.telegram import Telegram
 
 NOW = datetime(2026, 9, 18, 12, tzinfo=timezone.utc)
+
+
+def scan(config, store, provider, now, demo=False):
+    """Search a single trip."""
+    return scan_trips((config,), store, lambda _: provider, now, demo)[0]
 
 
 class PlanningTests(unittest.TestCase):
@@ -317,8 +322,8 @@ class DeliveryTests(unittest.TestCase):
     def test_old_window_pending_digest_is_not_delivered(self):
         valid=Quote("FRA","2026-10-15","2026-10-29","nonstop",60000,700,750,0,0,"TG","")
         outside=replace(valid,departure="2026-10-24",return_date="2026-11-07")
-        self.store.enqueue("r","deal",NOW,"mixed old digest",[valid,outside],Config().scope())
-        self.store.enqueue("r","deal",NOW,"valid new digest",[valid],Config().scope())
+        self.store.enqueue("r","trend",NOW,"mixed old digest",[valid,outside],Config().scope())
+        self.store.enqueue("r","trend",NOW,"valid new digest",[valid],Config().scope())
         sender=NS(send=Mock(return_value="123"))
         self.assertEqual(deliver(self.store,Config(),NOW,sender),1)
         sender.send.assert_called_once_with("valid new digest")

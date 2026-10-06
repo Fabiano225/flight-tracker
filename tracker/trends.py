@@ -70,7 +70,6 @@ def context(store, scope, quote, now, config, run_id):
 
 
 def latest_alert(store, scope, quote, config):
-    # Separate the new notification policy from legacy rotating deal digests.
     return store.db.execute("""SELECT a.*, o.created FROM alert_items a
         JOIN outbox o ON o.id=a.outbox_id
         WHERE a.scope=? AND a.origin=? AND a.category=? AND o.kind='trend'
