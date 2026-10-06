@@ -124,6 +124,20 @@
           <label class="check"><input type="checkbox" name="carry_on_bags"> Cabin bag in the base search <small>Search base prices only with 1 cabin bag.</small></label>
           <label class="check"><input type="checkbox" name="checked_bags"> Checked bag in the base search <small>Search base prices only with 1 checked bag.</small></label>
         </div>
+        <div class="time-windows" role="group" aria-labelledby="flight-times-label" aria-describedby="flight_times-error">
+          <span class="field-label" id="flight-times-label">Flight times <small>local time at each airport · from – until</small></span>
+          <div class="time-grid">
+            <span></span><span class="time-head">Departure</span><span class="time-head">Arrival</span>
+            <span class="time-row">Outbound</span>
+            <span class="time-range" data-window="outbound_departure" data-kind="Departure"><select data-end="from" aria-label="Outbound departure from"></select><span aria-hidden="true">–</span><select data-end="until" aria-label="Outbound departure until"></select></span>
+            <span class="time-range" data-window="outbound_arrival" data-kind="Arrival"><select data-end="from" aria-label="Outbound arrival from"></select><span aria-hidden="true">–</span><select data-end="until" aria-label="Outbound arrival until"></select></span>
+            <span class="time-row">Return</span>
+            <span class="time-range" data-window="return_departure" data-kind="Departure"><select data-end="from" aria-label="Return departure from"></select><span aria-hidden="true">–</span><select data-end="until" aria-label="Return departure until"></select></span>
+            <span class="time-range" data-window="return_arrival" data-kind="Arrival"><select data-end="from" aria-label="Return arrival from"></select><span aria-hidden="true">–</span><select data-end="until" aria-label="Return arrival until"></select></span>
+          </div>
+          <p class="field-error" id="flight_times-error"></p>
+          <p class="footnote">00:00–24:00 is any time. Google searches only flights inside the windows; “until 22:00” means leaving or landing before 22:00. Changing them starts a new price history.</p>
+        </div>
         <p class="footnote">Travellers are adults; Google searches seats for all of them. Prices and price targets stay per person, in EUR; with several travellers the dashboard and alerts also show the total.</p>
       </fieldset>
 

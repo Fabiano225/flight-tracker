@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {searchAirports,searchAirlines,validateTrips,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
+import {searchAirports,searchAirlines,validateTrips,timeWindows,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
   tripIds,tripErrors,settingsJson,settingsChanges,MAX_URL,distanceKm,niceEuro,suggestPrices,observedPrices,alertAmounts,MIN_PRICES} from '../website/search-model.mjs';
 
 const table=JSON.parse(readFileSync(new URL('../tracker/airports.json',import.meta.url),'utf8'));
@@ -240,4 +240,14 @@ test('a latest return date is checked and limits the date pairs',()=>{
   const settings=settingsJson(meta,[{id:'main',config:config({latest_return:'2026-11-08',max_trip_days:19})}],0);
   assert.equal(settings.trips[0].latest_return,'2026-11-08');
   assert.ok(!('latest_return' in settingsJson(meta,[{id:'main',config:main}],0).trips[0]));
+});
+test('flight time windows are checked and shown in plain words',()=>{
+  const errors=c=>tripErrors(config(c),meta,table,today).errors;
+  assert.deepEqual(errors({flight_times:{outbound_departure:[8,22],return_arrival:[6,24]}}),{});
+  for(const flight_times of [{outbound_departure:[22,8]},{outbound_departure:[0,24]},{outbound_departure:[6,25]},{lunch:[12,13]},{return_arrival:[6]}])
+    assert.ok(errors({flight_times}).flight_times,JSON.stringify(flight_times));
+  assert.equal(shownValue('flight_times',{},meta),'any time');
+  assert.equal(shownValue('flight_times',{return_arrival:[6,24],outbound_departure:[8,22]},meta),'outbound departs 08:00–22:00; return lands 06:00–24:00');
+  assert.deepEqual(timeWindows,['outbound_departure','outbound_arrival','return_departure','return_arrival']);
+  assert.ok(!('flight_times' in settingsJson(meta,[{id:'main',config:main}],0).trips[0]));
 });

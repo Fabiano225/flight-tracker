@@ -4,10 +4,25 @@ export function filteredOffers(offers, filters) {
     && (!filters.category || q.category === filters.category)
     && (!filters.departure || q.departure === filters.departure)
     && (!filters.days || q.days === Number(filters.days))
+    && timesFit(q, filters.departs, filters.arrives)
     && (!selectedAirlines.length || (filters.airlineMode==='exclude'
       ? !airlineCodes(q).some(code=>selectedAirlines.includes(code))
       : airlineCodes(q).some(code=>selectedAirlines.includes(code)))))
     .sort((a,b) => a.price-b.price || a.departure.localeCompare(b.departure));
+}
+
+// Time filters ("6-24": from 06:00, before 24:00) apply to both flights, in local time.
+// Offers without recorded times never match an active time filter.
+export function timesFit(offer, departs, arrives) {
+  if(!departs && !arrives)return true;
+  const times=flightLegs(offer);
+  if(!times[0].departs)return false;
+  const inside=(time,window)=>{
+    if(!window)return true;
+    const [from,until]=window.split('-').map(Number), minutes=Number(time.slice(0,2))*60+Number(time.slice(3,5));
+    return from*60<=minutes && minutes<until*60;
+  };
+  return times.every(leg=>inside(leg.departs,departs) && inside(leg.arrives,arrives));
 }
 
 export function airlineCodes(offer) {

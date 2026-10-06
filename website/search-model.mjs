@@ -3,8 +3,10 @@
 
 // Settings that start a separate price history (tracker/config.py: Config.scope).
 export const scopeFields=['destination','adults','travel_class','max_direction_minutes','hide_separate_tickets','carry_on_bags','checked_bags',
-  'max_stops','airlines','airlines_exclude'];
+  'max_stops','airlines','airlines_exclude','flight_times'];
 export const priceFields=['good_deal_nonstop_eur','good_deal_layover_eur','drop_eur','realert_improvement_eur'];
+// Local-time windows [from hour, until hour) a trip can limit (tracker/config.py: TIME_WINDOWS).
+export const timeWindows=['outbound_departure','outbound_arrival','return_departure','return_arrival'];
 const MAX_AIRLINES=25;
 
 export const fold=text=>String(text).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').toLowerCase();
@@ -121,6 +123,12 @@ export function tripErrors(config, meta, table, today) {
     if(codes.length>MAX_AIRLINES)error(field,`At most ${MAX_AIRLINES} airlines.`);
     for(const code of codes)if(!Object.hasOwn(meta.airlines,code))error(field,`${code} is not supported by the flight search.`);
   }
+  for(const [name,window] of Object.entries(config.flight_times||{})) {
+    const [from,until]=Array.isArray(window)?window:[];
+    if(!timeWindows.includes(name) || !Number.isInteger(from) || !Number.isInteger(until) || from<0 || until>24 || from>=until)
+      error('flight_times','Choose a start before the end of each time window.');
+    else if(from===0 && until===24)error('flight_times','A window over the whole day limits nothing; leave it at any time.');
+  }
   const both=config.airlines.filter(code=>config.airlines_exclude.includes(code));
   if(both.length)error('airlines_exclude',`${both.join(', ')} cannot be both included and excluded.`);
   for(const [code,targets] of Object.entries(config.origin_targets||{})) {
@@ -167,7 +175,10 @@ export function changedFields(current, next) {
   return Object.keys(next).filter(key=>!same(current[key],next[key]));
 }
 
+const timeWords={outbound_departure:'outbound departs',outbound_arrival:'outbound lands',return_departure:'return departs',return_arrival:'return lands'};
+const clock=hour=>`${String(hour).padStart(2,'0')}:00`;
 export function shownValue(key, value, meta) {
+  if(key==='flight_times')return timeWindows.filter(name=>value[name]).map(name=>`${timeWords[name]} ${clock(value[name][0])}–${clock(value[name][1])}`).join('; ')||'any time';
   if(key==='latest_return')return value||'none';
   if(key==='origins')return value.join(', ');
   if(key==='airlines')return value.join(', ')||'all';
@@ -205,7 +216,7 @@ export function tripSummary(config) {
 }
 
 // Optional settings at these values are left out of the issue (as in config.json).
-const optional={latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],origin_targets:{},display_names:{}};
+const optional={latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],flight_times:{},origin_targets:{},display_names:{}};
 
 // The issue's settings block: every trip in config.json field order, shared request settings once.
 export function settingsJson(meta, trips, primary) {

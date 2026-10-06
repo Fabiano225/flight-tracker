@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs} from '../website/model.mjs';
+import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs,timesFit} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -209,4 +209,15 @@ test('flight times per direction: local times, day shift and a fallback without 
   const legs=flightLegs({...q,layovers:[[['DOH',115]],[]]});
   assert.deepEqual(legs.map(leg=>leg.connections),[[{airport:'DOH',minutes:115}],[]]);
   assert.equal(flightLegs({...q,layovers:[[['DOH',115]]]})[0].connections,undefined);
+});
+test('time filters keep offers whose both flights leave and land inside the window',()=>{
+  const q={...offer,outbound_minutes:1085,inbound_minutes:920,outbound_stops:1,inbound_stops:1,
+    schedule:['2026-10-15T16:35','2026-10-16T12:40','2026-10-29T20:05','2026-10-30T06:25']};
+  assert.ok(timesFit(q,'',''));
+  assert.ok(timesFit(q,'8-24','6-24'));
+  assert.ok(!timesFit(q,'8-20',''));  // The return leaves at 20:05.
+  assert.ok(!timesFit(q,'','8-20'));  // It lands at 06:25.
+  assert.ok(!timesFit({...q,schedule:null},'6-24',''));
+  assert.ok(timesFit({...q,schedule:null},'',''));
+  assert.deepEqual(filteredOffers([q,{...q,schedule:null}],{departs:'6-24'}).length,1);
 });

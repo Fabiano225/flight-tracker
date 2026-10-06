@@ -293,9 +293,18 @@ class FreeProvider:
             self.searches = {}
 
     def common(self, origin, departure, return_date, profile):
-        from fli.models import Airline, Airport, PassengerInfo, SeatType, MaxStops, BagsFilter
+        from fli.models import Airline, Airport, PassengerInfo, SeatType, MaxStops, BagsFilter, TimeRestrictions
         from fli.core.builders import build_flight_segments
         segments, trip = build_flight_segments(Airport[origin], Airport[self.config.destination], departure, return_date)
+        # Google gets each window widened to whole hours (it may read "until 21" as 21:59);
+        # normalize_pairs then keeps only flights inside the exact windows.
+        for segment, direction in zip(segments, ("outbound", "return")):
+            dep, arr = (self.config.flight_times.get(f"{direction}_{kind}") for kind in ("departure", "arrival"))
+            if dep or arr:
+                hours = lambda w: (w[0] or None, None if w[1] == 24 else w[1]) if w else (None, None)
+                (a, b), (c, d) = hours(dep), hours(arr)
+                segment.time_restrictions = TimeRestrictions(earliest_departure=a, latest_departure=b,
+                                                             earliest_arrival=c, latest_arrival=d)
         seats = {"economy": SeatType.ECONOMY, "premium_economy": SeatType.PREMIUM_ECONOMY,
                  "business": SeatType.BUSINESS, "first_class": SeatType.FIRST}
         stops = {None: MaxStops.ANY, 0: MaxStops.NON_STOP, 1: MaxStops.ONE_STOP_OR_FEWER,
@@ -492,6 +501,9 @@ def normalize_pairs(pairs, origin, departure, return_date, profile, config, make
         carriers = {leg.airline.name.removeprefix("_") for x in pair for leg in x.legs}
         if carriers & set(config.airlines_exclude) or (config.airlines and not carriers & set(config.airlines)):
             continue
+        times = schedule(pair)
+        if not config.times_fit(times):
+            continue
         # On the return-selection response, price is the total round-trip fare.
         # Adding outbound.price would double-count; outbound.price is a minimum
         # over still-unselected return options, not a standalone one-way fare.
@@ -503,7 +515,7 @@ def normalize_pairs(pairs, origin, departure, return_date, profile, config, make
         airlines = ", ".join(sorted(carriers))
         quote = Quote(origin, departure, return_date, category, price, outbound.duration, inbound.duration,
                       outbound.stops, inbound.stops, airlines, make_link(pair), itinerary_id(pair),
-                      schedule=schedule(pair), layovers=layovers(pair))
+                      schedule=times, layovers=layovers(pair))
         if category not in best or price < best[category].price:
             best[category] = quote
     return list(best.values())

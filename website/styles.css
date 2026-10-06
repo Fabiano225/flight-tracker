@@ -104,6 +104,13 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 .duration-inputs label{flex:1;display:flex;align-items:center;gap:7px;font-size:11px;font-weight:500}
 .settings-form .duration-inputs input{margin-top:0}
 .checks{display:grid;gap:12px;margin-top:20px}
+.time-windows{margin-top:22px}.time-windows .field-label small{font-weight:400;color:var(--muted);margin-left:6px}
+.time-grid{display:grid;grid-template-columns:auto 1fr 1fr;gap:8px 14px;align-items:center;margin-top:10px;max-width:560px}
+.time-head{font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:650}
+.time-row{font-size:12px;font-weight:600}
+.time-range{display:flex;align-items:center;gap:6px}
+.settings-form .time-range select{flex:1;min-width:0;margin-top:0;min-height:36px;padding:7px 8px;font-size:12px}
+@media(max-width:480px){.time-grid{grid-template-columns:1fr}.time-grid>span:first-child,.time-head{display:none}.time-row{margin-top:6px}.time-range::before{content:attr(data-kind);flex:0 0 68px;font-size:11px;color:var(--muted)}}
 .check{display:grid;grid-template-columns:20px 1fr;column-gap:10px;align-items:start;font-size:12px;font-weight:600;cursor:pointer}
 .check input{grid-row:span 2;width:18px;height:18px;margin:0;accent-color:var(--green)}
 .check small{grid-column:2;font-size:10.5px;font-weight:400;color:var(--muted);margin-top:3px}
@@ -263,3 +270,5 @@ td small.party-price{margin-top:2px}
 :where([data-theme="dark"]) .leg-arrow{color:#6f8076}
 :where([data-theme="dark"]) .leg-shift{color:var(--amber)}
 @media(max-width:760px){td:nth-child(3),td:nth-child(6){grid-column:1/-1}td:nth-child(4){grid-column:auto;grid-row:auto}td:nth-child(5){justify-self:end}.legs{grid-template-columns:1fr 1fr;gap:12px;min-width:0;padding:12px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)}.leg{grid-template-columns:1fr}.leg-label{margin-bottom:3px}td small.leg-meta{grid-column:1}}
+/* Seven filters: let them wrap into rows instead of cutting their texts. */
+.filters>label{flex:1 1 150px}

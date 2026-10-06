@@ -192,6 +192,7 @@ function renderOffers() {
   $('results-count').textContent=`${offers.length} of ${data.offers.length} offers · sorted by price`;
   $('empty').hidden=offers.length>0;
   $('empty').textContent=data.offers.length?'No offers for this selection. Try another filter.':($('baggage').value==='base'?'No checked offers in the current search window yet. The search status is shown above.':'Baggage price unavailable: no checked offer lists the selected bags as included yet. That does not mean such fares do not exist.');
+  if((filters.departs||filters.arrives) && data.offers.length)$('empty').textContent='No offers in these flight times. The filter applies to both flights in local time; offers checked before times were recorded have none and are hidden.';
   if(filters.favorites)$('empty').textContent=favorites.size?'No available favorites for these filters and this baggage choice. Your saved selection is kept; missing offers are not current prices.':'No favorites yet. Turn off “Favorites only” and save offers with the star.';
   const select=$('history-select');select.replaceChildren();
   offers.forEach(q=>{const o=node('option',`${q.origin} · ${q.category==='nonstop'?'Non-stop':'With stops'} · ${day(q.departure)}–${day(q.return_date)} · ${q.days} days`);o.value=q.id;select.append(o);});

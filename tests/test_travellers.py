@@ -1,11 +1,10 @@
 """Several travellers: Google prices the whole party, the tracker keeps per-person prices."""
-from dataclasses import replace
 from datetime import date, datetime, timedelta
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace as NS
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from scripts.build_site import export_data, page_values
 from tracker.alerts import search_link
@@ -51,7 +50,7 @@ class TravellerTests(unittest.TestCase):
         search = NS(client=None, get_booking_options=lambda *args, **kwargs: captured.append(args))
         http = NS(post=Mock())
         quote = Quote("FRA", "2026-10-15", "2026-10-29", "layover", 32000, 900, 950, 1, 1, "QR", "")
-        with unittest.mock.patch("tracker.fare_baggage.decode_booking_quotes", return_value=[]) as decode:
+        with patch("tracker.fare_baggage.decode_booking_quotes", return_value=[]) as decode:
             search.get_booking_options = lambda *args, **kwargs: search.client.post("url", data="x")
             booking_quotes(search, http, flights(), NS(passenger_info=NS(adults=2)), quote)
         self.assertEqual(decode.call_args.args[3], 2)

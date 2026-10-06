@@ -86,6 +86,8 @@ def filter_summary(config):
         parts.append('only ' + ', '.join(config.airlines))
     if config.airlines_exclude:
         parts.append('without ' + ', '.join(config.airlines_exclude))
+    if config.flight_times:
+        parts.append('limited flight times')
     return ''.join(' · ' + part for part in parts)
 
 
@@ -124,7 +126,7 @@ def export_data(db_path, config, now=None, variant=None):
     now = now or datetime.now(timezone.utc)
     public_config = {key: getattr(config, key) for key in (
         'origins', 'destination', 'adults', 'departure_start', 'departure_end', 'min_trip_days',
-        'max_trip_days', 'latest_return', 'max_direction_minutes', 'good_deal_nonstop_eur',
+        'max_trip_days', 'latest_return', 'max_direction_minutes', 'flight_times', 'good_deal_nonstop_eur',
         'good_deal_layover_eur', 'origin_targets', 'history_window_days', 'realert_improvement_eur')}
     result = dict(version=1, generated_at=now.isoformat(), config=public_config,
                   scan=None, offers_as_of=None, offers=[], histories={})
