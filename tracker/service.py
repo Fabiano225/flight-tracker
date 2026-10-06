@@ -28,15 +28,21 @@ def search_window(config):
     return window + [config.latest_return] if config.latest_return else window
 
 
-def queue_window_ended(store, config, run_id, now):
-    """Say once per search window that its last departure date has been reached."""
+def queue_window_ended(store, config, run_id, now, trips=None):
+    """Say once per search window that its last departure date has been reached.
+    A trip with several destinations says it once, from its first destination's search."""
+    siblings = [trip.destination for trip in (trips or (config,)) if trip.id == config.id] or [config.destination]
+    if config.destination != siblings[0]:
+        return False
     trip = [] if config.id == MAIN_TRIP else [config.id]
-    window = json.dumps([config.destination, list(config.origins), *search_window(config), *trip])
+    places = config.destination if len(siblings) == 1 else siblings
+    window = json.dumps([places, list(config.origins), *search_window(config), *trip])
     key = "window_ended:" + hashlib.sha256(window.encode()).hexdigest()[:16]
     if store.get_meta(key):
         return False
+    to = f" to {', '.join(siblings)}" if len(siblings) > 1 else ""
     store.enqueue(run_id, "notice", now, f"{config.destination} search window ended\n{stamp(now)}\n"
-                  f"Departures from {config.departure_start} to {config.departure_end} can no longer be searched, "
+                  f"Departures from {config.departure_start} to {config.departure_end}{to} can no longer be searched, "
                   f"so the tracker has stopped searching this trip. Stored prices stay on the dashboard.\n"
                   f"Set up a new search: {SETTINGS}")
     store.set_meta(key, stamp(now))
@@ -209,7 +215,7 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
         summary['queued_check_status'] = int(queue_check_status(
             store, config, scope, run_id, verified, now, summary, demo))
         if summary["status"] == "expired" and not demo:
-            summary["queued_window_notice"] = int(queue_window_ended(store, config, run_id, now))
+            summary["queued_window_notice"] = int(queue_window_ended(store, config, run_id, now, trips))
         summary["http_attempts"] = provider.http.used - used_before
         summary["calendar_dates_recovered"] = getattr(getattr(provider, "dates", None), "recovered_dates", 0)
         db.execute("UPDATE runs SET status=?,summary=? WHERE id=?", (summary["status"], json.dumps(summary), run_id))

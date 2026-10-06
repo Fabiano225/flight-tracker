@@ -91,6 +91,21 @@ class SiteTests(unittest.TestCase):
         data=self.data();self.assertEqual(data['offers'],[]);self.assertEqual(data['histories'],{})
         self.assertIsNone(data['scan'])
 
+    def test_price_calendar_has_the_latest_date_search_within_the_trip(self):
+        self.record('old',NOW-timedelta(hours=6),65000)
+        self.record('new',NOW,60000)
+        rows=[('old','FRA','2026-10-15','2026-10-29','any',55000),('new','FRA','2026-10-15','2026-10-29','any',58000),
+              ('new','FRA','2026-10-15','2026-10-30','nonstop',None),('new','MUC','2026-10-15','2026-10-29','any',40000),
+              ('new','FRA','2026-10-15','2026-11-20','any',41000)]
+        for run,origin,dep,ret,profile,price in rows:
+            at=NOW-timedelta(hours=6) if run=='old' else NOW
+            self.store.db.execute('INSERT INTO calendar VALUES(?,?,?,?,?,?,?,?)',(run,self.config.scope(),stamp(at),origin,dep,ret,profile,price))
+        self.store.db.commit()
+        calendar=self.data()['calendar']
+        self.assertEqual(calendar['at'],NOW.isoformat(timespec='seconds'))
+        # Only the latest search; unknown prices stay null; other airports and dates are left out.
+        self.assertEqual(calendar['rows'],[['FRA','BKK','2026-10-15',14,'any',58000],['FRA','BKK','2026-10-15',15,'nonstop',None]])
+
     def test_build_only_publishes_allowlisted_assets(self):
         self.record('new',NOW,60000,quote=replace(self.q,departure='2026-10-21',return_date='2026-11-04'))
         output=self.root/'public'
@@ -98,7 +113,7 @@ class SiteTests(unittest.TestCase):
         self.assertEqual({p.name for p in output.iterdir()},set(ASSETS)|set(GENERATED))
         with self.assertRaisesRegex(ValueError,'empty'):build(self.path,output)
         form=json.loads((output/'search-config.json').read_text(encoding='utf-8'))
-        self.assertEqual(set(form),{'version','repository','marker','primary_trip','trips','shared_fields','max_trips',
+        self.assertEqual(set(form),{'version','repository','marker','primary_trip','trips','shared_fields','max_trips','max_destinations',
                                     'airlines','labels','travel_classes','limits'})
         self.assertEqual((form['version'],form['primary_trip'],form['max_trips']),(2,'main',5))
         self.assertEqual(form['airlines']['QR'],'Qatar Airways')
@@ -148,7 +163,7 @@ class SiteTests(unittest.TestCase):
                      'flights from Düsseldorf, Frankfurt and Amsterdam,',
                      '<span class="route-code">DUS</span><span class="route-code">FRA</span><span class="route-code">AMS</span>',
                      '<span data-page="city">Bangkok</span><span class="ticket-place" data-page="ticket_place">THAILAND / BKK</span>',
-                     '20–23 Oct 2026','14–21 days','1 adult · <span data-page="travel_class">Economy</span> · Round trip<span data-page="filter_summary"></span></p>',
+                     '20–23 Oct 2026','14–21 days','<span data-page="travellers">1 adult</span> · <span data-page="travel_class">Economy</span> · Round trip<span data-page="filter_summary"></span></p>',
                      'less than <span data-page="realert">€25</span> above',
                      'travel times <span data-page="duration_limit">under 21 hours</span> per direction',
                      '/ <span data-page="city">Bangkok</span> edition'):

@@ -29,7 +29,7 @@ def city(code, display_names=None):
 
 
 def places(config):
-    return {code: place(code, config.display_names) for code in (*config.origins, config.destination)}
+    return {code: place(code, config.display_names) for code in (*config.origins, *config.destinations)}
 
 
 @lru_cache(maxsize=1)

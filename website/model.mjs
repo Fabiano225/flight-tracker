@@ -1,13 +1,29 @@
 export function filteredOffers(offers, filters) {
   const selectedAirlines=Array.isArray(filters.airlines)?filters.airlines:[];
   return offers.filter(q => (!filters.origin || q.origin === filters.origin)
+    && (!filters.destination || q.destination === filters.destination)
     && (!filters.category || q.category === filters.category)
     && (!filters.departure || q.departure === filters.departure)
     && (!filters.days || q.days === Number(filters.days))
+    && timesFit(q, filters.departs, filters.arrives)
     && (!selectedAirlines.length || (filters.airlineMode==='exclude'
       ? !airlineCodes(q).some(code=>selectedAirlines.includes(code))
       : airlineCodes(q).some(code=>selectedAirlines.includes(code)))))
     .sort((a,b) => a.price-b.price || a.departure.localeCompare(b.departure));
+}
+
+// Time filters ("6-24": from 06:00, before 24:00) apply to both flights, in local time.
+// Offers without recorded times never match an active time filter.
+export function timesFit(offer, departs, arrives) {
+  if(!departs && !arrives)return true;
+  const times=flightLegs(offer);
+  if(!times[0].departs)return false;
+  const inside=(time,window)=>{
+    if(!window)return true;
+    const [from,until]=window.split('-').map(Number), minutes=Number(time.slice(0,2))*60+Number(time.slice(3,5));
+    return from*60<=minutes && minutes<until*60;
+  };
+  return times.every(leg=>inside(leg.departs,departs) && inside(leg.arrives,arrives));
 }
 
 export function airlineCodes(offer) {
@@ -22,8 +38,9 @@ export function airlineChoices(offers, names={}) {
 
 export const favoritesStorageKey = 'flightwatch:flight-tracker:favorites:v1';
 // Track the same comparison as the chart, not a price/vendor that can change.
+// An offer names its own destination (trips can have several); `destination` is the fallback.
 export function favoriteKey(offer, destination, profile = 'base') {
-  return JSON.stringify([destination, offer.origin, offer.departure, offer.return_date, offer.category, profile]);
+  return JSON.stringify([offer.destination || destination, offer.origin, offer.departure, offer.return_date, offer.category, profile]);
 }
 function validFavoriteKey(key) {
   try {
@@ -63,7 +80,7 @@ export function parseFavorite(key) {
 // departure has passed, or its airport, dates or trip length are no longer searched.
 export function favoriteExpired(fav, config, today) {
   const days=(Date.parse(fav.return_date)-Date.parse(fav.departure))/86400000;
-  return fav.destination!==config.destination || !config.origins.includes(fav.origin)
+  return !(config.destinations || [config.destination]).includes(fav.destination) || !config.origins.includes(fav.origin)
     || fav.departure<=today || fav.departure<config.departure_start || fav.departure>config.departure_end
     || days<config.min_trip_days || days>config.max_trip_days
     || Boolean(config.latest_return) && fav.return_date>config.latest_return;
@@ -140,7 +157,7 @@ export function baggageView(root, profile) {
 }
 export function matchingBase(offer, root, view) {
   if(!offer.itinerary_id || !view.base_at)return null;
-  return root.offers.find(q=>q.itinerary_id===offer.itinerary_id && q.origin===offer.origin
+  return root.offers.find(q=>q.itinerary_id===offer.itinerary_id && q.origin===offer.origin && q.destination===offer.destination
     && q.departure===offer.departure && q.return_date===offer.return_date && q.category===offer.category
     && q.at===view.base_at) || null;
 }
@@ -165,10 +182,46 @@ export function tripHref(site, id, page='./') {
 }
 // Both directions of an offer; with the local times at each airport when the search
 // had them. dayShift counts calendar days from departure to arrival (+1: next day).
+// `connections` lists [airport, minutes waiting] per stop when the search recorded them.
 export function flightLegs(offer) {
   const times=Array.isArray(offer.schedule)&&offer.schedule.length===4&&offer.schedule.every(t=>/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(t))?offer.schedule:null;
+  const stops=Array.isArray(offer.layovers)&&offer.layovers.length===2&&offer.layovers.every(Array.isArray)?offer.layovers:null;
   const dayNumber=t=>Date.parse(t.slice(0,10)+'T00:00:00Z')/864e5;
-  return [['Out',0,offer.outbound_minutes,offer.outbound_stops],['Back',2,offer.inbound_minutes,offer.inbound_stops]].map(([label,i,minutes,stops])=>({
-    label,minutes,stops,
-    ...(times?{departs:times[i].slice(11),arrives:times[i+1].slice(11),dayShift:dayNumber(times[i+1])-dayNumber(times[i])}:{})}));
+  return [['Out',0,offer.outbound_minutes,offer.outbound_stops],['Back',2,offer.inbound_minutes,offer.inbound_stops]].map(([label,i,minutes,count],n)=>({
+    label,minutes,stops:count,
+    ...(times?{departs:times[i].slice(11),arrives:times[i+1].slice(11),dayShift:dayNumber(times[i+1])-dayNumber(times[i])}:{}),
+    ...(stops?{connections:stops[n].map(([airport,wait])=>({airport,minutes:wait}))}:{})}));
+}
+// Price calendar: the cheapest indicative date-search price (the return flight not yet
+// chosen) per departure day and trip length, for the chosen airport, destination and
+// connection. "With stops" uses the any-stops search, which can include non-stop flights.
+export function calendarGrid(calendar, filters={}, today='') {
+  const profile=filters.category==='nonstop'?'nonstop':'any', cells=new Map();
+  for(const [origin,destination,departure,days,kind,price] of calendar?.rows||[]) {
+    if(kind!==profile || departure<=today || (filters.origin && origin!==filters.origin)
+      || (filters.destination && destination!==filters.destination))continue;
+    const key=`${departure}|${days}`, cell=cells.get(key);
+    if(!cell)cells.set(key,{departure,days,price,origin,destination});
+    else if(price!==null && (cell.price===null || price<cell.price))Object.assign(cell,{price,origin,destination});
+  }
+  const values=[...cells.values()], prices=values.map(cell=>cell.price).filter(price=>price!==null);
+  return {departures:[...new Set(values.map(cell=>cell.departure))].sort(),
+    lengths:[...new Set(values.map(cell=>cell.days))].sort((a,b)=>a-b), cells,
+    min:prices.length?Math.min(...prices):null, max:prices.length?Math.max(...prices):null};
+}
+// Five equal price bands between the cheapest (0) and the priciest (4) cell.
+export function priceStep(price, min, max, steps=5) {
+  if(price===null || min===null)return null;
+  return max===min?0:Math.min(steps-1,Math.floor((price-min)/(max-min)*steps));
+}
+// Change against the earliest check of the same comparison within the last 7 days.
+export function weekTrend(offer, history) {
+  const until=Date.parse(offer.at), from=until-7*86400000;
+  const earlier=history.filter(point=>{const at=Date.parse(point.at);return at>=from && at<until;})
+    .sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+  return earlier.length?{delta:offer.price-earlier[0].price,since:earlier[0].at,full:Date.parse(earlier[0].at)-from<86400000}:null;
+}
+// The cheapest offer from each departure airport.
+export function cheapestPerOrigin(offers, origins) {
+  return origins.map(origin=>({origin,offer:offers.filter(q=>q.origin===origin).sort((a,b)=>a.price-b.price)[0]||null}));
 }

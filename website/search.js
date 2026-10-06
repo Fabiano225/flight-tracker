@@ -1,4 +1,4 @@
-import {airportInfo, searchAirports, searchAirlines, validateTrips, changedFields, settingsJson, settingsChanges, issueUrl, issueBody, MAX_URL, scopeFields, priceFields, suggestPrices, observedPrices} from './search-model.mjs';
+import {airportInfo, searchAirports, searchAirlines, validateTrips, changedFields, settingsJson, settingsChanges, issueUrl, issueBody, MAX_URL, scopeFields, priceFields, suggestPrices, observedPrices, timeWindows, restartsHistory, destinationList} from './search-model.mjs';
 
 const $ = id => document.getElementById(id);
 const form = $('settings');
@@ -7,7 +7,7 @@ const node = (tag, text, cls) => {const n=document.createElement(tag); if(text!=
 const berlinToday = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin'}).format(new Date());
 const shortDate = value => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
 const numberValue = value => String(value).trim()==='' ? NaN : Number(value);
-const routeFields = ['origins','destination','departure_start','departure_end','min_trip_days','max_trip_days','latest_return'];
+const routeFields = ['origins','destination','more_destinations','departure_start','departure_end','min_trip_days','max_trip_days','latest_return'];
 const dayMs = 86400000;
 const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value+'T00:00:00Z'));
 const plusDays = (value, days) => new Date(Date.parse(value+'T00:00:00Z')+days*dayMs).toISOString().slice(0,10);
@@ -21,15 +21,16 @@ const suggestedFields=['good_deal_nonstop_eur','good_deal_layover_eur','realert_
 const euroText=value=>`€${value.toLocaleString('en-GB')}`;
 
 function cityOf(code) {return airportInfo(table,code)?.city || code;}
-function routeCodes() {return [...new Set([...state.origins,state.destination].filter(Boolean))];}
+function routeCodes() {return [...new Set([...state.origins,...state.destination].filter(Boolean))];}
 const configs = () => trips.map(trip=>trip.config);
 const primaryIndex = () => Math.max(0,trips.findIndex(trip=>trip.key===primaryKey));
 function tripLabel(trip) {
   const config=trip.config;
   if(!config.destination)return 'New trip';
   const name=config.display_names[config.destination]||cityOf(config.destination);
+  const more=(config.more_destinations||[]).length, label=more?`${name} +${more}`:name;
   const twins=trips.filter(other=>other.config.destination===config.destination);
-  return twins.length>1?`${name} (${twins.indexOf(trip)+1})`:name;
+  return twins.length>1?`${label} (${twins.indexOf(trip)+1})`:label;
 }
 
 // One chip picker per list setting: airports from the airport list, airlines from the airline list.
@@ -37,7 +38,8 @@ const pickers = {
   origins: {multiple:true, search:q=>searchAirports(table,q,30), code:x=>x.code,
     label:x=>`${x.city} (${x.code})`, detail:x=>[x.name,x.country].filter(Boolean).join(' · '),
     chip:code=>{const x=airportInfo(table,code);return x?`${x.city}${x.country?' · '+x.country:''}`:'unknown';}, name:cityOf},
-  destination: {multiple:false, search:q=>searchAirports(table,q,30), code:x=>x.code,
+  // Several destinations per trip; the first keeps the trip's price history.
+  destination: {multiple:true, search:q=>searchAirports(table,q,30), code:x=>x.code,
     label:x=>`${x.city} (${x.code})`, detail:x=>[x.name,x.country].filter(Boolean).join(' · '),
     chip:code=>{const x=airportInfo(table,code);return x?`${x.city}${x.country?' · '+x.country:''}`:'unknown';}, name:cityOf},
 };
@@ -45,11 +47,11 @@ pickers.airlines = {multiple:true, search:q=>searchAirlines(meta.airlines,q,30),
   label:x=>`${x.name} (${x.code})`, detail:()=>'', chip:code=>meta.airlines[code]||'unknown', name:code=>meta.airlines[code]||code};
 pickers.airlines_exclude = pickers.airlines;
 
-function selected(kind) {return kind==='destination'?(state.destination?[state.destination]:[]):state[kind];}
+function selected(kind) {return state[kind];}
 
 // Show one trip in the form. Shared request settings are the same for every trip.
 function fill(config) {
-  state={origins:[...config.origins],destination:config.destination,airlines:[...config.airlines],
+  state={origins:[...config.origins],destination:[config.destination,...(config.more_destinations||[])].filter(Boolean),airlines:[...config.airlines],
     airlines_exclude:[...config.airlines_exclude],names:{...config.display_names},
     targets:Object.fromEntries(Object.entries(config.origin_targets||{}).map(([code,own])=>
       [code,Object.fromEntries(Object.entries(own).map(([k,v])=>[k,String(v)]))]))};
@@ -60,6 +62,10 @@ function fill(config) {
   field('hide_separate_tickets').checked=config.hide_separate_tickets;
   field('carry_on_bags').checked=config.carry_on_bags===1;
   field('checked_bags').checked=config.checked_bags===1;
+  for(const box of form.querySelectorAll('.time-range')){
+    const [from,until]=config.flight_times?.[box.dataset.window]||[0,24];
+    box.querySelector('[data-end="from"]').value=String(from);box.querySelector('[data-end="until"]').value=String(until);
+  }
   // A trip ends by its longest length, or by a latest return date.
   field('trip_end').value=config.latest_return?'date':'days';
   field('latest_return').value=config.latest_return||(validDate(config.departure_end)?plusDays(config.departure_end,config.max_trip_days):'');
@@ -73,7 +79,7 @@ function showTripEnd() {
 }
 
 function collect() {
-  const config={...trips[active].config,origins:[...state.origins],destination:state.destination,
+  const config={...trips[active].config,origins:[...state.origins],destination:state.destination[0]||'',more_destinations:state.destination.slice(1),
     airlines:[...state.airlines],airlines_exclude:[...state.airlines_exclude]};
   for(const name of ['departure_start','departure_end','travel_class'])config[name]=field(name).value;
   for(const name of numberFields)config[name]=numberValue(field(name).value);
@@ -96,6 +102,11 @@ function collect() {
   config.hide_separate_tickets=field('hide_separate_tickets').checked;
   config.carry_on_bags=field('carry_on_bags').checked?1:0;
   config.checked_bags=field('checked_bags').checked?1:0;
+  // A window over the whole day (00:00–24:00) limits nothing and is left out.
+  config.flight_times=Object.fromEntries(timeWindows.map(name=>{
+    const box=form.querySelector(`.time-range[data-window="${name}"]`);
+    return [name,['from','until'].map(end=>Number(box.querySelector(`[data-end="${end}"]`).value))];
+  }).filter(([,[from,until]])=>!(from===0 && until===24)));
   // Airport targets: departure airports as listed, non-stop before with stops; empty fields use the trip's.
   config.origin_targets=state.origins.length<2?{}:Object.fromEntries(state.origins.map(code=>[code,Object.fromEntries(
     ['nonstop','layover'].filter(k=>String(state.targets[code]?.[k]??'').trim()!=='').map(k=>[k,numberValue(state.targets[code][k])]))])
@@ -170,7 +181,7 @@ function renderTrips() {
   const tabs=trips.map((trip,i)=>{
     const button=node('button',undefined,'trip-choice');button.type='button';
     const problems=lastResult && (Object.keys(lastResult.trips[i]||{}).length>0);
-    button.append(node('strong',tripLabel(trip)),node('small',[trip.config.destination||'—',trip.id?null:'new',trip.key===primaryKey&&trips.length>1?'shown first':null,problems?'needs a fix':null].filter(Boolean).join(' · ')));
+    button.append(node('strong',tripLabel(trip)),node('small',[trip.config.destination?destinationList(trip.config):'—',trip.id?null:'new',trip.key===primaryKey&&trips.length>1?'shown first':null,problems?'needs a fix':null].filter(Boolean).join(' · ')));
     button.setAttribute('aria-pressed',String(i===active));
     if(problems)button.classList.add('has-error');
     button.addEventListener('click',()=>switchTrip(i));
@@ -198,7 +209,7 @@ function addTrip() {
   sync();
   // A new trip starts as a copy of the trip shown, without destination and names.
   const base=trips[active].config;
-  trips.push({key:nextKey++,id:null,config:{...structuredClone(base),destination:'',display_names:{},origin_targets:{}}});
+  trips.push({key:nextKey++,id:null,config:{...structuredClone(base),destination:'',more_destinations:[],display_names:{},origin_targets:{}}});
   active=trips.length-1;fill(trips[active].config);update();
   $('trip-note').textContent='New trip: settings copied from the trip you were editing. Choose a destination and check the price targets: the form shows a rough guide for them.';
   $('destination-input').focus();
@@ -222,6 +233,9 @@ function combo(kind) {
   };
   const choose=option=>{
     const code=picker.code(option);
+    if(kind==='destination' && state[kind].length>=meta.max_destinations){
+      input.value='';close();$('destination-error').textContent=`At most ${meta.max_destinations} destinations per trip.`;return;
+    }
     if(picker.multiple){if(!state[kind].includes(code))state[kind].push(code);}
     else state[kind]=code;
     input.value='';close();renderChips();renderNames();update();input.focus();
@@ -306,6 +320,7 @@ function update() {
   for(const kind of Object.keys(pickers))$(`${kind}-input`).toggleAttribute('aria-invalid',Boolean(errors[kind]));
   for(const input of $('display-names').querySelectorAll('input'))input.toggleAttribute('aria-invalid',Boolean(errors.display_names));
   for(const input of $('airport-target-rows').querySelectorAll('input'))input.toggleAttribute('aria-invalid',Boolean(errors.origin_targets));
+  for(const select of form.querySelectorAll('.time-range select'))select.toggleAttribute('aria-invalid',Boolean(errors.flight_times));
   renderTrips();
   const e=result.estimate, budget=trips[0].config, several=trips.length>1;
   $('estimate').textContent=e
@@ -331,9 +346,9 @@ function update() {
   for(const warning of result.warnings)messages.append(node('p',warning,'message warn'));
   // Saved trips whose comparable-price settings change start a new price history.
   const saved=new Map(meta.trips.map(config=>[config.id,config]));
-  const restarted=trips.filter(trip=>trip.id && saved.has(trip.id) && changedFields(saved.get(trip.id),trip.config).some(key=>scopeFields.includes(key)));
+  const restarted=trips.filter(trip=>trip.id && saved.has(trip.id) && restartsHistory(saved.get(trip.id),trip.config));
   if(restarted.length)
-    messages.append(node('p',`Settings that define comparable prices change${several||meta.trips.length>1?` for ${restarted.map(tripLabel).join(', ')}`:''} (destination, cabin, bags, separate tickets, travel time limit, airlines or stops): price history and alerts start over for ${restarted.length===1?(several?'this trip':'this search'):'these trips'}. The old history stays stored.`,'message info'));
+    messages.append(node('p',`Settings that define comparable prices change${several||meta.trips.length>1?` for ${restarted.map(tripLabel).join(', ')}`:''} (destination, travellers, cabin, bags, separate tickets, travel time limit, flight times, airlines or stops): price history and alerts start over for ${restarted.length===1?(several?'this trip':'this search'):'these trips'}. The old history stays stored.`,'message info'));
   const moved=trips.some(trip=>trip.id && saved.has(trip.id) && changedFields(saved.get(trip.id),trip.config).some(key=>routeFields.includes(key)));
   if(moved || meta.trips.some(config=>!trips.some(trip=>trip.id===config.id)))
     messages.append(node('p','Favorites outside the new search are removed from the website automatically.','message info'));
@@ -344,7 +359,7 @@ function update() {
 function showCurrent() {
   const box=$('current-search');box.replaceChildren();
   const line=c=>{const place=airportInfo(table,c.destination);
-    return `${c.origins.join(', ')} → ${c.destination}${place?` (${c.display_names[c.destination]||place.city})`:''} · departures ${shortDate(c.departure_start)} to ${shortDate(c.departure_end)} · ${c.min_trip_days}–${c.max_trip_days} days · ${meta.travel_classes[c.travel_class]}`;};
+    return `${c.origins.join(', ')} → ${destinationList(c)}${place && !(c.more_destinations||[]).length?` (${c.display_names[c.destination]||place.city})`:''} · departures ${shortDate(c.departure_start)} to ${shortDate(c.departure_end)} · ${c.min_trip_days}–${c.max_trip_days} days · ${meta.travel_classes[c.travel_class]}`;};
   if(meta.trips.length===1){box.textContent=`Current: ${line(meta.trips[0])}`;return;}
   const list=node('ol');
   for(const config of meta.trips)list.append(node('li',line(config)+(config.id===meta.primary_trip?' · shown first':'')));
@@ -427,6 +442,10 @@ async function load() {
     for(const [name,[low,high]] of Object.entries({...meta.limits.int,...meta.limits.float})){
       const input=field(name);if(input instanceof HTMLInputElement){input.min=low;input.max=high;}
     }
+    // Hours for the time windows: from 00:00–23:00, until 01:00–24:00.
+    const hour=h=>{const o=node('option',`${String(h).padStart(2,'0')}:00`);o.value=String(h);return o;};
+    for(const select of form.querySelectorAll('.time-range select'))
+      select.replaceChildren(...Array.from({length:24},(_,i)=>hour(select.dataset.end==='from'?i:i+1)));
     field('travel_class').replaceChildren(...Object.entries(meta.travel_classes).map(([value,label])=>{const o=node('option',label);o.value=value;return o;}));
     field('departure_start').min=field('departure_end').min=berlinToday();
     for(const kind of Object.keys(pickers))combo(kind);

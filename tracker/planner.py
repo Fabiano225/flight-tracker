@@ -45,9 +45,11 @@ def plan(config, today):
 def request_estimate(config, today):
     """Upper bound of one scan's requests: one per departure day, trip length,
     airport and stop profile, plus a full verification budget (one outbound and
-    `outbound_candidates` return searches each). Retries come on top."""
-    calendar = sum(len(b.pairs()) for b in plan(config, today))
-    verification = config.max_verifications_per_run * (1 + config.outbound_candidates)
+    `outbound_candidates` return searches each), for every destination of the
+    trip. Retries come on top."""
+    destinations = len(config.destinations)
+    calendar = destinations * sum(len(b.pairs()) for b in plan(config, today))
+    verification = destinations * config.max_verifications_per_run * (1 + config.outbound_candidates)
     requests = calendar + verification
     # Starts are paced; parallel requests overlap an assumed 1.5 s response time.
     seconds = requests * max(config.request_interval_seconds, 1.5 / config.max_parallel_requests)

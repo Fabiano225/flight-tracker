@@ -15,7 +15,7 @@
 <body>
   <a class="skip" href="#offers">Skip to offers</a>
   <header class="header wrap">
-    <a class="brand" href="./" aria-label="Flightwatch home"><span class="brand-mark">↗</span>flightwatch<span class="brand-tag"><span data-page="code">{{code}}</span> EDITION</span></a>
+    <a class="brand" href="./" aria-label="Flightwatch home"><span class="brand-mark">↗</span>flightwatch<span class="brand-tag"><span data-page="route_codes">{{route_codes}}</span> EDITION</span></a>
     <nav aria-label="Main navigation"><a href="#offers">Flights</a><a href="#history">Price history</a><a id="settings-link" href="./settings.html">Change search</a><a href="{{repo_url}}" target="_blank" rel="noopener noreferrer">GitHub ↗</a><label class="theme-switch" title="Color theme"><span class="theme-option" data-for="auto" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg><span class="theme-word">Auto</span></span><span class="theme-option" data-for="light" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.05 3.05l1.13 1.13M11.82 11.82l1.13 1.13M3.05 12.95l1.13-1.13M11.82 4.18l1.13-1.13"/></svg><span class="theme-word">Light</span></span><span class="theme-option" data-for="dark" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M13.6 10.1A6 6 0 0 1 5.9 2.4a6 6 0 1 0 7.7 7.7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="theme-word">Dark</span></span><select class="theme-select" aria-label="Color theme"><option value="auto">Automatic (system)</option><option value="light">Light</option><option value="dark">Dark</option></select></label></nav>
   </header>
   <main class="wrap">
@@ -24,14 +24,14 @@
       <div><p class="eyebrow"><span class="dot"></span> <span>YOUR PRICE RADAR FOR <span data-page="region_upper">{{region_upper}}</span></span></p>
         <h1 id="hero-title"><span data-page="city">{{city}}</span> in view.<br><em>The price too.</em></h1>
         <p class="intro">Search less. Compare better. Your flights to <span data-page="city">{{city}}</span> – with real price histories instead of gut feeling.</p>
-        <div class="route"><span id="route-origins" class="route-origins">{{route_origins}}</span><span class="route-line" aria-hidden="true">──── ↗</span><strong data-page="code">{{code}}</strong></div>
+        <div class="route"><span id="route-origins" class="route-origins">{{route_origins}}</span><span class="route-line" aria-hidden="true">──── ↗</span><strong data-page="route_codes">{{route_codes}}</strong></div>
       </div>
       <aside class="trip-card" aria-label="Trip profile">
         <div class="ticket-top"><span>YOUR TRAVEL WINDOW</span><span class="ticket-icon" aria-hidden="true">↗</span></div>
         <div class="ticket-city"><span data-page="city">{{city}}</span><span class="ticket-place" data-page="ticket_place">{{ticket_place}}</span></div>
         <div class="ticket-stamp" aria-hidden="true"><span data-page="code">{{code}}</span><br><small>LET’S GO</small></div>
         <div class="ticket-bottom"><div><span>DEPARTURE</span><strong id="trip-dates">{{trip_dates}}</strong></div><div><span>TRIP LENGTH</span><strong id="trip-days">{{trip_days}}</strong></div></div>
-        <p>1 adult · <span data-page="travel_class">{{travel_class}}</span> · Round trip<span data-page="filter_summary">{{filter_summary}}</span></p>
+        <p><span data-page="travellers">{{travellers}}</span> · <span data-page="travel_class">{{travel_class}}</span> · Round trip<span data-page="filter_summary">{{filter_summary}}</span></p>
       </aside>
     </section>
     <div class="status-bar" role="status" aria-live="polite"><span id="status-label"><span class="dot"></span> Loading data …</span><span id="last-check">Four search runs a day</span><button id="reload" type="button">Refresh ↻</button></div>
@@ -53,9 +53,12 @@
       <div class="section-heading"><div><p class="eyebrow">YOUR OPTIONS</p><h2 id="offers-title">Good trip. Good price.</h2></div><p id="offer-timestamp" class="muted">Only checked round trips</p></div>
       <form class="filters" id="filters" aria-label="Filter offers">
         <label>Departure airport<select id="origin" name="origin"><option value="">All airports</option></select></label>
+        <label hidden>Destination<select id="destination-filter" name="destination"><option value="">All destinations</option></select></label>
         <label>Connection<select id="category" name="category"><option value="">All connections</option><option value="nonstop">Non-stop only</option><option value="layover">With stops</option></select></label>
         <label>Outbound<select id="departure" name="departure"><option value="">All departure days</option></select></label>
         <label>Trip length<select id="days" name="days"><option value="">All trip lengths</option></select></label>
+        <label>Departure time<select id="departs" name="departs"><option value="">Any time</option><option value="6-24">From 06:00</option><option value="8-24">From 08:00</option><option value="10-24">From 10:00</option><option value="6-22">06:00–22:00</option><option value="8-20">08:00–20:00</option></select></label>
+        <label>Arrival time<select id="arrives" name="arrives"><option value="">Any time</option><option value="6-24">Not at night (from 06:00)</option><option value="6-22">06:00–22:00</option><option value="8-20">08:00–20:00</option></select></label>
         <details class="airline-filter" id="airline-filter">
           <summary><span class="airline-summary-copy"><span class="airline-eyebrow">AIRLINES</span><strong id="airline-summary">All airlines</strong></span><span class="airline-chevron" aria-hidden="true"></span></summary>
           <div class="airline-popover">
@@ -75,9 +78,19 @@
       <p class="footnote favorites-note">☆ Save with the star: route, travel dates, flight type and baggage choice. The current price and the airline can change. Favorites are stored only in this browser, without an account or device sync. Offers that are temporarily missing stay saved and are listed below for removal; favorites outside the search are removed automatically. Price alerts are not affected by this choice.</p>
       <p id="favorites-status" class="footnote" role="status"></p>
       <div id="favorites-missing" class="favorites-missing" hidden></div>
+      <div id="airport-best" class="airport-best" role="group" aria-label="Cheapest offer from each departure airport" hidden></div>
       <div class="table-scroll"><table><caption id="results-count">Loading offers</caption><thead><tr><th>Route & connection</th><th>Your travel dates</th><th>Flights <span class="th-note">local times</span></th><th>Price & change</th><th>Assessment</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="offers-body"></tbody></table></div>
       <p id="empty" class="empty" hidden>No offers for this selection. Try another filter.</p>
       <p class="footnote">Compared with the lowest checked price of the last <span data-page="history_days">{{history_days}}</span> days and with the previous check of the same route, dates and flight type. The airline can change. Missing results do not mean there are no flights. Flight times are local at each airport; +1 means the next day.</p>
+    </section>
+    <section id="calendar" class="calendar-section" aria-labelledby="calendar-title">
+      <div class="section-heading"><div><p class="eyebrow">WHEN IS IT CHEAPEST?</p><h2 id="calendar-title">Price calendar.</h2></div><p id="calendar-note" class="muted">Date search</p></div>
+      <div class="calendar-card">
+        <div class="calendar-scroll"><table id="calendar-table" class="calendar-table"></table></div>
+        <div id="calendar-legend" class="calendar-legend"><span>Cheaper</span><span class="legend-steps" aria-hidden="true"><i class="heat-0"></i><i class="heat-1"></i><i class="heat-2"></i><i class="heat-3"></i><i class="heat-4"></i></span><span>Pricier</span><span id="calendar-range"></span></div>
+        <p id="calendar-empty" class="empty" hidden>No date-search prices for this selection yet.</p>
+      </div>
+      <p class="footnote">The cheapest price per person the date search found for each outbound day (rows) and trip length (columns), for the airport, destination and connection chosen above. Indicative: the return flight is not chosen yet and flight times are unknown, so checked prices in the table can differ. “All connections” and “With stops” show the cheapest of any connection. Days with a checked offer can be clicked to show it in the table.</p>
     </section>
     <section id="history" class="history-layout" aria-labelledby="chart-heading">
       <article class="chart-card"><div class="section-heading"><div><p class="eyebrow">THE TREND</p><h2 id="chart-heading">Prices in perspective.</h2></div><span class="period"><span data-page="history_days">{{history_days}}</span> DAYS</span></div>

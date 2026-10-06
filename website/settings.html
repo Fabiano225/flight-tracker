@@ -54,10 +54,10 @@
           <p class="field-error" id="origins-error"></p>
         </div>
         <div class="picker-field" data-field="destination">
-          <label for="destination-input" class="field-label">Destination</label>
-          <ul class="chips" id="destination-chips" aria-label="Selected destination"></ul>
+          <label for="destination-input" class="field-label">Destinations</label>
+          <ul class="chips" id="destination-chips" aria-label="Selected destinations"></ul>
           <div class="combo">
-            <input id="destination-input" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-list" aria-describedby="destination-error" placeholder="Search for another destination">
+            <input id="destination-input" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-list" aria-describedby="destination-error" placeholder="Add a destination">
             <ul id="destination-list" class="suggestions" role="listbox" aria-label="Destination suggestions" hidden></ul>
           </div>
           <p class="field-error" id="destination-error"></p>
@@ -86,6 +86,7 @@
       <fieldset class="settings-card">
         <legend><span class="eyebrow">03 · FLIGHTS</span>Which flights count?</legend>
         <div class="field-grid">
+          <label class="field">Travellers<input type="number" inputmode="numeric" step="1" name="adults" aria-describedby="adults-error"><span class="field-error" id="adults-error"></span></label>
           <label class="field">Cabin<select name="travel_class" aria-describedby="travel_class-error"></select><span class="field-error" id="travel_class-error"></span></label>
           <label class="field">Max. stops per direction<select name="max_stops" aria-describedby="max_stops-error"><option value="">Any number</option><option value="0">Non-stop only</option><option value="1">Up to 1 stop</option><option value="2">Up to 2 stops</option></select><span class="field-error" id="max_stops-error"></span></label>
           <div class="field">
@@ -123,7 +124,21 @@
           <label class="check"><input type="checkbox" name="carry_on_bags"> Cabin bag in the base search <small>Search base prices only with 1 cabin bag.</small></label>
           <label class="check"><input type="checkbox" name="checked_bags"> Checked bag in the base search <small>Search base prices only with 1 checked bag.</small></label>
         </div>
-        <p class="footnote">Fixed: 1 adult, prices in EUR. The tracker supports no other values.</p>
+        <div class="time-windows" role="group" aria-labelledby="flight-times-label" aria-describedby="flight_times-error">
+          <span class="field-label" id="flight-times-label">Flight times <small>local time at each airport · from – until</small></span>
+          <div class="time-grid">
+            <span></span><span class="time-head">Departure</span><span class="time-head">Arrival</span>
+            <span class="time-row">Outbound</span>
+            <span class="time-range" data-window="outbound_departure" data-kind="Departure"><select data-end="from" aria-label="Outbound departure from"></select><span aria-hidden="true">–</span><select data-end="until" aria-label="Outbound departure until"></select></span>
+            <span class="time-range" data-window="outbound_arrival" data-kind="Arrival"><select data-end="from" aria-label="Outbound arrival from"></select><span aria-hidden="true">–</span><select data-end="until" aria-label="Outbound arrival until"></select></span>
+            <span class="time-row">Return</span>
+            <span class="time-range" data-window="return_departure" data-kind="Departure"><select data-end="from" aria-label="Return departure from"></select><span aria-hidden="true">–</span><select data-end="until" aria-label="Return departure until"></select></span>
+            <span class="time-range" data-window="return_arrival" data-kind="Arrival"><select data-end="from" aria-label="Return arrival from"></select><span aria-hidden="true">–</span><select data-end="until" aria-label="Return arrival until"></select></span>
+          </div>
+          <p class="field-error" id="flight_times-error"></p>
+          <p class="footnote">00:00–24:00 is any time. Google searches only flights inside the windows; “until 22:00” means leaving or landing before 22:00. Changing them starts a new price history.</p>
+        </div>
+        <p class="footnote">Travellers are adults; Google searches seats for all of them. Prices and price targets stay per person, in EUR; with several travellers the dashboard and alerts also show the total.</p>
       </fieldset>
 
       <fieldset class="settings-card">

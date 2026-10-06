@@ -2,9 +2,11 @@
 // (tracker/config.py, scripts/search_settings.py); these checks give early feedback.
 
 // Settings that start a separate price history (tracker/config.py: Config.scope).
-export const scopeFields=['destination','travel_class','max_direction_minutes','hide_separate_tickets','carry_on_bags','checked_bags',
-  'max_stops','airlines','airlines_exclude'];
+export const scopeFields=['destination','adults','travel_class','max_direction_minutes','hide_separate_tickets','carry_on_bags','checked_bags',
+  'max_stops','airlines','airlines_exclude','flight_times'];
 export const priceFields=['good_deal_nonstop_eur','good_deal_layover_eur','drop_eur','realert_improvement_eur'];
+// Local-time windows [from hour, until hour) a trip can limit (tracker/config.py: TIME_WINDOWS).
+export const timeWindows=['outbound_departure','outbound_arrival','return_departure','return_arrival'];
 const MAX_AIRLINES=25;
 
 export const fold=text=>String(text).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').toLowerCase();
@@ -70,8 +72,10 @@ export function requestEstimate(config, today) {
     pairs+=count(start,last);
   }
   const days=config.latest_return?count(start,[config.departure_end,addDays(config.latest_return,-config.min_trip_days)].sort()[0]):count(start,config.departure_end);
-  const calendar=pairs*config.origins.length*profiles;
-  const verification=config.max_verifications_per_run*(1+config.outbound_candidates);
+  // Every destination of a trip is searched on its own.
+  const destinations=1+(config.more_destinations||[]).length;
+  const calendar=destinations*pairs*config.origins.length*profiles;
+  const verification=destinations*config.max_verifications_per_run*(1+config.outbound_candidates);
   const requests=calendar+verification;
   const seconds=Math.round(requests*Math.max(config.request_interval_seconds,1.5/config.max_parallel_requests));
   return {days,calendar,verification,requests,seconds};
@@ -86,8 +90,14 @@ export function tripErrors(config, meta, table, today) {
   const {int:ints,float:floats,display_name:maxName}=meta.limits;
   if(!config.origins.length)error('origins','Choose at least one departure airport.');
   for(const code of config.origins)if(!table.airports[code])error('origins',`${code} is not supported by the flight search.`);
+  const destinations=[config.destination,...(config.more_destinations||[])].filter(Boolean);
   if(!table.airports[config.destination])error('destination','Choose a supported destination.');
-  else if(config.origins.includes(config.destination))error('destination','The destination cannot be a departure airport.');
+  for(const code of destinations) {
+    if(!table.airports[code])error('destination',`${code} is not supported by the flight search.`);
+    else if(config.origins.includes(code))error('destination',`${code} cannot be both a departure airport and a destination.`);
+  }
+  if(new Set(destinations).size!==destinations.length)error('destination','Choose each destination once.');
+  if(destinations.length>(meta.max_destinations||5))error('destination',`At most ${meta.max_destinations||5} destinations per trip.`);
   for(const field of ['departure_start','departure_end'])if(!isoDate(config[field]))error(field,'Enter a valid date.');
   if(!errors.departure_start && !errors.departure_end) {
     const span=(Date.parse(config.departure_end)-Date.parse(config.departure_start))/dayMs;
@@ -120,6 +130,12 @@ export function tripErrors(config, meta, table, today) {
     const codes=config[field];
     if(codes.length>MAX_AIRLINES)error(field,`At most ${MAX_AIRLINES} airlines.`);
     for(const code of codes)if(!Object.hasOwn(meta.airlines,code))error(field,`${code} is not supported by the flight search.`);
+  }
+  for(const [name,window] of Object.entries(config.flight_times||{})) {
+    const [from,until]=Array.isArray(window)?window:[];
+    if(!timeWindows.includes(name) || !Number.isInteger(from) || !Number.isInteger(until) || from<0 || until>24 || from>=until)
+      error('flight_times','Choose a start before the end of each time window.');
+    else if(from===0 && until===24)error('flight_times','A window over the whole day limits nothing; leave it at any time.');
   }
   const both=config.airlines.filter(code=>config.airlines_exclude.includes(code));
   if(both.length)error('airlines_exclude',`${both.join(', ')} cannot be both included and excluded.`);
@@ -167,9 +183,13 @@ export function changedFields(current, next) {
   return Object.keys(next).filter(key=>!same(current[key],next[key]));
 }
 
+const timeWords={outbound_departure:'outbound departs',outbound_arrival:'outbound lands',return_departure:'return departs',return_arrival:'return lands'};
+const clock=hour=>`${String(hour).padStart(2,'0')}:00`;
 export function shownValue(key, value, meta) {
+  if(key==='flight_times')return timeWindows.filter(name=>value[name]).map(name=>`${timeWords[name]} ${clock(value[name][0])}–${clock(value[name][1])}`).join('; ')||'any time';
   if(key==='latest_return')return value||'none';
   if(key==='origins')return value.join(', ');
+  if(key==='more_destinations')return value.join(', ')||'none';
   if(key==='airlines')return value.join(', ')||'all';
   if(key==='airlines_exclude')return value.join(', ')||'none';
   if(key==='max_stops')return value===null?'any':value===0?'non-stop only':`up to ${value}`;
@@ -200,12 +220,22 @@ export function tripName(config, configs) {
   return twins.length>1?`${config.destination} (${twins.indexOf(config)+1})`:config.destination;
 }
 
+// "BKK" or "BKK, HKT": all destinations of a trip.
+export const destinationList=config=>[config.destination,...(config.more_destinations||[])].join(', ');
+// Whether a saved trip's price history starts over: no destination stays, or a
+// setting that defines comparable prices changes (each destination keeps its own).
+export function restartsHistory(saved, config) {
+  const before=[saved.destination,...(saved.more_destinations||[])];
+  if(![config.destination,...(config.more_destinations||[])].some(code=>before.includes(code)))return true;
+  return changedFields(saved,config).some(key=>key!=='destination' && scopeFields.includes(key));
+}
+
 export function tripSummary(config) {
-  return `${config.origins.join(', ')} → ${config.destination}, ${config.departure_start} to ${config.departure_end}, ${config.min_trip_days}–${config.max_trip_days} days${config.latest_return?`, back by ${config.latest_return}`:''}`;
+  return `${config.origins.join(', ')} → ${destinationList(config)}, ${config.departure_start} to ${config.departure_end}, ${config.min_trip_days}–${config.max_trip_days} days${config.latest_return?`, back by ${config.latest_return}`:''}`;
 }
 
 // Optional settings at these values are left out of the issue (as in config.json).
-const optional={latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],origin_targets:{},display_names:{}};
+const optional={more_destinations:[],latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],flight_times:{},origin_targets:{},display_names:{}};
 
 // The issue's settings block: every trip in config.json field order, shared request settings once.
 export function settingsJson(meta, trips, primary) {
@@ -240,14 +270,14 @@ export function settingsChanges(meta, trips, primary) {
 
 export function issueTitle(settings) {
   const trips=settings.trips;
-  return trips.length===1?`Change search: ${trips[0].origins.join(', ')} → ${trips[0].destination}`
+  return trips.length===1?`Change search: ${trips[0].origins.join(', ')} → ${destinationList(trips[0])}`
     :`Change search: ${trips.length} trips (${trips.map(trip=>trip.destination).join(', ')})`;
 }
 
 const LISTED_CHANGES=25;
 export function issueBody(meta, settings, changes) {
   const several=settings.trips.length>1;
-  const trips=settings.trips.map(t=>`- ${t.origins.join(', ')} → ${t.destination} · departures ${t.departure_start} to ${t.departure_end} · ${t.min_trip_days}–${t.max_trip_days} days${t.latest_return?` · back by ${t.latest_return}`:''}${several && t.id===settings.primary_trip?' · shown first':''}`);
+  const trips=settings.trips.map(t=>`- ${t.origins.join(', ')} → ${destinationList(t)} · departures ${t.departure_start} to ${t.departure_end} · ${t.min_trip_days}–${t.max_trip_days} days${t.latest_return?` · back by ${t.latest_return}`:''}${several && t.id===settings.primary_trip?' · shown first':''}`);
   const listed=changes.slice(0,LISTED_CHANGES).map(change=>`- ${change.label}: ${change.before} → ${change.after}`);
   if(changes.length>LISTED_CHANGES)listed.push(`- … and ${changes.length-LISTED_CHANGES} more`);
   return [meta.marker, several?`**New search, ${settings.trips.length} trips:**`:'**New search:**', ...trips, '', '**Changes:**', ...listed, '',

@@ -9,7 +9,8 @@ from pathlib import Path
 import threading
 import time
 
-from .config import MAIN_TRIP, cents
+from .alerts import travellers
+from .config import cents, per_person
 from .network import ServiceError, BudgetError, TransientSourceError
 
 
@@ -30,6 +31,8 @@ class Quote:
     baggage: dict | None = None
     # Local times at each airport: outbound departs, arrives, return departs, arrives.
     schedule: tuple | None = None
+    # Connections per direction (outbound, return): (airport code, minutes waiting) each.
+    layovers: tuple | None = None
 
     def to_dict(self):
         return asdict(self)
@@ -290,16 +293,25 @@ class FreeProvider:
             self.searches = {}
 
     def common(self, origin, departure, return_date, profile):
-        from fli.models import Airline, Airport, PassengerInfo, SeatType, MaxStops, BagsFilter
+        from fli.models import Airline, Airport, PassengerInfo, SeatType, MaxStops, BagsFilter, TimeRestrictions
         from fli.core.builders import build_flight_segments
         segments, trip = build_flight_segments(Airport[origin], Airport[self.config.destination], departure, return_date)
+        # Google gets each window widened to whole hours (it may read "until 21" as 21:59);
+        # normalize_pairs then keeps only flights inside the exact windows.
+        for segment, direction in zip(segments, ("outbound", "return")):
+            dep, arr = (self.config.flight_times.get(f"{direction}_{kind}") for kind in ("departure", "arrival"))
+            if dep or arr:
+                hours = lambda w: (w[0] or None, None if w[1] == 24 else w[1]) if w else (None, None)
+                (a, b), (c, d) = hours(dep), hours(arr)
+                segment.time_restrictions = TimeRestrictions(earliest_departure=a, latest_departure=b,
+                                                             earliest_arrival=c, latest_arrival=d)
         seats = {"economy": SeatType.ECONOMY, "premium_economy": SeatType.PREMIUM_ECONOMY,
                  "business": SeatType.BUSINESS, "first_class": SeatType.FIRST}
         stops = {None: MaxStops.ANY, 0: MaxStops.NON_STOP, 1: MaxStops.ONE_STOP_OR_FEWER,
                  2: MaxStops.TWO_OR_FEWER_STOPS}[self.config.max_stops]
         # The library names codes that start with a digit "_4U".
         airline = lambda code: Airline[code] if code in Airline.__members__ else Airline["_" + code]
-        return dict(trip_type=trip, passenger_info=PassengerInfo(adults=1), flight_segments=segments,
+        return dict(trip_type=trip, passenger_info=PassengerInfo(adults=self.config.adults), flight_segments=segments,
                     stops=MaxStops.NON_STOP if profile == "nonstop" else stops,
                     seat_type=seats[self.config.travel_class], max_duration=self.config.max_direction_minutes,
                     airlines=[airline(c) for c in self.config.airlines] or None,
@@ -328,7 +340,7 @@ class FreeProvider:
                 continue
             if row.currency != "EUR":
                 raise ServiceError("Calendar currency is missing or differs from EUR")
-            result[pair] = cents(row.price)
+            result[pair] = per_person(cents(row.price), self.config.adults)
         return result
 
     def verify(self, origin, departure, return_date, profile):
@@ -349,7 +361,7 @@ class FreeProvider:
             self.searches[self.search_key(origin, departure, return_date, profile)] = (pairs, session)
         return normalize_pairs(pairs or [], origin, departure, return_date, profile, self.config,
             lambda pair: "https://www.google.com/travel/flights?" + urlencode({"q":
-                f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} {self.config.travel_class} one adult",
+                f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} {self.config.travel_class} {travellers(self.config.adults)}",
                 "curr": "EUR", "hl": "en"}))
 
     def baggage_offers(self, origin, departure, return_date, profile):
@@ -385,7 +397,7 @@ class FreeProvider:
             for pair in pairs:
                 quotes = normalize_pairs([pair], origin, departure, return_date, profile, self.config,
                     lambda _: "https://www.google.com/travel/flights?" + urlencode({"q":
-                        f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} economy one adult",
+                        f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} economy {travellers(self.config.adults)}",
                         "curr": "EUR", "hl": "en"}))
                 if quotes and quotes[0].itinerary_id:
                     candidates.append((quotes[0], pair))
@@ -414,8 +426,8 @@ class FreeProvider:
 
 
 def cache_file(directory, config):
-    """Each trip's searches are cached in a file of its own."""
-    return Path(directory) / ("search-cache.json" if config.id == MAIN_TRIP else f"search-cache-{config.id}.json")
+    """Each trip's searches are cached in a file of its own, per destination."""
+    return Path(directory) / f"search-cache-{config.id}-{config.destination}.json"
 
 
 def itinerary_id(pair):
@@ -439,6 +451,25 @@ def schedule(pair):
         times = [moment for direction in pair
                  for moment in (direction.legs[0].departure_datetime, direction.legs[-1].arrival_datetime)]
         return tuple(moment.strftime("%Y-%m-%dT%H:%M") for moment in times)
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def layovers(pair):
+    """Connection airports and waiting times (minutes) of both directions, or None
+    if the source no longer provides them. A change of airport reads "LHR/LGW"."""
+    try:
+        result = []
+        for direction in pair:
+            stops = []
+            for arriving, leaving in zip(direction.legs, direction.legs[1:]):
+                wait = (leaving.departure_datetime - arriving.arrival_datetime).total_seconds() // 60
+                if wait < 0:
+                    return None
+                here, there = arriving.arrival_airport.name, leaving.departure_airport.name
+                stops.append((here if here == there else f"{here}/{there}", int(wait)))
+            result.append(tuple(stops))
+        return tuple(result)
     except (AttributeError, TypeError, ValueError):
         return None
 
@@ -470,17 +501,21 @@ def normalize_pairs(pairs, origin, departure, return_date, profile, config, make
         carriers = {leg.airline.name.removeprefix("_") for x in pair for leg in x.legs}
         if carriers & set(config.airlines_exclude) or (config.airlines and not carriers & set(config.airlines)):
             continue
+        times = schedule(pair)
+        if not config.times_fit(times):
+            continue
         # On the return-selection response, price is the total round-trip fare.
         # Adding outbound.price would double-count; outbound.price is a minimum
         # over still-unselected return options, not a standalone one-way fare.
+        # With several travellers it covers all of them; prices are kept per person.
         try:
-            price = cents(inbound.price)
+            price = per_person(cents(inbound.price), config.adults)
         except (ValueError, TypeError):
             continue
         airlines = ", ".join(sorted(carriers))
         quote = Quote(origin, departure, return_date, category, price, outbound.duration, inbound.duration,
                       outbound.stops, inbound.stops, airlines, make_link(pair), itinerary_id(pair),
-                      schedule=schedule(pair))
+                      schedule=times, layovers=layovers(pair))
         if category not in best or price < best[category].price:
             best[category] = quote
     return list(best.values())
@@ -508,10 +543,11 @@ class DemoProvider:
         leaves, returns = datetime.fromisoformat(f"{departure}T10:15"), datetime.fromisoformat(f"{return_date}T23:50")
         times = (leaves, leaves + timedelta(minutes=out_minutes + 300),
                  returns, returns + timedelta(minutes=in_minutes - 300))
+        connections = ((("DOH", 115),), (("DOH", 125),)) if category == "layover" else ((), ())
         return [Quote(origin, departure, return_date, category, self.price(origin, departure, profile),
                       out_minutes, in_minutes, int(category == "layover"), int(category == "layover"), "DEMO",
                       "https://www.google.com/travel/flights",
-                      schedule=tuple(t.strftime("%Y-%m-%dT%H:%M") for t in times))]
+                      schedule=tuple(t.strftime("%Y-%m-%dT%H:%M") for t in times), layovers=connections)]
 
     def close(self):
         pass

@@ -1,4 +1,4 @@
-"""Local departure and arrival times of checked flights, for the dashboard."""
+"""Local departure and arrival times and connections of checked flights."""
 from dataclasses import replace
 from datetime import datetime
 import json
@@ -11,6 +11,7 @@ from scripts.build_site import export_data
 from tracker.config import Config
 from tracker.provider import DemoProvider, Quote, normalize_pairs
 from tracker.store import Store, stamp
+from tracker.trends import flight_lines
 from test_tracker import NOW
 
 
@@ -40,6 +41,20 @@ class FlightTimeTests(unittest.TestCase):
         self.assertEqual(quote.schedule, ("2026-10-15T16:35", "2026-10-16T12:40", "2026-10-29T20:05", "2026-10-30T06:25"))
         self.assertEqual(Quote(**json.loads(json.dumps(quote.to_dict()))).schedule, list(quote.schedule))
 
+    def test_connections_and_their_waiting_times_are_kept(self):
+        quote, = self.normalize([flights()])
+        self.assertEqual(quote.layovers, ((("DOH", 115),), (("DOH", 125),)))
+        pair = flights()
+        pair[0].legs[1].departure_airport = NS(name="DWC")  # Change of airport in Dubai-style setups.
+        self.assertEqual(self.normalize([pair])[0].layovers[0], (("DOH/DWC", 115),))
+
+    def test_messages_name_times_and_connections_of_both_directions(self):
+        quote, = self.normalize([flights()])
+        self.assertEqual(flight_lines(quote), ["Out: 16:35 -> 12:40 (+1 day) | 18h05 | via DOH 1h55",
+                                               "Back: 20:05 -> 06:25 (+1 day) | 15h20 | via DOH 2h05"])
+        self.assertEqual(flight_lines(replace(quote, schedule=None, layovers=None)), ["Out 18h05 / back 15h20"])
+        self.assertEqual(flight_lines(replace(quote, layovers=((), ())))[0], "Out: 16:35 -> 12:40 (+1 day) | 18h05 | non-stop")
+
     def test_a_source_without_arrival_times_still_gives_the_price(self):
         pair = flights()
         for direction_ in pair:
@@ -47,6 +62,7 @@ class FlightTimeTests(unittest.TestCase):
                 del leg_.arrival_datetime
         quote, = self.normalize([pair])
         self.assertIsNone(quote.schedule)
+        self.assertIsNone(quote.layovers)
         self.assertEqual(quote.price, 64000)
 
     def test_demo_quotes_have_times_on_their_travel_dates(self):
@@ -70,6 +86,24 @@ class FlightTimeTests(unittest.TestCase):
                 store.db.commit()
                 offer, = export_data(Path(temp) / "history.sqlite3", config, NOW)["offers"]
                 self.assertEqual(offer["schedule"], published)
+
+    def test_only_well_formed_connections_are_published(self):
+        config = Config()
+        base = Quote("FRA", "2026-10-15", "2026-10-29", "layover", 60000, 900, 950, 1, 1, "QR", "")
+        good = [[["DOH", 115]], [["IST", 70], ["LHR/LGW", 200]]]
+        cases = [(good, good), ((((("DOH", 115),), ())), [[["DOH", 115]], []]), (None, None), (good[:1], None),
+                 ([[["doh", 115]], []], None), ([[["DOH", -5]], []], None), ([[["DOH", "115"]], []], None),
+                 ([[["DOH", 115, 1]], []], None), ([[["DOH", 99999]], []], None)]
+        for stored, published in cases:
+            with self.subTest(stored=stored), tempfile.TemporaryDirectory() as temp, Store(temp) as store:
+                quote = replace(base, layovers=stored)
+                store.db.execute("INSERT INTO runs VALUES('r',?,?,'ok','{}')", (stamp(NOW), config.scope()))
+                store.db.execute("INSERT INTO quotes VALUES('r',?,?,?,?,?,?,?,?)",
+                                 (config.scope(), stamp(NOW), quote.origin, quote.departure, quote.return_date,
+                                  quote.category, quote.price, json.dumps(quote.to_dict())))
+                store.db.commit()
+                offer, = export_data(Path(temp) / "history.sqlite3", config, NOW)["offers"]
+                self.assertEqual(offer["layovers"], published)
 
 
 if __name__ == "__main__":

@@ -21,7 +21,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tracker.config import MAX_TRIPS, OPTIONAL, SHARED_FIELDS, TARGET_CATEGORIES, Config, Settings, shared_values, trips_of
+from tracker.config import (MAX_TRIPS, OPTIONAL, SHARED_FIELDS, TARGET_CATEGORIES, TIME_WINDOWS, Config, Settings,
+                            shared_values, trips_of)
 from tracker.places import airline_supported, place, supported
 from tracker.planner import plan, request_estimate, settings_estimate
 
@@ -29,7 +30,8 @@ BRANCH = "refs/heads/search-config"
 MARKER = "<!-- flightwatch-search-settings -->"
 MAX_BODY = 20000
 LABELS = {
-    "origins": "Departure airports", "destination": "Destination", "departure_start": "Earliest departure",
+    "origins": "Departure airports", "destination": "Destination", "more_destinations": "More destinations",
+    "departure_start": "Earliest departure",
     "departure_end": "Latest departure", "min_trip_days": "Shortest trip (days)",
     "max_trip_days": "Longest trip (days)", "latest_return": "Latest return", "currency": "Currency", "adults": "Travellers",
     "travel_class": "Cabin", "max_direction_minutes": "Max. travel time per direction (minutes)",
@@ -44,9 +46,12 @@ LABELS = {
     "http_timeout_seconds": "Timeout per request (seconds)", "http_attempts": "Attempts per request",
     "request_interval_seconds": "Gap between requests (seconds)", "max_parallel_requests": "Parallel requests",
     "airlines": "Only these airlines", "airlines_exclude": "Exclude these airlines",
-    "max_stops": "Max. stops per direction", "display_names": "Display names", "id": "Trip ID",
+    "max_stops": "Max. stops per direction", "flight_times": "Flight times", "display_names": "Display names", "id": "Trip ID",
     "primary_trip": "Shown first on the website", "trips": "Trips",
 }
+# The settings of Config.scope, in words.
+SCOPE_WORDS = ("destination, travellers, cabin, bags, separate tickets, travel time limit, flight times, "
+               "airlines or stops")
 CLASSES = {"economy": "Economy", "premium_economy": "Premium Economy", "business": "Business", "first_class": "First"}
 
 
@@ -78,7 +83,7 @@ def serialize(settings):
 
 
 def route(config, arrow="→"):
-    return f"{', '.join(config.origins)} {arrow} {config.destination}"
+    return f"{', '.join(config.origins)} {arrow} {', '.join(config.destinations)}"
 
 
 def routes(settings, arrow="→"):
@@ -144,7 +149,7 @@ def normalize(settings):
     if isinstance(settings, Settings):
         return Settings(tuple(normalize(trip) for trip in settings.trips), settings.primary_trip)
     config = settings
-    codes = (*config.origins, config.destination)
+    codes = (*config.origins, *config.destinations)
     names = {code: name for code, name in config.display_names.items()
              if code in codes and name != place(code)["city"]}
     # An airport's own price target equal to the trip's adds nothing.
@@ -153,8 +158,20 @@ def normalize(settings):
     targets = {code: {k: config.origin_targets[code][k] for k in TARGET_CATEGORIES
                       if k in config.origin_targets[code] and config.origin_targets[code][k] != trip[k]}
                for code in config.origins if code in config.origin_targets}
-    return Config.from_dict({**config.form_dict(), "display_names": names,
+    # Windows in a fixed order, as lists (the JSON shape).
+    times = {name: list(config.flight_times[name]) for name in TIME_WINDOWS if name in config.flight_times}
+    return Config.from_dict({**config.form_dict(), "display_names": names, "flight_times": times,
                              "origin_targets": {code: own for code, own in targets.items() if own}})
+
+
+def restarts(old, new):
+    """Whether a trip's price history starts over: no destination stays, or a setting
+    that defines comparable prices changed (each destination has its own history)."""
+    common = [code for code in new.destinations if code in old.destinations]
+    if not common:
+        return True
+    same_place = lambda trip: replace(trip, destination=common[0], more_destinations=())
+    return same_place(old).scope() != same_place(new).scope()
 
 
 def trip_name(trip, trips):
@@ -167,7 +184,7 @@ def check(settings, today):
     trips = trips_of(settings)
     for trip in trips:
         label = "" if len(trips) == 1 else f"{trip_name(trip, trips)} trip: "
-        for code in (*trip.origins, trip.destination):
+        for code in (*trip.origins, *trip.destinations):
             if not supported(code):
                 raise Rejected(f"{label}The airport {code} is not supported by the flight search.")
         for code in (*trip.airlines, *trip.airlines_exclude):
@@ -189,11 +206,23 @@ def check(settings, today):
     return estimate
 
 
+def time_windows(value):
+    """{"outbound_departure": [6, 24]} -> "outbound departs 06:00–24:00"."""
+    words = {"outbound_departure": "outbound departs", "outbound_arrival": "outbound lands",
+             "return_departure": "return departs", "return_arrival": "return lands"}
+    return "; ".join(f"{words[name]} {value[name][0]:02d}:00–{value[name][1]:02d}:00"
+                     for name in TIME_WINDOWS if name in value)
+
+
 def shown(name, value):
+    if name == "flight_times":
+        return time_windows(value) or "any time"
     if name == "latest_return":
         return value or "none"
     if name == "origins":
         return ", ".join(value)
+    if name == "more_destinations":
+        return ", ".join(value) or "none"
     if name in ("airlines", "airlines_exclude"):
         return ", ".join(value) or ("all" if name == "airlines" else "none")
     if name == "max_stops":
@@ -289,17 +318,16 @@ def apply(body, path, today, issue=None, paused=False):
              "| Setting | Before | New |", "|---|---|---|"]
     lines += [f"| {cell(label)} | {cell(old)} | {cell(value)} |" for label, old, value in diff]
     lines.append("")
-    old_scopes = {trip.id: trip.scope() for trip in current.trips}
-    restarted = [trip for trip in new.trips if old_scopes.get(trip.id, trip.scope()) != trip.scope()]
+    before = {trip.id: trip for trip in current.trips}
+    restarted = [trip for trip in new.trips if trip.id in before and restarts(before[trip.id], trip)]
     if restarted and not several and len(current.trips) == 1:
-        lines += ["ℹ️ Settings that define comparable prices changed (destination, cabin, bags, separate "
-                  "tickets, travel time limit, airlines or stops): price history and alerts start over for this "
-                  "search. The old history stays stored.", ""]
+        lines += [f"ℹ️ Settings that define comparable prices changed ({SCOPE_WORDS}): price history and alerts "
+                  "start over for this search. The old history stays stored.", ""]
     elif restarted:
         names = ", ".join(trip_name(trip, new.trips) for trip in restarted)
-        lines += [f"ℹ️ Settings that define comparable prices changed for {names} (destination, cabin, bags, "
-                  "separate tickets, travel time limit, airlines or stops): price history and alerts start over "
-                  f"for {'this trip' if len(restarted) == 1 else 'these trips'}. The old history stays stored.", ""]
+        lines += [f"ℹ️ Settings that define comparable prices changed for {names} ({SCOPE_WORDS}): price history "
+                  f"and alerts start over for {'this trip' if len(restarted) == 1 else 'these trips'}. "
+                  "The old history stays stored.", ""]
     if several:
         lines += [f"All {len(new.trips)} trips are searched in every run and share its budget of "
                   f"{new.trips[0].max_http_attempts_per_run} requests. Messages for all trips go to the same "

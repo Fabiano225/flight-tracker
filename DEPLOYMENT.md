@@ -9,7 +9,7 @@ written for the repository maintainer; the user-facing overview is in
 - **Repository:** `Fabiano225/flight-tracker`
 - **Schedule:** 00:17, 06:17, 12:17 and 18:17 UTC
 - **Search window:** departures 20–23 October 2026; 14–21-day trips
-- **Routes:** DUS/FRA/AMS → BKK, one adult, economy, EUR
+- **Routes:** DUS/FRA/AMS → BKK, one adult, economy, EUR (as in `config.json`)
 - **Duration guard:** below 21 hours in each direction
 - **State branch:** `tracker-state`
 - **Search settings:** `config.json` on `main`, or the `search-config` branch once the
@@ -213,8 +213,9 @@ opens a prefilled issue. The **Apply search settings** workflow applies only iss
 opened by the repository owner that contain the form marker. `scripts/search_settings.py
 apply` validates every setting (supported airports and airlines, ranges, a departure
 day from tomorrow on, the request and time budget), then commits `config.json` to the
-`search-config` branch with a normal fast-forward push. With several trips their
-requests are added up against the shared budget, and a trip whose departure window has
+`search-config` branch with a normal fast-forward push. With several trips or
+destinations their requests are added up against the shared budget (each destination
+of a trip is searched on its own), and a trip whose departure window has
 ended must be given new dates or removed. The form sends all trips in one issue; an
 issue with a single trip's settings (as older versions of the form sent) replaces only
 the primary trip. It replies with the changes,
