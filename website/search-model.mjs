@@ -145,17 +145,6 @@ export function budgetCheck(estimate, config, trips=1) {
   return {};
 }
 
-// A single trip on its own.
-export function validate(config, meta, table, today) {
-  const {errors,estimate}=tripErrors(config,meta,table,today), warnings=[];
-  if(estimate) {
-    const check=budgetCheck(estimate,config);
-    if(check.error)errors.estimate=check.error;
-    if(check.warning)warnings.push(check.warning);
-  }
-  return {errors,warnings,estimate};
-}
-
 // All trips: field errors per trip, shared settings once, and one estimate for the run.
 export function validateTrips(configs, meta, table, today) {
   const shared=new Set(meta.shared_fields), results=configs.map(config=>tripErrors(config,meta,table,today));

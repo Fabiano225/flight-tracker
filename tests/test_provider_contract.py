@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 from tracker.config import Config
 from tracker.network import ServiceError, BudgetError, TransientSourceError
 from tracker.planner import Batch
-from tracker.provider import FreeProvider, GuardedClient, PrefetchDates
+from tracker.provider import FreeProvider, GuardedClient
 import json
 from urllib.parse import parse_qs, urlsplit
 

@@ -5,7 +5,6 @@ replaced by a single commit (a force push with lease on the restored commit),
 so the history of database snapshots cannot grow without bound.
 """
 import argparse
-import json
 from pathlib import Path
 import sqlite3
 import subprocess

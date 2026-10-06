@@ -11,52 +11,37 @@ from .places import city
 from .project import repository_url
 
 GREEN, RED, AMBER, BLUE = 0x22C55E, 0xEF4444, 0xF59E0B, 0x5865F2
-# Message kinds named in the first line; the German names are legacy messages.
-KIND = re.compile(r"([A-Z]{3}) (price alert|check status|search window ended|Preisalarm|Suchstatus)\n")
-ALERT_KINDS = ("price alert", "Preisalarm")
-VERDICTS = ("CHECK TO BUY:", "WATCH:", "WITHIN BUDGET", "STRONG DEAL:",
-            "KAUF PRÜFEN:", "BEOBACHTEN:", "IM BUDGET", "STARKER DEAL:")
-
-
-def readable(text):
-    # Messages queued before the English texts were ASCII German.
-    for old, new in (("GUENSTIGERE", "GÜNSTIGERE"), ("PRUEFEN", "PRÜFEN"),
-                     ("Gegenueber", "Gegenüber"), ("gegenueber", "gegenüber"),
-                     ("Rueckgang", "Rückgang"), ("zurueck", "zurück"),
-                     ("Gepaeck", "Gepäck"), ("pruefen", "prüfen"),
-                     ("fuer", "für"), ("ueber", "über"), ("Hin/Rueck", "Hin/Rück"),
-                     (" -> ", " → ")):
-        text = text.replace(old, new)
-    return text
+# Message kinds named in the first line.
+KIND = re.compile(r"([A-Z]{3}) (price alert|check status|search window ended)\n")
+VERDICTS = ("CHECK TO BUY:", "WATCH:", "WITHIN BUDGET", "STRONG DEAL:")
 
 
 def payload_for(text, reference_url=None, code=None, names=None):
     if not text or len(text) > 4700:
         raise ValueError("Discord notification text length is out of bounds")
-    archived = text.startswith((ARCHIVE_PREFIX, "Übernommener Preisstand"))
+    archived = text.startswith(ARCHIVE_PREFIX)
     # A queued message names its own destination; older ones may predate a route change.
     kind = KIND.match(text)
     code = kind.group(1) if kind else code
     place = city(code, names) + " · " if code else ""
-    text = readable(text)
-    # Telegram shows the alert as a quoted reply; Discord gets a link instead.
-    for hint in (TELEGRAM_REPLY_HINT, 'Tippe auf die zitierte Nachricht, um zum Preisalarm zu springen (sofern noch vorhanden).'):
-        text = text.replace(hint, '')
+    # The stored texts use plain ASCII arrows. Telegram shows the alert as a quoted
+    # reply; Discord gets a link instead.
+    text = text.replace(' -> ', ' → ').replace(TELEGRAM_REPLY_HINT, '')
     if reference_url:
         text += '\n\n[Related price update](' + reference_url + ')'
-    elif 'Latest related price alert:' in text or 'Letzter zugehöriger Preisalarm:' in text:
+    elif 'Latest related price alert:' in text:
         text += '\nThe message link is currently unavailable. Check prices on the dashboard.'
     color = BLUE
     title = "✈️ " + place + "Flight Tracker"
-    if 'Check incomplete' in text or 'Prüfung unvollständig' in text:
+    if 'Check incomplete' in text:
         title, color = '⚠️ ' + place + 'Check incomplete', AMBER
     elif text.startswith('Flight tracker needs attention'):
         title, color = '⚠️ Flight search needs attention', AMBER
-    elif 'No price change' in text or 'Keine Preisänderung' in text:
+    elif 'No price change' in text:
         title, color = '✅ ' + place + 'No price change', GREEN
-    elif 'Only small price changes' in text or 'Nur kleine Preisänderungen' in text:
+    elif 'Only small price changes' in text:
         title = '↔️ ' + place + 'Small price changes'
-    elif text.startswith(('Discord connected', 'Discord verbunden')):
+    elif text.startswith('Discord connected'):
         title, color = '✅ Discord connected', GREEN
     elif text.startswith('Flight tracker recovered'):
         title, color = '✅ Flight search recovered', GREEN
@@ -66,8 +51,8 @@ def payload_for(text, reference_url=None, code=None, names=None):
 
     embeds = []
     # The outbox text is also the durable, human-readable audit record. Split
-    # only the known price-block format; unknown/legacy messages remain intact.
-    if kind and kind.group(2) in ALERT_KINDS and not archived:
+    # only the known price-block format; other messages remain intact.
+    if kind and kind.group(2) == 'price alert' and not archived:
         lines = text.split('\n', 2)
         sections = lines[2].split('\n\n')
         embeds.append({'title': '✈️ ' + place + 'Price update', 'description': 'New observation · ' + lines[1],
@@ -76,8 +61,8 @@ def payload_for(text, reference_url=None, code=None, names=None):
             parts = section.splitlines()
             if len(parts) > 1 and ' | ' in parts[0]:
                 heading, *body = parts
-                card = {'title': heading, 'color': GREEN if heading.startswith(('PRICE DROPPED', 'PREIS GESUNKEN')) else
-                        RED if heading.startswith(('PRICE ROSE', 'PREIS GESTIEGEN')) else BLUE}
+                card = {'title': heading, 'color': GREEN if heading.startswith('PRICE DROPPED') else
+                        RED if heading.startswith('PRICE ROSE') else BLUE}
                 if body[-1].startswith('https://www.google.com/travel/flights'):
                     card['url'] = body.pop()
                     body.append('[Check fare](' + card['url'] + ')')

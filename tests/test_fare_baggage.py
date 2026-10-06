@@ -1,10 +1,9 @@
 import base64
-from dataclasses import replace
 import json
 from types import SimpleNamespace as NS
 import unittest
 
-from tracker.fare_baggage import allowance, public_baggage, covers, decode_booking_quotes, booking_quotes, SOURCE
+from tracker.fare_baggage import public_baggage, covers, decode_booking_quotes, booking_quotes
 from tracker.provider import Quote
 
 

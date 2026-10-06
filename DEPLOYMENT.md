@@ -208,7 +208,7 @@ history.
 
 ### Changing the search from the website
 
-The dashboard page **Change search** (`settings.html`; the old `suche.html` redirects)
+The dashboard page **Change search** (`settings.html`)
 opens a prefilled issue. The **Apply search settings** workflow applies only issues
 opened by the repository owner that contain the form marker. `scripts/search_settings.py
 apply` validates every setting (supported airports and airlines, ranges, a departure

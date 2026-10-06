@@ -52,11 +52,6 @@ def quiet_route(store, config, scope, origin, profile, now):
         return False
 
 
-def scan(config, store, provider, now, demo=False):
-    """Search a single trip; see scan_trips."""
-    return scan_trips((config,), store, lambda _: provider, now, demo)[0]
-
-
 def scan_trips(trips, store, providers, now, demo=False):
     """Search every trip in turn. `providers(trip)` returns the trip's provider;
     live providers share one paced client and thereby one request budget."""
@@ -119,8 +114,6 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
     trips = trips or (config,)
     store.expire(now, config.pending_ttl_hours, {trip.scope(mode) for trip in trips})
     store.expire_outside_search(trips)
-    # Retire unsent legacy rotating overviews after switching notification policy.
-    db.execute("UPDATE outbox SET status='expired' WHERE kind='deal' AND status='pending'")
     store.expire_check_status(scope)
     db.commit()
     candidates = []

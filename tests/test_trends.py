@@ -6,10 +6,9 @@ import unittest
 
 from tracker.config import Config
 from tracker.provider import Quote, DemoProvider
-from tracker.service import scan
 from tracker.store import Store, stamp
 from tracker.trends import queue_trends, load_watches, watch_key, watch_searches
-from test_tracker import NOW
+from test_tracker import NOW, scan
 
 
 class TrendTests(unittest.TestCase):
