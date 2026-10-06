@@ -90,7 +90,9 @@ expire). `scripts/setup_check.py` (workflow **Check setup**) lists what is missi
 
 ## Search pipeline
 
-`tracker/planner.py` creates exact departure/return pairs. `tracker/provider.py`
+`tracker/planner.py` creates exact departure/return pairs; with the optional `latest_return` it
+leaves out every pair that would return later (`Config.fits` applies the same rule to
+watches, pending alerts, baggage checks and the dashboard). `tracker/provider.py`
 uses the pinned Fli client and applies the request filters. `tracker/service.py`
 records every calendar response, shortlists candidates and verifies actual outbound
 and return itineraries. The provider contract rejects wrong dates, airports,

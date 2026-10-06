@@ -8,7 +8,7 @@ const table=JSON.parse(readFileSync(new URL('../tracker/airports.json',import.me
 const airlines=JSON.parse(readFileSync(new URL('../tracker/airlines.json',import.meta.url),'utf8')).airlines;
 const file=JSON.parse(readFileSync(new URL('../config.json',import.meta.url),'utf8'));
 const shared=['pending_ttl_hours','max_http_attempts_per_run','max_run_seconds','http_timeout_seconds','http_attempts','request_interval_seconds','max_parallel_requests'];
-const main={...file,max_stops:null,airlines:[],airlines_exclude:[],display_names:{},id:'main'};
+const main={...file,latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],origin_targets:{},display_names:{},id:'main'};
 const meta={trips:[main],primary_trip:'main',shared_fields:shared,max_trips:5,airlines,
   marker:'<!-- flightwatch-search-settings -->',repository:'Fabiano225/flight-tracker',
   labels:{destination:'Destination',origins:'Departure airports',max_stops:'Max. stops per direction',max_http_attempts_per_run:'Request budget per run',
@@ -226,4 +226,17 @@ test('airport price targets are checked and shown in plain words',()=>{
   assert.equal(shownValue('origin_targets',{},meta),'same for all airports');
   assert.equal(shownValue('origin_targets',{FRA:{nonstop:610,layover:530},AMS:{layover:510}},meta),
     'AMS: with stops €510; FRA: non-stop €610, with stops €530');
+});
+
+test('a latest return date is checked and limits the date pairs',()=>{
+  const errors=c=>tripErrors(config(c),meta,table,today).errors;
+  assert.deepEqual(errors({latest_return:'2026-11-08',max_trip_days:19}),{});
+  assert.ok(errors({latest_return:'2026-11-02'}).latest_return);  // 20 Oct + 14 days is 3 Nov.
+  assert.ok(errors({latest_return:'8.11.2026'}).latest_return);
+  // 20 Oct: 14–19 days, 21 Oct: 14–18 … 23 Oct: 14–16 days.
+  assert.equal(requestEstimate(config({latest_return:'2026-11-08',max_trip_days:19}),today).calendar,(6+5+4+3)*3*2);
+  assert.equal(shownValue('latest_return',null,meta),'none');
+  const settings=settingsJson(meta,[{id:'main',config:config({latest_return:'2026-11-08',max_trip_days:19})}],0);
+  assert.equal(settings.trips[0].latest_return,'2026-11-08');
+  assert.ok(!('latest_return' in settingsJson(meta,[{id:'main',config:main}],0).trips[0]));
 });

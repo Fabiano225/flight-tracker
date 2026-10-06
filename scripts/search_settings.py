@@ -31,7 +31,7 @@ MAX_BODY = 20000
 LABELS = {
     "origins": "Departure airports", "destination": "Destination", "departure_start": "Earliest departure",
     "departure_end": "Latest departure", "min_trip_days": "Shortest trip (days)",
-    "max_trip_days": "Longest trip (days)", "currency": "Currency", "adults": "Travellers",
+    "max_trip_days": "Longest trip (days)", "latest_return": "Latest return", "currency": "Currency", "adults": "Travellers",
     "travel_class": "Cabin", "max_direction_minutes": "Max. travel time per direction (minutes)",
     "hide_separate_tickets": "Hide separate tickets", "carry_on_bags": "Cabin bag in the base search",
     "checked_bags": "Checked bag in the base search", "good_deal_nonstop_eur": "Price target, non-stop (€)",
@@ -190,6 +190,8 @@ def check(settings, today):
 
 
 def shown(name, value):
+    if name == "latest_return":
+        return value or "none"
     if name == "origins":
         return ", ".join(value)
     if name in ("airlines", "airlines_exclude"):
@@ -224,7 +226,8 @@ def primary_id(settings):
 
 
 def summary(trip):
-    return f"{route(trip)}, {trip.departure_start} to {trip.departure_end}, {trip.min_trip_days}–{trip.max_trip_days} days"
+    back = f", back by {trip.latest_return}" if trip.latest_return else ""
+    return f"{route(trip)}, {trip.departure_start} to {trip.departure_end}, {trip.min_trip_days}–{trip.max_trip_days} days{back}"
 
 
 def changes(old, new):

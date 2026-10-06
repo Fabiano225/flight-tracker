@@ -85,6 +85,10 @@ code (German names such as "München" work too).
 - **Several trips:** use **+ Add trip** for up to five trips, e.g. Bangkok in October
   and a weekend in Amsterdam. Each trip has its own price targets, alerts and history;
   choose which one the website shows first.
+- **Trip length or return date:** limit trips by their longest length, or switch to
+  **Return date** to say when you must be back. Each departure day is then only
+  combined with the lengths that return in time (from 20 Oct up to 19 days, from
+  23 Oct up to 16 days for a return by 8 Nov).
 - **Price targets per airport:** prices can differ a lot between departure airports
   (for Bangkok, Amsterdam is often well over €100 cheaper than Düsseldorf). Optionally
   give an airport its own target; alerts and the website then judge each flight by

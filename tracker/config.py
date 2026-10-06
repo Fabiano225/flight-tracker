@@ -48,7 +48,7 @@ TRIP_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,19}")
 SHARED_FIELDS = ("pending_ttl_hours", "max_http_attempts_per_run", "max_run_seconds", "http_timeout_seconds",
                  "http_attempts", "request_interval_seconds", "max_parallel_requests")
 # Optional settings: config.json leaves them out while they have these values.
-OPTIONAL = {"max_stops": None, "airlines": (), "airlines_exclude": (), "origin_targets": {}, "display_names": {},
+OPTIONAL = {"latest_return": None, "max_stops": None, "airlines": (), "airlines_exclude": (), "origin_targets": {}, "display_names": {},
             "id": MAIN_TRIP}
 TARGET_CATEGORIES = ("nonstop", "layover")
 
@@ -61,6 +61,8 @@ class Config:
     departure_end: str = "2026-10-23"
     min_trip_days: int = 14
     max_trip_days: int = 21
+    # Optional last return date (YYYY-MM-DD): date pairs returning later are not searched.
+    latest_return: str | None = None
     currency: str = "EUR"
     adults: int = 1
     travel_class: str = "economy"
@@ -115,6 +117,12 @@ class Config:
                 raise ValueError(f"Invalid {name}: expected integer {low}..{high}")
         if self.min_trip_days > self.max_trip_days:
             raise ValueError("Trip duration range is reversed")
+        if self.latest_return is not None:
+            # Strictly YYYY-MM-DD: date pairs are compared with it as text.
+            if not isinstance(self.latest_return, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", self.latest_return):
+                raise ValueError("latest_return must be a date (YYYY-MM-DD) or null")
+            if (date.fromisoformat(self.latest_return) - start).days < self.min_trip_days:
+                raise ValueError("latest_return is too early: even the shortest trip from the earliest departure returns later")
         # A single adult removes ambiguous per-person vs party-total pricing.
         if self.adults != 1 or isinstance(self.adults, bool) or self.currency != "EUR":
             raise ValueError("This tracker supports one adult and EUR prices")
@@ -201,6 +209,13 @@ class Config:
         # config.json layout: optional settings appear only when they are set.
         return {name: value for name, value in self.form_dict().items()
                 if name not in OPTIONAL or getattr(self, name) != OPTIONAL[name]}
+
+    def fits(self, departure, return_date):
+        """Whether a departure/return date pair (YYYY-MM-DD) belongs to this trip's search."""
+        days = (date.fromisoformat(return_date) - date.fromisoformat(departure)).days
+        return (self.departure_start <= departure <= self.departure_end
+                and self.min_trip_days <= days <= self.max_trip_days
+                and (self.latest_return is None or return_date <= self.latest_return))
 
     def threshold(self, category, origin=None):
         """Price target in cents: the departure airport's own one, if set, else the trip's."""

@@ -190,3 +190,9 @@ test('each flight is judged by the price target of its departure airport',()=>{
   assert.equal(comparison({...offer,origin:'FRA',price:68000},[],targets).verdict,'Watch');
   assert.equal(comparison({...offer,origin:'DUS',category:'nonstop',price:68000},[],targets).threshold,65000);
 });
+test('favorites returning after the latest return date are removed',()=>{
+  const cfg={destination:'BKK',origins:['FRA'],departure_start:'2026-10-20',departure_end:'2026-10-23',min_trip_days:14,max_trip_days:19,latest_return:'2026-11-08'};
+  const key=(dep,ret)=>JSON.stringify(['BKK','FRA',dep,ret,'layover','base']);
+  const result=pruneFavorites(new Set([key('2026-10-20','2026-11-08'),key('2026-10-21','2026-11-09')]),cfg,'2026-10-06');
+  assert.deepEqual([...result.keys],[key('2026-10-20','2026-11-08')]);
+});

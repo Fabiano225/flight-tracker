@@ -27,12 +27,17 @@ def plan(config, today):
     # A non-stop-only search has nothing to find in the any-stops profile.
     profiles = ("nonstop",) if config.max_stops == 0 else ("nonstop", "any")
     # Interleave routes, and keep each calendar query within the library's 61-day bound.
+    latest_return = date.fromisoformat(config.latest_return) if config.latest_return else None
     while start <= end:
         last = min(end, start + timedelta(days=60))
         for duration in range(config.min_trip_days, config.max_trip_days + 1):
+            # With a latest return date, longer trips must leave earlier.
+            final = min(last, latest_return - timedelta(days=duration)) if latest_return else last
+            if final < start:
+                continue
             for origin in config.origins:
                 for profile in profiles:
-                    batches.append(Batch(origin, profile, start, last, duration))
+                    batches.append(Batch(origin, profile, start, final, duration))
         start = last + timedelta(days=1)
     return batches
 
