@@ -9,7 +9,8 @@ on:
         type: boolean
         default: false
 permissions:
-  contents: write
+  contents: write  # save the history on the tracker-state branch
+  actions: write   # start Publish dashboard after a search started by the settings form
 concurrency:
   group: flight-tracker-persistent-state
   cancel-in-progress: false
@@ -81,6 +82,13 @@ jobs:
             state/report.md
           if-no-files-found: warn
           retention-days: 7
+      # "Publish dashboard" starts by itself after scheduled and manual runs. Runs started
+      # by the settings workflow (with the workflow token) don't trigger it, so start it here.
+      - name: Publish the dashboard after a search started by the settings form
+        if: always() && github.event_name == 'workflow_dispatch' && github.triggering_actor == 'github-actions[bot]'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
       - name: Surface partial scans or failed deliveries
         if: always() && (steps.scan.outcome == 'failure' || steps.notify.outcome == 'failure')
         run: |
