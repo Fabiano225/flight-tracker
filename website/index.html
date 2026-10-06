@@ -78,9 +78,19 @@
       <p class="footnote favorites-note">☆ Save with the star: route, travel dates, flight type and baggage choice. The current price and the airline can change. Favorites are stored only in this browser, without an account or device sync. Offers that are temporarily missing stay saved and are listed below for removal; favorites outside the search are removed automatically. Price alerts are not affected by this choice.</p>
       <p id="favorites-status" class="footnote" role="status"></p>
       <div id="favorites-missing" class="favorites-missing" hidden></div>
+      <div id="airport-best" class="airport-best" role="group" aria-label="Cheapest offer from each departure airport" hidden></div>
       <div class="table-scroll"><table><caption id="results-count">Loading offers</caption><thead><tr><th>Route & connection</th><th>Your travel dates</th><th>Flights <span class="th-note">local times</span></th><th>Price & change</th><th>Assessment</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="offers-body"></tbody></table></div>
       <p id="empty" class="empty" hidden>No offers for this selection. Try another filter.</p>
       <p class="footnote">Compared with the lowest checked price of the last <span data-page="history_days">{{history_days}}</span> days and with the previous check of the same route, dates and flight type. The airline can change. Missing results do not mean there are no flights. Flight times are local at each airport; +1 means the next day.</p>
+    </section>
+    <section id="calendar" class="calendar-section" aria-labelledby="calendar-title">
+      <div class="section-heading"><div><p class="eyebrow">WHEN IS IT CHEAPEST?</p><h2 id="calendar-title">Price calendar.</h2></div><p id="calendar-note" class="muted">Date search</p></div>
+      <div class="calendar-card">
+        <div class="calendar-scroll"><table id="calendar-table" class="calendar-table"></table></div>
+        <div id="calendar-legend" class="calendar-legend"><span>Cheaper</span><span class="legend-steps" aria-hidden="true"><i class="heat-0"></i><i class="heat-1"></i><i class="heat-2"></i><i class="heat-3"></i><i class="heat-4"></i></span><span>Pricier</span><span id="calendar-range"></span></div>
+        <p id="calendar-empty" class="empty" hidden>No date-search prices for this selection yet.</p>
+      </div>
+      <p class="footnote">The cheapest price per person the date search found for each outbound day (rows) and trip length (columns), for the airport, destination and connection chosen above. Indicative: the return flight is not chosen yet and flight times are unknown, so checked prices in the table can differ. “All connections” and “With stops” show the cheapest of any connection. Days with a checked offer can be clicked to show it in the table.</p>
     </section>
     <section id="history" class="history-layout" aria-labelledby="chart-heading">
       <article class="chart-card"><div class="section-heading"><div><p class="eyebrow">THE TREND</p><h2 id="chart-heading">Prices in perspective.</h2></div><span class="period"><span data-page="history_days">{{history_days}}</span> DAYS</span></div>

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs,timesFit,parseFavorite,belongsToTrip} from '../website/model.mjs';
+import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs,timesFit,parseFavorite,belongsToTrip,calendarGrid,priceStep,weekTrend,cheapestPerOrigin} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -230,4 +230,32 @@ test('trips with several destinations: offers, filters and favorites name their 
   assert.equal(belongsToTrip(fav,config),true);
   assert.equal(belongsToTrip(fav,{...config,destinations:['BKK']}),false);
   assert.deepEqual(filteredOffers([phuket,{...offer,destination:'BKK'}],{destination:'HKT'}),[phuket]);
+});
+test('price calendar: cheapest indicative price per departure day and trip length',()=>{
+  const calendar={at:'2026-10-06T12:00:00+00:00',rows:[
+    ['FRA','BKK','2026-10-20',14,'any',61000],['AMS','BKK','2026-10-20',14,'any',52000],['AMS','HKT','2026-10-20',14,'any',50000],
+    ['FRA','BKK','2026-10-20',15,'any',null],['FRA','BKK','2026-10-21',14,'any',70000],['FRA','BKK','2026-10-20',14,'nonstop',80000],
+    ['FRA','BKK','2026-10-06',14,'any',1000]]};
+  const grid=calendarGrid(calendar,{},'2026-10-06');
+  assert.deepEqual(grid.departures,['2026-10-20','2026-10-21']);
+  assert.deepEqual(grid.lengths,[14,15]);
+  assert.deepEqual(grid.cells.get('2026-10-20|14'),{departure:'2026-10-20',days:14,price:50000,origin:'AMS',destination:'HKT'});
+  assert.equal(grid.cells.get('2026-10-20|15').price,null);
+  assert.deepEqual([grid.min,grid.max],[50000,70000]);
+  assert.equal(calendarGrid(calendar,{origin:'FRA',destination:'BKK'},'2026-10-06').cells.get('2026-10-20|14').price,61000);
+  assert.equal(calendarGrid(calendar,{category:'nonstop'},'2026-10-06').cells.get('2026-10-20|14').price,80000);
+  assert.deepEqual([50000,54000,60000,69999,70000,null].map(price=>priceStep(price,50000,70000)),[0,1,2,4,4,null]);
+  assert.equal(priceStep(50000,50000,50000),0);
+  assert.equal(calendarGrid(null).departures.length,0);
+});
+test('7-day trend compares with the earliest check within the week',()=>{
+  const q={...offer,price:58000,at:'2026-10-08T12:00:00Z'};
+  const history=[{at:'2026-09-28T12:00:00Z',price:70000},{at:'2026-10-01T18:00:00Z',price:61000},{at:'2026-10-05T12:00:00Z',price:59000},{at:q.at,price:58000}];
+  assert.deepEqual(weekTrend(q,history),{delta:-3000,since:'2026-10-01T18:00:00Z',full:true});
+  assert.equal(weekTrend(q,[{at:q.at,price:58000}]),null);
+  assert.equal(weekTrend(q,history.slice(2)).full,false);
+});
+test('cheapest offer per departure airport, also for airports without one',()=>{
+  const offers=[{...offer,origin:'AMS',price:52000},{...offer,origin:'AMS',price:50000},{...offer,origin:'FRA',price:61000}];
+  assert.deepEqual(cheapestPerOrigin(offers,['DUS','FRA','AMS']).map(x=>[x.origin,x.offer?.price??null]),[['DUS',null],['FRA',61000],['AMS',50000]]);
 });

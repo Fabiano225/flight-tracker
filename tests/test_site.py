@@ -91,6 +91,21 @@ class SiteTests(unittest.TestCase):
         data=self.data();self.assertEqual(data['offers'],[]);self.assertEqual(data['histories'],{})
         self.assertIsNone(data['scan'])
 
+    def test_price_calendar_has_the_latest_date_search_within_the_trip(self):
+        self.record('old',NOW-timedelta(hours=6),65000)
+        self.record('new',NOW,60000)
+        rows=[('old','FRA','2026-10-15','2026-10-29','any',55000),('new','FRA','2026-10-15','2026-10-29','any',58000),
+              ('new','FRA','2026-10-15','2026-10-30','nonstop',None),('new','MUC','2026-10-15','2026-10-29','any',40000),
+              ('new','FRA','2026-10-15','2026-11-20','any',41000)]
+        for run,origin,dep,ret,profile,price in rows:
+            at=NOW-timedelta(hours=6) if run=='old' else NOW
+            self.store.db.execute('INSERT INTO calendar VALUES(?,?,?,?,?,?,?,?)',(run,self.config.scope(),stamp(at),origin,dep,ret,profile,price))
+        self.store.db.commit()
+        calendar=self.data()['calendar']
+        self.assertEqual(calendar['at'],NOW.isoformat(timespec='seconds'))
+        # Only the latest search; unknown prices stay null; other airports and dates are left out.
+        self.assertEqual(calendar['rows'],[['FRA','BKK','2026-10-15',14,'any',58000],['FRA','BKK','2026-10-15',15,'nonstop',None]])
+
     def test_build_only_publishes_allowlisted_assets(self):
         self.record('new',NOW,60000,quote=replace(self.q,departure='2026-10-21',return_date='2026-11-04'))
         output=self.root/'public'

@@ -192,3 +192,36 @@ export function flightLegs(offer) {
     ...(times?{departs:times[i].slice(11),arrives:times[i+1].slice(11),dayShift:dayNumber(times[i+1])-dayNumber(times[i])}:{}),
     ...(stops?{connections:stops[n].map(([airport,wait])=>({airport,minutes:wait}))}:{})}));
 }
+// Price calendar: the cheapest indicative date-search price (the return flight not yet
+// chosen) per departure day and trip length, for the chosen airport, destination and
+// connection. "With stops" uses the any-stops search, which can include non-stop flights.
+export function calendarGrid(calendar, filters={}, today='') {
+  const profile=filters.category==='nonstop'?'nonstop':'any', cells=new Map();
+  for(const [origin,destination,departure,days,kind,price] of calendar?.rows||[]) {
+    if(kind!==profile || departure<=today || (filters.origin && origin!==filters.origin)
+      || (filters.destination && destination!==filters.destination))continue;
+    const key=`${departure}|${days}`, cell=cells.get(key);
+    if(!cell)cells.set(key,{departure,days,price,origin,destination});
+    else if(price!==null && (cell.price===null || price<cell.price))Object.assign(cell,{price,origin,destination});
+  }
+  const values=[...cells.values()], prices=values.map(cell=>cell.price).filter(price=>price!==null);
+  return {departures:[...new Set(values.map(cell=>cell.departure))].sort(),
+    lengths:[...new Set(values.map(cell=>cell.days))].sort((a,b)=>a-b), cells,
+    min:prices.length?Math.min(...prices):null, max:prices.length?Math.max(...prices):null};
+}
+// Five equal price bands between the cheapest (0) and the priciest (4) cell.
+export function priceStep(price, min, max, steps=5) {
+  if(price===null || min===null)return null;
+  return max===min?0:Math.min(steps-1,Math.floor((price-min)/(max-min)*steps));
+}
+// Change against the earliest check of the same comparison within the last 7 days.
+export function weekTrend(offer, history) {
+  const until=Date.parse(offer.at), from=until-7*86400000;
+  const earlier=history.filter(point=>{const at=Date.parse(point.at);return at>=from && at<until;})
+    .sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+  return earlier.length?{delta:offer.price-earlier[0].price,since:earlier[0].at,full:Date.parse(earlier[0].at)-from<86400000}:null;
+}
+// The cheapest offer from each departure airport.
+export function cheapestPerOrigin(offers, origins) {
+  return origins.map(origin=>({origin,offer:offers.filter(q=>q.origin===origin).sort((a,b)=>a.price-b.price)[0]||null}));
+}

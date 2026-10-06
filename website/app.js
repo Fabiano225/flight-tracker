@@ -1,4 +1,4 @@
-import {targetFor, filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref, flightLegs} from './model.mjs';
+import {targetFor, filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref, flightLegs, calendarGrid, priceStep, weekTrend, cheapestPerOrigin} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const day = s => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'Europe/Berlin'}).format(new Date(s+'T12:00:00Z'));
@@ -183,12 +183,69 @@ function renderSummary() {
   $('trip-days').textContent=c.latest_return?`${c.min_trip_days}+ days · back by ${day(c.latest_return)}`:c.min_trip_days===c.max_trip_days?`${c.min_trip_days} day${c.min_trip_days===1?'':'s'}`:`${c.min_trip_days}–${c.max_trip_days} days`;
   $('offer-timestamp').textContent=data.offers_as_of?`${baggageLabels[$('baggage').value]} · ${when(data.offers_as_of)} · Berlin time`:'No checked prices for this choice yet';
 }
+const weekday = s => new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(s+'T12:00:00Z'));
+const wholeEuro = cents => `€${Math.round(cents/100).toLocaleString('en-GB')}`;
+const plusDays = (s, days) => new Date(Date.parse(s+'T12:00:00Z')+days*86400000).toISOString().slice(0,10);
+// Cheapest offer from each departure airport for the other filters; a click filters by it.
+function renderAirportBest(available, filters) {
+  const box=$('airport-best'), origins=rootData.config.origins, several=(rootData.config.destinations||[]).length>1;
+  box.replaceChildren();box.hidden=origins.length<2;
+  if(box.hidden)return;
+  box.append(node('span','Cheapest per airport','airport-best-label'));
+  for(const {origin,offer} of cheapestPerOrigin(filteredOffers(available,{...filters,origin:''}),origins)) {
+    const chip=node('button',undefined,'airport-chip'), city=rootData.places?.[origin]?.city||origin;chip.type='button';
+    chip.setAttribute('aria-pressed',String(filters.origin===origin));
+    const detail=offer?`${offer.category==='nonstop'?'non-stop':'with stops'} · ${day(offer.departure)}${several?` · ${offer.destination}`:''}`:'no checked offer';
+    chip.append(node('strong',origin),node('span',offer?euro(offer.price):'—','airport-price'),node('small',detail));
+    chip.setAttribute('aria-label',`${city} (${origin}): ${offer?`from ${euro(offer.price)}, ${detail}`:detail}. ${filters.origin===origin?'Show all airports':'Show only this airport'}`);
+    chip.addEventListener('click',()=>{$('origin').value=filters.origin===origin?'':origin;renderSummary();renderOffers();});
+    box.append(chip);
+  }
+}
+// Date-search prices by outbound day and trip length, coloured in five price bands.
+function renderCalendar(filters) {
+  const grid=calendarGrid(rootData.calendar,filters,berlinToday()), table=$('calendar-table');
+  const empty=grid.min===null, several=(rootData.config.destinations||[]).length>1;
+  table.replaceChildren();table.hidden=empty;$('calendar-legend').hidden=empty;$('calendar-empty').hidden=!empty;
+  $('calendar-note').textContent=rootData.calendar?.at?`Date search · ${when(rootData.calendar.at)} · Berlin time`:'No date search yet';
+  if(empty)return;
+  $('calendar-range').textContent=`${wholeEuro(grid.min)} – ${wholeEuro(grid.max)} per person`;
+  // Dates with a checked offer for the other filters lead to it in the table.
+  const checked=new Set(filteredOffers(data.offers,{...filters,departure:'',days:''}).map(q=>`${q.departure}|${q.days}`));
+  table.append(node('caption','Cheapest date-search price per person by outbound day and trip length','sr-only'));
+  const head=node('tr'),corner=node('th','Outbound','calendar-corner');corner.scope='col';head.append(corner);
+  for(const days of grid.lengths){const th=node('th',`${days} d`);th.scope='col';th.title=`${days} days`;head.append(th);}
+  const thead=node('thead');thead.append(head);
+  const body=node('tbody');
+  for(const departure of grid.departures) {
+    const row=node('tr'),label=node('th',weekday(departure));label.scope='row';row.append(label);
+    for(const days of grid.lengths) {
+      const cell=grid.cells.get(`${departure}|${days}`), td=node('td');
+      if(!cell || cell.price===null){td.append(node('span','—','calendar-cell heat-none'));td.title='No price found';row.append(td);continue;}
+      const step=priceStep(cell.price,grid.min,grid.max), key=`${departure}|${days}`;
+      const text=`${weekday(departure)} → ${weekday(plusDays(departure,days))} · ${days} days · ${cell.origin}${several?` → ${cell.destination}`:''} · about ${wholeEuro(cell.price)} per person`;
+      const mark=node(checked.has(key)?'button':'span',wholeEuro(cell.price),`calendar-cell heat-${step}`);
+      mark.title=text+(checked.has(key)?' · show the checked offer':'');
+      if(filters.departure===departure && Number(filters.days)===days)mark.classList.add('is-selected');
+      if(checked.has(key)) {
+        mark.type='button';mark.setAttribute('aria-label',mark.title);
+        mark.addEventListener('click',()=>{
+          $('departure').value=departure;$('days').value=String(days);renderOffers();
+          $('offers').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+        });
+      }
+      td.append(mark);row.append(td);
+    }
+    body.append(row);
+  }
+  table.append(thead,body);
+}
 function renderOffers() {
   const filters=Object.fromEntries(new FormData($('filters'))), profile=$('baggage').value;
   filters.airlines=[...selectedAirlines];filters.airlineMode=airlineMode;
   const available=filters.favorites?favoriteOffers(data.offers,favorites,data.config.destination,profile):data.offers;
   const offers=filteredOffers(available,filters), body=$('offers-body');
-  showFavoritesStatus();
+  showFavoritesStatus();renderAirportBest(available,filters);renderCalendar(filters);
   body.replaceChildren();
   $('results-count').textContent=`${offers.length} of ${data.offers.length} offers · sorted by price`;
   $('empty').hidden=offers.length>0;
@@ -218,6 +275,12 @@ function renderOffers() {
     if(adults>1)price.append(node('small',`per person · ${euro(q.price*adults)} for ${adults}`,'party-price'));
     price.append(node('div',status.main,`delta ${status.tone}`));
     if(status.detail)price.append(node('small',status.detail,'delta-detail'));
+    // The week's direction from the stored checks; not a forecast.
+    const trend=weekTrend(q,data.histories[q.id]||[]);
+    if(trend) {
+      const arrow=trend.delta<0?'↓':trend.delta>0?'↑':'→', amount=trend.delta?` ${euro(Math.abs(trend.delta))}`:' unchanged';
+      price.append(node('small',`7 days: ${arrow}${amount}${trend.full?'':` (since ${day(trend.since.slice(0,10))})`}`,`week-trend ${trend.delta<0?'down':trend.delta>0?'up':'neutral'}`));
+    }
     price.append(node('small',baggageDescription(q.baggage,'cabin'),'baggage-detail'));
     price.append(node('small',baggageDescription(q.baggage,'checked'),'baggage-detail'));
     if(q.baggage) {

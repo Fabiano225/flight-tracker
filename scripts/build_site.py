@@ -222,6 +222,8 @@ def export_data(db_path, config, now=None, variant=None):
             elif q.itinerary_id:
                 item['baggage'] = assessments.get((row['run_id'],q.itinerary_id,q.price))
             by_run.setdefault(row['run_id'], []).append(item)
+        if not variant:
+            result['calendar'] = calendar_rows(db, config, scope, now)
         if by_run:
             # A failed/empty baggage check must not silently reuse old variant prices.
             offers = by_run.get(latest['run_id'],[]) if variant and latest else max(by_run.values(), key=lambda items: items[0]['at'])
@@ -230,6 +232,26 @@ def export_data(db_path, config, now=None, variant=None):
         return result
     finally:
         db.close()
+
+
+def calendar_rows(db, config, scope, now):
+    """Date-search prices of the latest search with any, per departure and trip length.
+    Indicative: the return flight is not chosen yet. Unknown prices stay null."""
+    latest = db.execute("SELECT run_id, observed FROM calendar WHERE scope=? AND price IS NOT NULL "
+                        "ORDER BY observed DESC, rowid DESC LIMIT 1", (scope,)).fetchone()
+    if not latest or not now - timedelta(days=config.history_window_days) <= instant(latest['observed']) <= now:
+        return dict(at=None, rows=[])
+    rows = []
+    for row in db.execute("SELECT origin, departure, return_date, profile, price FROM calendar "
+                          "WHERE run_id=? AND scope=? ORDER BY rowid", (latest['run_id'], scope)):
+        price = row['price']
+        if (row['origin'] not in config.origins or row['profile'] not in ('nonstop', 'any')
+                or not config.fits(row['departure'], row['return_date'])
+                or not (price is None or (type(price) is int and price > 0))):
+            continue
+        days = (date.fromisoformat(row['return_date']) - date.fromisoformat(row['departure'])).days
+        rows.append([row['origin'], config.destination, row['departure'], days, row['profile'], price])
+    return dict(at=instant(latest['observed']).isoformat(timespec='seconds'), rows=rows)
 
 
 def public_schedule(quote):
@@ -286,6 +308,11 @@ def merged(views, trip):
         result['scan'] = dict(at=max(scan['at'] for scan in scans), status=status,
                               **{key: sum(scan[key] for scan in scans)
                                  for key in ('batches_ok', 'batches_planned', 'verified', 'issues')})
+    calendars = [view['calendar'] for view in views if 'calendar' in view]
+    if calendars:
+        times = [calendar['at'] for calendar in calendars if calendar['at']]
+        result['calendar'] = dict(at=max(times) if times else None,
+                                  rows=[row for calendar in calendars for row in calendar['rows']])
     bases = [view['base_at'] for view in views if view.get('base_at')]
     if bases or 'base_at' in result:
         result['base_at'] = max(bases) if bases else None

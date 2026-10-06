@@ -272,3 +272,37 @@ td small.party-price{margin-top:2px}
 @media(max-width:760px){td:nth-child(3),td:nth-child(6){grid-column:1/-1}td:nth-child(4){grid-column:auto;grid-row:auto}td:nth-child(5){justify-self:end}.legs{grid-template-columns:1fr 1fr;gap:12px;min-width:0;padding:12px 0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)}.leg{grid-template-columns:1fr}.leg-label{margin-bottom:3px}td small.leg-meta{grid-column:1}}
 /* Seven filters: let them wrap into rows instead of cutting their texts. */
 .filters>label{flex:1 1 150px}
+
+/* Cheapest offer per departure airport, above the table. */
+.airport-best{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin:0 0 16px}
+.airport-best-label{flex-basis:100%;font-size:9px;letter-spacing:1.2px;text-transform:uppercase;font-weight:650;color:var(--muted)}
+.airport-chip{display:grid;grid-template-columns:auto auto;column-gap:10px;row-gap:2px;align-items:baseline;text-align:left;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--white);min-width:150px}
+.airport-chip strong{font-size:12px;letter-spacing:1px}.airport-price{font-size:17px;font-weight:650;letter-spacing:-.4px;justify-self:end}
+.airport-chip small{grid-column:1/-1;font-size:10px;color:var(--muted)}
+.airport-chip:hover{border-color:#9db58e}.airport-chip[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:#fff}.airport-chip[aria-pressed="true"] small{color:#c3d5b5}
+/* Price calendar: one green ramp, darker = cheaper; in dark mode brighter = cheaper. */
+.calendar-section{margin:52px 0 0}
+.calendar-card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+.calendar-scroll{overflow-x:auto}
+.calendar-table{border-collapse:separate;border-spacing:2px;font-size:11px;width:auto;margin:0 auto 0 0}
+.calendar-table th{font-size:9px;font-weight:600;color:var(--muted);padding:4px 6px;white-space:nowrap;text-transform:none;letter-spacing:.3px}
+.calendar-table thead th{text-align:center}.calendar-table tbody th{text-align:right;padding-right:10px}
+.calendar-table td{padding:0;border:0}
+.calendar-cell{display:block;min-width:56px;padding:8px 6px;border:0;border-radius:4px;text-align:center;font:inherit;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+button.calendar-cell{cursor:pointer;width:100%}button.calendar-cell:hover{filter:brightness(1.06);box-shadow:inset 0 0 0 2px #ffffff99}
+.calendar-cell.is-selected{box-shadow:inset 0 0 0 2px var(--ink)}
+.heat-0{background:#3b7034;color:#fff}.heat-1{background:#72a656;color:#1d2b22}.heat-2{background:#8fbf71;color:#1d2b22}
+.heat-3{background:#b6d49a;color:#1d2b22}.heat-4{background:#dfead0;color:#1d2b22}.heat-none{background:none;color:var(--muted)}
+.calendar-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;font-size:10px;color:var(--muted)}
+.legend-steps{display:inline-flex;gap:2px}.legend-steps i{display:block;width:22px;height:10px;border-radius:3px}
+#calendar-range{margin-left:6px}
+.week-trend{font-weight:600}
+:where([data-theme="dark"]) .heat-0{background:#a0cf89;color:#0f1a16}:where([data-theme="dark"]) .heat-1{background:#5f9c58;color:#0f1a16}
+:where([data-theme="dark"]) .heat-2{background:#3a7440;color:#fff}:where([data-theme="dark"]) .heat-3{background:#2c5a38;color:#e3ebe4}
+:where([data-theme="dark"]) .heat-4{background:#25412f;color:#e3ebe4}
+:where([data-theme="dark"]) .airport-chip[aria-pressed="true"]{background:#24533f;border-color:#3b6f55}
+@media(max-width:760px){.airport-chip{flex:1 1 calc(50% - 5px);min-width:0}.calendar-card{padding:14px 10px}.calendar-cell{min-width:48px;padding:8px 4px}.calendar-section{margin-top:36px}
+  /* The offer table becomes cards on phones; the calendar stays a grid. */
+  .calendar-table{display:table}.calendar-table thead{display:table-header-group}.calendar-table tbody{display:table-row-group}
+  .calendar-table tr,:where([data-theme="dark"]) .calendar-table tr{display:table-row;border:0;border-radius:0;padding:0;margin:0;background:none}
+  .calendar-table th,.calendar-table td{display:table-cell}}
