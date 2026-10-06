@@ -218,8 +218,9 @@ requests are added up against the shared budget, and a trip whose departure wind
 ended must be given new dates or removed. The form sends all trips in one issue; an
 issue with a single trip's settings (as older versions of the form sent) replaces only
 the primary trip. It replies with the changes,
-closes the issue and dispatches **Publish dashboard** (the new search without prices)
-and **Track flights**, which publishes the dashboard again when it ends. Rejected
+closes the issue and dispatches **Track flights**, which publishes the dashboard with
+the first prices when it ends. While searches are paused (`TRACKER_ENABLED=false`) it
+dispatches only **Publish dashboard**, so the website still shows the new settings. Rejected
 settings are answered and closed as not planned; the running search is unchanged.
 Settings issues from anyone else are closed as not planned by a separate job that has
 only `issues: write` and never reads their content.

@@ -19,7 +19,7 @@ jobs:
     permissions:
       contents: write  # push the search-config branch
       issues: write    # reply on and close the settings issue
-      actions: write   # start Track flights and Publish dashboard
+      actions: write   # start Track flights (or Publish dashboard while searches are paused)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -33,14 +33,22 @@ jobs:
         env:
           ISSUE_BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          # Same test as the job condition in track-flights.yml.
+          SEARCHES_PAUSED: ${{ vars.TRACKER_ENABLED == 'false' }}
         run: python scripts/search_settings.py apply --reply "$RUNNER_TEMP/reply.md"
-      - name: Start a search and refresh the dashboard
+      # The search publishes the dashboard with its prices when it ends. Only while
+      # searches are paused is the dashboard published right away.
+      - name: Start a search
         if: steps.apply.outputs.outcome == 'applied'
         env:
           GH_TOKEN: ${{ github.token }}
+          SEARCHES_PAUSED: ${{ vars.TRACKER_ENABLED == 'false' }}
         run: |
-          gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
-          gh workflow run track-flights.yml --repo "$GITHUB_REPOSITORY" --ref main
+          if [ "$SEARCHES_PAUSED" = "true" ]; then
+            gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
+          else
+            gh workflow run track-flights.yml --repo "$GITHUB_REPOSITORY" --ref main
+          fi
       - name: Reply on the issue
         if: always()
         env:
