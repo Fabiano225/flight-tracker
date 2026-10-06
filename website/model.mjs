@@ -67,7 +67,8 @@ export function favoriteExpired(fav, config, today) {
   const days=(Date.parse(fav.return_date)-Date.parse(fav.departure))/86400000;
   return fav.destination!==config.destination || !config.origins.includes(fav.origin)
     || fav.departure<=today || fav.departure<config.departure_start || fav.departure>config.departure_end
-    || days<config.min_trip_days || days>config.max_trip_days;
+    || days<config.min_trip_days || days>config.max_trip_days
+    || Boolean(config.latest_return) && fav.return_date>config.latest_return;
 }
 // With several trips a favorite stays while any trip still searches it.
 export function pruneFavorites(keys, configs, today) {

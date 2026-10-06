@@ -5,7 +5,6 @@
 export const scopeFields=['destination','travel_class','max_direction_minutes','hide_separate_tickets','carry_on_bags','checked_bags',
   'max_stops','airlines','airlines_exclude'];
 export const priceFields=['good_deal_nonstop_eur','good_deal_layover_eur','drop_eur','realert_improvement_eur'];
-export const listFields=['origins','airlines','airlines_exclude'];
 const MAX_AIRLINES=25;
 
 export const fold=text=>String(text).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').toLowerCase();
@@ -61,10 +60,17 @@ const addDays=(value,days)=>new Date(Date.parse(value+'T00:00:00Z')+days*dayMs).
 // Mirrors tracker/planner.py: request_estimate.
 export function requestEstimate(config, today) {
   const start=[config.departure_start,addDays(today,1)].sort().at(-1);
-  const days=Math.max(0,Math.round((Date.parse(config.departure_end)-Date.parse(start))/dayMs)+1);
-  const durations=Math.max(0,config.max_trip_days-config.min_trip_days+1);
+  const count=(from,to)=>Math.max(0,Math.round((Date.parse(to)-Date.parse(from))/dayMs)+1);
   const profiles=config.max_stops===0?1:2;
-  const calendar=days*durations*config.origins.length*profiles;
+  // Every departure day with every trip length; with a latest return date, longer
+  // trips have fewer departure days.
+  let pairs=0;
+  for(let length=config.min_trip_days;length<=config.max_trip_days;length++) {
+    const last=config.latest_return?[config.departure_end,addDays(config.latest_return,-length)].sort()[0]:config.departure_end;
+    pairs+=count(start,last);
+  }
+  const days=config.latest_return?count(start,[config.departure_end,addDays(config.latest_return,-config.min_trip_days)].sort()[0]):count(start,config.departure_end);
+  const calendar=pairs*config.origins.length*profiles;
   const verification=config.max_verifications_per_run*(1+config.outbound_candidates);
   const requests=calendar+verification;
   const seconds=Math.round(requests*Math.max(config.request_interval_seconds,1.5/config.max_parallel_requests));
@@ -95,6 +101,11 @@ export function tripErrors(config, meta, table, today) {
   }
   if(!errors.min_trip_days && !errors.max_trip_days && config.min_trip_days>config.max_trip_days)
     error('max_trip_days','Cannot be shorter than the shortest trip.');
+  if(config.latest_return!==null && config.latest_return!==undefined) {
+    if(!isoDate(config.latest_return))error('latest_return','Enter a valid date.');
+    else if(!errors.departure_start && !errors.min_trip_days && config.latest_return<addDays(config.departure_start,config.min_trip_days))
+      error('latest_return','Too early: even the shortest trip from the earliest departure returns later.');
+  }
   for(const [field,[low,high]] of Object.entries(floats)) {
     const value=config[field];
     if(!Number.isFinite(value) || value<low || value>high)error(field,`Number from ${low} to ${high}.`);
@@ -168,6 +179,7 @@ export function changedFields(current, next) {
 }
 
 export function shownValue(key, value, meta) {
+  if(key==='latest_return')return value||'none';
   if(key==='origins')return value.join(', ');
   if(key==='airlines')return value.join(', ')||'all';
   if(key==='airlines_exclude')return value.join(', ')||'none';
@@ -200,11 +212,11 @@ export function tripName(config, configs) {
 }
 
 export function tripSummary(config) {
-  return `${config.origins.join(', ')} → ${config.destination}, ${config.departure_start} to ${config.departure_end}, ${config.min_trip_days}–${config.max_trip_days} days`;
+  return `${config.origins.join(', ')} → ${config.destination}, ${config.departure_start} to ${config.departure_end}, ${config.min_trip_days}–${config.max_trip_days} days${config.latest_return?`, back by ${config.latest_return}`:''}`;
 }
 
 // Optional settings at these values are left out of the issue (as in config.json).
-const optional={max_stops:null,airlines:[],airlines_exclude:[],origin_targets:{},display_names:{}};
+const optional={latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],origin_targets:{},display_names:{}};
 
 // The issue's settings block: every trip in config.json field order, shared request settings once.
 export function settingsJson(meta, trips, primary) {
@@ -246,7 +258,7 @@ export function issueTitle(settings) {
 const LISTED_CHANGES=25;
 export function issueBody(meta, settings, changes) {
   const several=settings.trips.length>1;
-  const trips=settings.trips.map(t=>`- ${t.origins.join(', ')} → ${t.destination} · departures ${t.departure_start} to ${t.departure_end} · ${t.min_trip_days}–${t.max_trip_days} days${several && t.id===settings.primary_trip?' · shown first':''}`);
+  const trips=settings.trips.map(t=>`- ${t.origins.join(', ')} → ${t.destination} · departures ${t.departure_start} to ${t.departure_end} · ${t.min_trip_days}–${t.max_trip_days} days${t.latest_return?` · back by ${t.latest_return}`:''}${several && t.id===settings.primary_trip?' · shown first':''}`);
   const listed=changes.slice(0,LISTED_CHANGES).map(change=>`- ${change.label}: ${change.before} → ${change.after}`);
   if(changes.length>LISTED_CHANGES)listed.push(`- … and ${changes.length-LISTED_CHANGES} more`);
   return [meta.marker, several?`**New search, ${settings.trips.length} trips:**`:'**New search:**', ...trips, '', '**Changes:**', ...listed, '',

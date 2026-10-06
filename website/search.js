@@ -7,7 +7,10 @@ const node = (tag, text, cls) => {const n=document.createElement(tag); if(text!=
 const berlinToday = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin'}).format(new Date());
 const shortDate = value => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
 const numberValue = value => String(value).trim()==='' ? NaN : Number(value);
-const routeFields = ['origins','destination','departure_start','departure_end','min_trip_days','max_trip_days'];
+const routeFields = ['origins','destination','departure_start','departure_end','min_trip_days','max_trip_days','latest_return'];
+const dayMs = 86400000;
+const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value+'T00:00:00Z'));
+const plusDays = (value, days) => new Date(Date.parse(value+'T00:00:00Z')+days*dayMs).toISOString().slice(0,10);
 // meta: the saved settings (search-config.json). trips: the edited trips, each
 // {key, id (null for a new trip), config}; one of them is shown in the form.
 let meta, table, numberFields, fieldOrder, trips=[], active=0, primaryKey, nextKey=1, state, lastResult;
@@ -57,7 +60,16 @@ function fill(config) {
   field('hide_separate_tickets').checked=config.hide_separate_tickets;
   field('carry_on_bags').checked=config.carry_on_bags===1;
   field('checked_bags').checked=config.checked_bags===1;
+  // A trip ends by its longest length, or by a latest return date.
+  field('trip_end').value=config.latest_return?'date':'days';
+  field('latest_return').value=config.latest_return||(validDate(config.departure_end)?plusDays(config.departure_end,config.max_trip_days):'');
+  showTripEnd();
   renderChips();renderNames();
+}
+
+function showTripEnd() {
+  const byDate=field('trip_end').value==='date';
+  $('max-days-field').hidden=byDate;$('latest-return-field').hidden=!byDate;
 }
 
 function collect() {
@@ -65,6 +77,19 @@ function collect() {
     airlines:[...state.airlines],airlines_exclude:[...state.airlines_exclude]};
   for(const name of ['departure_start','departure_end','travel_class'])config[name]=field(name).value;
   for(const name of numberFields)config[name]=numberValue(field(name).value);
+  config.latest_return=null;
+  if(field('trip_end').value==='date') {
+    // The longest trip follows from the return date (at most 90 days); the search
+    // then skips every date pair that would return later.
+    config.latest_return=field('latest_return').value;
+    const hint=$('latest-return-hint');hint.textContent='';
+    if(validDate(config.latest_return) && validDate(config.departure_start)) {
+      const days=Math.round((Date.parse(config.latest_return)-Date.parse(config.departure_start))/dayMs);
+      if(Number.isInteger(config.min_trip_days))config.max_trip_days=Math.max(config.min_trip_days,Math.min(90,days));
+      field('max_trip_days').value=config.max_trip_days;
+      hint.textContent=days>90?'Trips longer than 90 days are not searched.':`Longest possible trip: ${days} days, from the earliest departure.`;
+    }
+  }
   config.max_stops=field('max_stops').value===''?null:Number(field('max_stops').value);
   const hours=numberValue(field('duration_hours').value), minutes=numberValue(field('duration_minutes').value);
   config.max_direction_minutes=Number.isInteger(hours) && Number.isInteger(minutes) && hours>=0 && minutes>=0 && minutes<60 ? hours*60+minutes : NaN;
@@ -262,6 +287,7 @@ function renderSuggestion(trip, suggestion) {
 }
 
 function update() {
+  showTripEnd();
   sync();
   renderSuggestion(trips[active],suggestionFor(trips[active]));
   // Empty airport fields use the trip's targets; show them as placeholders.

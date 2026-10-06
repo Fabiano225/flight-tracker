@@ -23,7 +23,8 @@ def section(summary, quotes, level):
     config = summary["config"]
     lines = [f"{level} {config.get('destination', 'BKK')} flight tracker", "", f"**{summary['mode'].upper()}** · {summary['started']} · **{summary['status']}**", "",
         f"One adult, {config['travel_class']}, EUR round-trip prices. Departure dates: {config['departure_start']} to {config['departure_end']}.",
-        f"Trips last {config['min_trip_days']}–{config['max_trip_days']} days. Direction duration limit: {config['max_direction_minutes']} minutes including layovers.", "",
+        f"Trips last {config['min_trip_days']}–{config['max_trip_days']} days"
+        f"{', returning by ' + config['latest_return'] if config.get('latest_return') else ''}. Direction duration limit: {config['max_direction_minutes']} minutes including layovers.", "",
         f"- Date-search batches: {summary['calendar_queries_ok']}/{summary['calendar_queries_planned']}"
         f" (+{summary.get('calendar_queries_skipped', 0)} skipped: routes without prices, rechecked daily)",
         f"- Dates recovered by deferred recheck: {summary.get('calendar_dates_recovered', 0)}",

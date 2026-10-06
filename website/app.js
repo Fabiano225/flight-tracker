@@ -138,7 +138,7 @@ function renderSummary() {
     :c.good_deal_layover_eur===c.good_deal_nonstop_eur?'per person · round trip':`With stops ${euro(c.good_deal_layover_eur*100)} / non-stop ${euro(c.good_deal_nonstop_eur*100)}`;
   $('offer-count').textContent=data.offers.length;
   $('trip-dates').textContent=`${day(c.departure_start)} – ${day(c.departure_end)} ${c.departure_end.slice(0,4)}`;
-  $('trip-days').textContent=c.min_trip_days===c.max_trip_days?`${c.min_trip_days} day${c.min_trip_days===1?'':'s'}`:`${c.min_trip_days}–${c.max_trip_days} days`;
+  $('trip-days').textContent=c.latest_return?`${c.min_trip_days}+ days · back by ${day(c.latest_return)}`:c.min_trip_days===c.max_trip_days?`${c.min_trip_days} day${c.min_trip_days===1?'':'s'}`:`${c.min_trip_days}–${c.max_trip_days} days`;
   $('offer-timestamp').textContent=data.offers_as_of?`${baggageLabels[$('baggage').value]} · ${when(data.offers_as_of)} · Berlin time`:'No checked prices for this choice yet';
 }
 function renderOffers() {

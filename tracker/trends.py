@@ -1,5 +1,5 @@
 """Stable date watches: new date combinations alone must not cause deal spam."""
-from datetime import date, timedelta
+from datetime import timedelta
 import hashlib
 import json
 
@@ -11,6 +11,8 @@ from .store import stamp
 def watch_key(config, scope):
     window = [config.origins, config.departure_start, config.departure_end,
               config.min_trip_days, config.max_trip_days]
+    if config.latest_return:  # Only when set, so existing watches keep their key.
+        window.append(config.latest_return)
     return "trend-watch-v1:" + scope + ":" + hashlib.sha256(
         json.dumps(window).encode()).hexdigest()[:16]
 
@@ -18,11 +20,8 @@ def watch_key(config, scope):
 def load_watches(store, config, scope, now):
     watches = json.loads(store.get_meta(watch_key(config, scope)) or "{}")
     watches = {key: value for key, value in watches.items()
-               if value['origin'] in config.origins
-               and config.departure_start <= value['departure'] <= config.departure_end
-               and value['departure'] > now.date().isoformat()
-               and config.min_trip_days <= (date.fromisoformat(value['return_date']) -
-                   date.fromisoformat(value['departure'])).days <= config.max_trip_days}
+               if value['origin'] in config.origins and value['departure'] > now.date().isoformat()
+               and config.fits(value['departure'], value['return_date'])}
     # The search window is part of the metadata key, but expanding it must not
     # reset the dates behind an existing price notification. Recover the latest
     # eligible notification per group, also repairing pre-fix unannounced moves.
@@ -31,9 +30,10 @@ def load_watches(store, config, scope, now):
         WHERE a.scope=? AND o.kind='trend' AND o.status IN ('pending','sent')
         AND a.departure BETWEEN ? AND ? AND a.departure>?
         AND julianday(a.return_date)-julianday(a.departure) BETWEEN ? AND ?
+        AND (? IS NULL OR a.return_date<=?)
         ORDER BY o.created DESC, o.rowid DESC""",
         (scope, config.departure_start, config.departure_end, now.date().isoformat(),
-         config.min_trip_days, config.max_trip_days)).fetchall()
+         config.min_trip_days, config.max_trip_days, config.latest_return, config.latest_return)).fetchall()
     seen = set()
     for alert in alerts:
         key = alert['origin'] + ':' + alert['category']
@@ -76,9 +76,10 @@ def latest_alert(store, scope, quote, config):
         WHERE a.scope=? AND a.origin=? AND a.category=? AND o.kind='trend'
         AND o.status IN ('pending','sent') AND a.departure BETWEEN ? AND ?
         AND julianday(a.return_date)-julianday(a.departure) BETWEEN ? AND ?
+        AND (? IS NULL OR a.return_date<=?)
         ORDER BY o.created DESC, o.rowid DESC LIMIT 1""",
         (scope, quote.origin, quote.category, config.departure_start, config.departure_end,
-         config.min_trip_days, config.max_trip_days)).fetchone()
+         config.min_trip_days, config.max_trip_days, config.latest_return, config.latest_return)).fetchone()
 
 
 def eur(price):

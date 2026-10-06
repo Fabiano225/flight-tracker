@@ -1,6 +1,6 @@
 """Bounded website-only baggage searches. Never creates Telegram alerts."""
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, timedelta
+from datetime import timedelta
 import json
 
 from .network import BudgetError, ServiceError
@@ -28,9 +28,7 @@ def initialize(db):
 
 
 def eligible(q, config, today):
-    return (q.origin in config.origins and config.departure_start <= q.departure <= config.departure_end
-            and q.departure > today.isoformat()
-            and config.min_trip_days <= (date.fromisoformat(q.return_date)-date.fromisoformat(q.departure)).days <= config.max_trip_days
+    return (q.origin in config.origins and q.departure > today.isoformat() and config.fits(q.departure, q.return_date)
             and q.category in ('layover', 'nonstop') and type(q.price) is int and q.price > 0
             and 0 < q.outbound_minutes <= config.max_direction_minutes
             and 0 < q.inbound_minutes <= config.max_direction_minutes)

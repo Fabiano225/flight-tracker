@@ -23,7 +23,9 @@ def route_key(scope, origin, profile):
 
 
 def search_window(config):
-    return [config.departure_start, config.departure_end, config.min_trip_days, config.max_trip_days]
+    window = [config.departure_start, config.departure_end, config.min_trip_days, config.max_trip_days]
+    # Appended only when set, so existing searches keep their stored keys.
+    return window + [config.latest_return] if config.latest_return else window
 
 
 def queue_window_ended(store, config, run_id, now):

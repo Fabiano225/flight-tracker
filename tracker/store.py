@@ -91,12 +91,6 @@ class Store:
           AND observed>=? AND observed<=? AND run_id<>?""",
           (scope, origin, dep, ret, category, stamp(now - timedelta(days=window)), stamp(now), run_id)).fetchone()[0]
 
-    def alerted_low(self, scope, quote):
-        return self.db.execute("""SELECT MIN(a.price) FROM alert_items a JOIN outbox o ON o.id=a.outbox_id
-          WHERE a.scope=? AND a.origin=? AND a.departure=? AND a.return_date=? AND a.category=?
-          AND o.status IN ('sent','pending')""",
-          (scope, quote.origin, quote.departure, quote.return_date, quote.category)).fetchone()[0]
-
     def expire(self, now, ttl_hours, scopes=None):
         """Expire stale messages, and alerts of searches that are no longer active.
 
@@ -140,12 +134,11 @@ class Store:
             if valid and run:
                 settings = json.loads(run['summary']).get('config', {})
                 valid = all(settings.get(k) == config.public_dict()[k] for k in
-                            ('departure_start', 'departure_end', 'min_trip_days', 'max_trip_days'))
+                            ('departure_start', 'departure_end', 'min_trip_days', 'max_trip_days', 'latest_return'))
                 valid = valid and settings.get('origins') == list(config.origins)
             for item in items if valid else ():
                 try:
-                    duration=(datetime.fromisoformat(item['return_date'])-datetime.fromisoformat(item['departure'])).days
-                    valid = valid and item['origin'] in config.origins and config.departure_start <= item['departure'] <= config.departure_end and config.min_trip_days <= duration <= config.max_trip_days
+                    valid = valid and item['origin'] in config.origins and config.fits(item['departure'], item['return_date'])
                 except (ValueError,TypeError):
                     valid=False
             if not valid:

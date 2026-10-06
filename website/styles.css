@@ -177,6 +177,11 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 .target-row{display:grid;grid-template-columns:minmax(140px,1fr) 1fr 1fr;gap:12px 20px;align-items:end}
 .target-row>strong{font-size:12px;padding-bottom:12px}
 @media(max-width:480px){.target-row{grid-template-columns:1fr 1fr}.target-row>strong{grid-column:1/-1;padding-bottom:0}}
+/* Settings: trip ends by longest length or by return date. */
+.segmented{display:flex;gap:6px;margin-top:7px}
+.segmented label{flex:1;display:flex;align-items:center;gap:7px;min-height:39px;padding:0 10px;border:1px solid var(--line);border-radius:7px;font-weight:600;cursor:pointer;background:var(--white)}
+.segmented label:has(input:checked){border-color:var(--green);background:#eef3e6}
+.field-hint{display:block;margin-top:6px;font-size:10.5px;font-weight:400;line-height:1.5;color:var(--muted)}
 /* Theme selector in the header: a native select over the current choice's icon and name. */
 .header nav{align-items:center}
 .theme-switch{position:relative;display:inline-flex;align-items:center;min-height:32px;padding:0 11px;border:1px solid var(--line);border-radius:999px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap}
@@ -236,6 +241,7 @@ html[data-trip-loading] [data-page],html[data-trip-loading] .route-origins,html[
 :where([data-theme="dark"]) .chip-remove:hover{background:#3a1d18}
 :where([data-theme="dark"]) .trip-tab:hover,:where([data-theme="dark"]) .theme-switch:hover{border-color:#4a5f55}
 :where([data-theme="dark"]) .trip-choice{background:var(--white)}
+:where([data-theme="dark"]) .segmented label:has(input:checked){background:#1b2f25;border-color:#4f8a63}
 :where([data-theme="dark"]) .price-suggestion{background:#15231d;border-color:#2f4a3c}
 :where([data-theme="dark"]) .trip-choice[aria-pressed="true"]{background:var(--green)}
 :where([data-theme="dark"]) .trip-choice.has-error small{color:var(--red)}

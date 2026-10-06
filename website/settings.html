@@ -70,9 +70,17 @@
           <label class="field">Earliest departure<input type="date" name="departure_start" aria-describedby="departure_start-error"><span class="field-error" id="departure_start-error"></span></label>
           <label class="field">Latest departure<input type="date" name="departure_end" aria-describedby="departure_end-error"><span class="field-error" id="departure_end-error"></span></label>
           <label class="field">Shortest trip (days)<input type="number" inputmode="numeric" step="1" name="min_trip_days" aria-describedby="min_trip_days-error"><span class="field-error" id="min_trip_days-error"></span></label>
-          <label class="field">Longest trip (days)<input type="number" inputmode="numeric" step="1" name="max_trip_days" aria-describedby="max_trip_days-error"><span class="field-error" id="max_trip_days-error"></span></label>
+          <div class="field trip-end">
+            <span id="trip-end-label">Trip ends by</span>
+            <div class="segmented" role="radiogroup" aria-labelledby="trip-end-label">
+              <label><input type="radio" name="trip_end" value="days" checked> Longest trip</label>
+              <label><input type="radio" name="trip_end" value="date"> Return date</label>
+            </div>
+          </div>
+          <label class="field" id="max-days-field">Longest trip (days)<input type="number" inputmode="numeric" step="1" name="max_trip_days" aria-describedby="max_trip_days-error"><span class="field-error" id="max_trip_days-error"></span></label>
+          <label class="field" id="latest-return-field" hidden>Latest return<input type="date" name="latest_return" aria-describedby="latest-return-hint latest_return-error"><span class="field-hint" id="latest-return-hint"></span><span class="field-error" id="latest_return-error"></span></label>
         </div>
-        <p class="footnote">Every departure day in the window is searched with every trip length. Each extra day costs requests; see the summary below.</p>
+        <p class="footnote">Every departure day in the window is searched with every trip length; with a return date, each departure day only with the lengths that get you back in time. Each extra day costs requests; see the summary below.</p>
       </fieldset>
 
       <fieldset class="settings-card">

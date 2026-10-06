@@ -57,6 +57,9 @@ def page_values(config):
     cities = list(dict.fromkeys(names[code]['city'] for code in config.origins))
     days = (f'{config.min_trip_days}–{config.max_trip_days} days' if config.min_trip_days != config.max_trip_days
             else f"{config.min_trip_days} day{'' if config.min_trip_days == 1 else 's'}")
+    if config.latest_return:
+        back = date.fromisoformat(config.latest_return)
+        days = f'{config.min_trip_days}+ days · back by {back.day} {MONTHS[back.month - 1]}'
     minutes = config.max_direction_minutes
     return dict(
         code=config.destination, city=city, region_upper=(country or city).upper(),
@@ -120,7 +123,7 @@ def export_data(db_path, config, now=None, variant=None):
     now = now or datetime.now(timezone.utc)
     public_config = {key: getattr(config, key) for key in (
         'origins', 'destination', 'departure_start', 'departure_end', 'min_trip_days',
-        'max_trip_days', 'max_direction_minutes', 'good_deal_nonstop_eur',
+        'max_trip_days', 'latest_return', 'max_direction_minutes', 'good_deal_nonstop_eur',
         'good_deal_layover_eur', 'origin_targets', 'history_window_days', 'realert_improvement_eur')}
     result = dict(version=1, generated_at=now.isoformat(), config=public_config,
                   scan=None, offers_as_of=None, offers=[], histories={})
@@ -179,7 +182,7 @@ def export_data(db_path, config, now=None, variant=None):
             if variant and (not q.itinerary_id or not covers(bag,variant)):
                 continue  # Legacy filter prices are not confirmed baggage fares.
             days = (date.fromisoformat(q.return_date) - date.fromisoformat(q.departure)).days
-            if (q.origin not in config.origins or not config.min_trip_days <= days <= config.max_trip_days
+            if (q.origin not in config.origins or not config.fits(q.departure, q.return_date)
                     or q.category not in ('nonstop', 'layover') or type(q.price) is not int or q.price <= 0
                     or not 0 < q.outbound_minutes <= config.max_direction_minutes
                     or not 0 < q.inbound_minutes <= config.max_direction_minutes):
