@@ -10,7 +10,7 @@ import threading
 import time
 
 from .alerts import travellers
-from .config import MAIN_TRIP, cents, per_person
+from .config import cents, per_person
 from .network import ServiceError, BudgetError, TransientSourceError
 
 
@@ -426,8 +426,8 @@ class FreeProvider:
 
 
 def cache_file(directory, config):
-    """Each trip's searches are cached in a file of its own."""
-    return Path(directory) / ("search-cache.json" if config.id == MAIN_TRIP else f"search-cache-{config.id}.json")
+    """Each trip's searches are cached in a file of its own, per destination."""
+    return Path(directory) / f"search-cache-{config.id}-{config.destination}.json"
 
 
 def itinerary_id(pair):

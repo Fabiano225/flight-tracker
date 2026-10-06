@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs,timesFit} from '../website/model.mjs';
+import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs,timesFit,parseFavorite,belongsToTrip} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -220,4 +220,14 @@ test('time filters keep offers whose both flights leave and land inside the wind
   assert.ok(!timesFit({...q,schedule:null},'6-24',''));
   assert.ok(timesFit({...q,schedule:null},'',''));
   assert.deepEqual(filteredOffers([q,{...q,schedule:null}],{departs:'6-24'}).length,1);
+});
+test('trips with several destinations: offers, filters and favorites name their destination',()=>{
+  const config={origins:['FRA'],destination:'BKK',destinations:['BKK','HKT'],departure_start:'2026-10-14',departure_end:'2026-10-20',min_trip_days:14,max_trip_days:14,latest_return:null};
+  const phuket={...offer,destination:'HKT',return_date:'2026-10-29'};
+  assert.equal(favoriteKey(phuket,'BKK'),JSON.stringify(['HKT','FRA','2026-10-15','2026-10-29','layover','base']));
+  assert.equal(favoriteKey({...offer,return_date:'2026-10-29'},'BKK'),JSON.stringify(['BKK','FRA','2026-10-15','2026-10-29','layover','base']));
+  const fav=parseFavorite(favoriteKey(phuket,'BKK'));
+  assert.equal(belongsToTrip(fav,config),true);
+  assert.equal(belongsToTrip(fav,{...config,destinations:['BKK']}),false);
+  assert.deepEqual(filteredOffers([phuket,{...offer,destination:'BKK'}],{destination:'HKT'}),[phuket]);
 });

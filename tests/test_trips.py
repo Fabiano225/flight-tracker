@@ -88,8 +88,8 @@ class SettingsTests(unittest.TestCase):
             Settings((BKK, replace(AMS, max_run_seconds=600)))
 
     def test_each_trip_caches_searches_in_its_own_file(self):
-        self.assertEqual(cache_file('state', BKK).name, 'search-cache.json')
-        self.assertEqual(cache_file('state', AMS).name, 'search-cache-ams.json')
+        self.assertEqual(cache_file('state', BKK).name, 'search-cache-main-BKK.json')
+        self.assertEqual(cache_file('state', AMS).name, 'search-cache-ams-AMS.json')
 
 
 class SharedStats:

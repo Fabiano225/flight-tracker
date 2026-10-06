@@ -15,7 +15,7 @@
 <body>
   <a class="skip" href="#offers">Skip to offers</a>
   <header class="header wrap">
-    <a class="brand" href="./" aria-label="Flightwatch home"><span class="brand-mark">↗</span>flightwatch<span class="brand-tag"><span data-page="code">{{code}}</span> EDITION</span></a>
+    <a class="brand" href="./" aria-label="Flightwatch home"><span class="brand-mark">↗</span>flightwatch<span class="brand-tag"><span data-page="route_codes">{{route_codes}}</span> EDITION</span></a>
     <nav aria-label="Main navigation"><a href="#offers">Flights</a><a href="#history">Price history</a><a id="settings-link" href="./settings.html">Change search</a><a href="{{repo_url}}" target="_blank" rel="noopener noreferrer">GitHub ↗</a><label class="theme-switch" title="Color theme"><span class="theme-option" data-for="auto" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg><span class="theme-word">Auto</span></span><span class="theme-option" data-for="light" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.05 3.05l1.13 1.13M11.82 11.82l1.13 1.13M3.05 12.95l1.13-1.13M11.82 4.18l1.13-1.13"/></svg><span class="theme-word">Light</span></span><span class="theme-option" data-for="dark" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M13.6 10.1A6 6 0 0 1 5.9 2.4a6 6 0 1 0 7.7 7.7z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><span class="theme-word">Dark</span></span><select class="theme-select" aria-label="Color theme"><option value="auto">Automatic (system)</option><option value="light">Light</option><option value="dark">Dark</option></select></label></nav>
   </header>
   <main class="wrap">
@@ -24,7 +24,7 @@
       <div><p class="eyebrow"><span class="dot"></span> <span>YOUR PRICE RADAR FOR <span data-page="region_upper">{{region_upper}}</span></span></p>
         <h1 id="hero-title"><span data-page="city">{{city}}</span> in view.<br><em>The price too.</em></h1>
         <p class="intro">Search less. Compare better. Your flights to <span data-page="city">{{city}}</span> – with real price histories instead of gut feeling.</p>
-        <div class="route"><span id="route-origins" class="route-origins">{{route_origins}}</span><span class="route-line" aria-hidden="true">──── ↗</span><strong data-page="code">{{code}}</strong></div>
+        <div class="route"><span id="route-origins" class="route-origins">{{route_origins}}</span><span class="route-line" aria-hidden="true">──── ↗</span><strong data-page="route_codes">{{route_codes}}</strong></div>
       </div>
       <aside class="trip-card" aria-label="Trip profile">
         <div class="ticket-top"><span>YOUR TRAVEL WINDOW</span><span class="ticket-icon" aria-hidden="true">↗</span></div>
@@ -53,6 +53,7 @@
       <div class="section-heading"><div><p class="eyebrow">YOUR OPTIONS</p><h2 id="offers-title">Good trip. Good price.</h2></div><p id="offer-timestamp" class="muted">Only checked round trips</p></div>
       <form class="filters" id="filters" aria-label="Filter offers">
         <label>Departure airport<select id="origin" name="origin"><option value="">All airports</option></select></label>
+        <label hidden>Destination<select id="destination-filter" name="destination"><option value="">All destinations</option></select></label>
         <label>Connection<select id="category" name="category"><option value="">All connections</option><option value="nonstop">Non-stop only</option><option value="layover">With stops</option></select></label>
         <label>Outbound<select id="departure" name="departure"><option value="">All departure days</option></select></label>
         <label>Trip length<select id="days" name="days"><option value="">All trip lengths</option></select></label>

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict, field, fields
+from dataclasses import dataclass, asdict, field, fields, replace
 from datetime import date
 from decimal import Decimal, InvalidOperation
 import hashlib
@@ -45,6 +45,8 @@ TRAVEL_CLASSES = ("economy", "premium_economy", "business", "first_class")
 MAX_DISPLAY_NAME = 40
 MAX_AIRLINES = 25
 MAX_TRIPS = 5
+# Destinations per trip, the first included; each is searched on its own.
+MAX_DESTINATIONS = 5
 # The original single search. Its price history scope has no trip id, so it
 # keeps the history it collected before several trips were possible.
 MAIN_TRIP = "main"
@@ -53,7 +55,7 @@ TRIP_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,19}")
 SHARED_FIELDS = ("pending_ttl_hours", "max_http_attempts_per_run", "max_run_seconds", "http_timeout_seconds",
                  "http_attempts", "request_interval_seconds", "max_parallel_requests")
 # Optional settings: config.json leaves them out while they have these values.
-OPTIONAL = {"latest_return": None, "max_stops": None, "airlines": (), "airlines_exclude": (), "flight_times": {},
+OPTIONAL = {"more_destinations": (), "latest_return": None, "max_stops": None, "airlines": (), "airlines_exclude": (), "flight_times": {},
             "origin_targets": {}, "display_names": {}, "id": MAIN_TRIP}
 TARGET_CATEGORIES = ("nonstop", "layover")
 # Local-time windows a search can limit, in the order of Quote.schedule.
@@ -64,6 +66,9 @@ TIME_WINDOWS = ("outbound_departure", "outbound_arrival", "return_departure", "r
 class Config:
     origins: tuple = ("DUS", "FRA", "AMS")
     destination: str = "BKK"
+    # Further destinations of this trip. Each gets its own price history and messages;
+    # the first destination keeps the trip's original history.
+    more_destinations: tuple = ()
     departure_start: str = "2026-10-14"
     departure_end: str = "2026-10-23"
     min_trip_days: int = 14
@@ -113,10 +118,13 @@ class Config:
             raise ValueError("Trip id must be 1-20 lowercase letters, digits or dashes")
         if not self.origins or len(set(self.origins)) != len(self.origins):
             raise ValueError("Origins must be a nonempty unique list")
-        for airport in (*self.origins, self.destination):
+        if (not isinstance(self.more_destinations, tuple) or len(self.more_destinations) > MAX_DESTINATIONS - 1
+                or len(set(self.destinations)) != len(self.destinations)):
+            raise ValueError(f"A trip has 1 to {MAX_DESTINATIONS} different destinations")
+        for airport in (*self.origins, *self.destinations):
             if not isinstance(airport, str) or not re.fullmatch(r"[A-Z]{3}", airport):
                 raise ValueError("Use uppercase airport codes")
-        if self.destination in self.origins:
+        if set(self.destinations) & set(self.origins):
             raise ValueError("Origin and destination must differ")
         start, end = date.fromisoformat(self.departure_start), date.fromisoformat(self.departure_end)
         if not 0 <= (end - start).days <= 365:
@@ -191,7 +199,7 @@ class Config:
         unknown = set(values) - {f.name for f in fields(cls)}
         if unknown:
             raise ValueError(f"Unknown config keys: {', '.join(sorted(unknown))}")
-        for name in ("origins", "airlines", "airlines_exclude"):
+        for name in ("origins", "more_destinations", "airlines", "airlines_exclude"):
             if name in values:
                 if not isinstance(values[name], list):
                     raise ValueError(f"{name} must be a list")
@@ -220,13 +228,22 @@ class Config:
 
     def form_dict(self):
         # JSON shape of every setting: field order, lists instead of tuples.
-        return {**self.public_dict(), "origins": list(self.origins), "airlines": list(self.airlines),
-                "airlines_exclude": list(self.airlines_exclude)}
+        return {**self.public_dict(), "origins": list(self.origins), "more_destinations": list(self.more_destinations),
+                "airlines": list(self.airlines), "airlines_exclude": list(self.airlines_exclude)}
 
     def file_dict(self):
         # config.json layout: optional settings appear only when they are set.
         return {name: value for name, value in self.form_dict().items()
                 if name not in OPTIONAL or getattr(self, name) != OPTIONAL[name]}
+
+    @property
+    def destinations(self):
+        return (self.destination, *self.more_destinations)
+
+    def searches(self):
+        """One single-destination search per destination. The first has this trip's scope
+        (more_destinations is not part of it), so its history continues."""
+        return tuple(replace(self, destination=code, more_destinations=()) for code in self.destinations)
 
     def fits(self, departure, return_date):
         """Whether a departure/return date pair (YYYY-MM-DD) belongs to this trip's search."""
@@ -296,6 +313,10 @@ class Settings:
         """Search order: the primary trip first, then the others as listed."""
         return (self.primary, *(trip for trip in self.trips if trip.id != self.primary_trip))
 
+    def searches(self):
+        """Every trip's single-destination searches, in search order."""
+        return tuple(search for trip in self.ordered() for search in trip.searches())
+
     @classmethod
     def load(cls, path):
         return cls.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))
@@ -339,3 +360,8 @@ class Settings:
 def trips_of(settings):
     """The trips of Settings; a single Config is its own only trip."""
     return settings.trips if isinstance(settings, Settings) else (settings,)
+
+
+def searches_of(settings):
+    """The single-destination searches of Settings or of one trip (Config)."""
+    return settings.searches()

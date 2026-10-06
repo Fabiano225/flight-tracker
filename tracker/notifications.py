@@ -1,7 +1,7 @@
 """One active transport, durable receipts and channel-safe price references."""
 import os
 
-from .config import trips_of
+from .config import searches_of
 from .network import ServiceError
 from .project import dashboard_url
 from .store import stamp
@@ -16,11 +16,11 @@ def message_labels(settings):
 
     Price alerts, check statuses and notices name their own destination; a code
     for all other messages exists only while a single trip is searched."""
-    trips = trips_of(settings)
+    searches = searches_of(settings)
     names = {}
-    for trip in reversed(trips):  # The first trip's names win for a shared airport.
-        names.update(trip.display_names)
-    return (trips[0].destination if len(trips) == 1 else None), names
+    for search in reversed(searches):  # The first trip's names win for a shared airport.
+        names.update(search.display_names)
+    return (searches[0].destination if len(searches) == 1 else None), names
 
 
 def notifications_configured():
@@ -49,7 +49,7 @@ def configured_sender(settings=None):
 
 def deliver(store, settings, now, sender):
     """Send pending messages of all trips; `settings` may also be a single Config."""
-    trips = trips_of(settings)
+    trips = searches_of(settings)
     store.expire(now, trips[0].pending_ttl_hours, {trip.scope() for trip in trips})
     store.expire_outside_search(trips)
     store.db.commit()

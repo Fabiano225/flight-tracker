@@ -1,7 +1,7 @@
 import csv
 import json
 from pathlib import Path
-from .alerts import hours
+from .alerts import hours, travellers
 
 
 CSV_KEYS = ["origin", "departure", "return_date", "category", "price_eur", "outbound_minutes", "inbound_minutes",
@@ -22,7 +22,7 @@ def latest_runs(store):
 def section(summary, quotes, level):
     config = summary["config"]
     lines = [f"{level} {config.get('destination', 'BKK')} flight tracker", "", f"**{summary['mode'].upper()}** · {summary['started']} · **{summary['status']}**", "",
-        f"One adult, {config['travel_class']}, EUR round-trip prices. Departure dates: {config['departure_start']} to {config['departure_end']}.",
+        f"{travellers(config.get('adults', 1)).capitalize()}, {config['travel_class']}, EUR round-trip prices per person. Departure dates: {config['departure_start']} to {config['departure_end']}.",
         f"Trips last {config['min_trip_days']}–{config['max_trip_days']} days"
         f"{', returning by ' + config['latest_return'] if config.get('latest_return') else ''}. Direction duration limit: {config['max_direction_minutes']} minutes including layovers.", "",
         f"- Date-search batches: {summary['calendar_queries_ok']}/{summary['calendar_queries_planned']}"

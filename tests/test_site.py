@@ -98,7 +98,7 @@ class SiteTests(unittest.TestCase):
         self.assertEqual({p.name for p in output.iterdir()},set(ASSETS)|set(GENERATED))
         with self.assertRaisesRegex(ValueError,'empty'):build(self.path,output)
         form=json.loads((output/'search-config.json').read_text(encoding='utf-8'))
-        self.assertEqual(set(form),{'version','repository','marker','primary_trip','trips','shared_fields','max_trips',
+        self.assertEqual(set(form),{'version','repository','marker','primary_trip','trips','shared_fields','max_trips','max_destinations',
                                     'airlines','labels','travel_classes','limits'})
         self.assertEqual((form['version'],form['primary_trip'],form['max_trips']),(2,'main',5))
         self.assertEqual(form['airlines']['QR'],'Qatar Airways')

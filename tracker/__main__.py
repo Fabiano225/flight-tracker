@@ -38,14 +38,15 @@ def main():
     parser.add_argument("--output", default="history.csv")
     args = parser.parse_args()
     settings = Settings.load(args.config)
-    trips = settings.ordered()
+    # Each destination of a trip is searched on its own, with its own history.
+    trips = settings.searches()
     if args.as_of and args.command not in {"plan", "demo"}:
         parser.error("--as-of is restricted to offline plan/demo")
     now = datetime.combine(date.fromisoformat(args.as_of), datetime.min.time(), timezone.utc) if args.as_of else utcnow()
     if args.command == "plan":
-        plans = {trip.id: plan_summary(trip, now.date()) for trip in trips}
+        plans = {f"{trip.id} to {trip.destination}": plan_summary(trip, now.date()) for trip in trips}
         # The request cap is shared by all trips of a run.
-        print(json.dumps(plans[trips[0].id] if len(trips) == 1 else plans, indent=2))
+        print(json.dumps(next(iter(plans.values())) if len(trips) == 1 else plans, indent=2))
         return 0
     if args.command == "telegram-test":
         Telegram().send("Flight tracker Telegram connection OK. Live deals require successful flight searches.")

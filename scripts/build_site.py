@@ -15,7 +15,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tracker.config import Settings, INT_LIMITS, FLOAT_LIMITS, MAX_DISPLAY_NAME, MAX_TRIPS, SHARED_FIELDS
+from tracker.config import Settings, INT_LIMITS, FLOAT_LIMITS, MAX_DESTINATIONS, MAX_DISPLAY_NAME, MAX_TRIPS, SHARED_FIELDS
 from tracker.places import AIRPORTS, airlines, places
 from tracker.alerts import search_link
 from tracker.provider import Quote
@@ -51,9 +51,18 @@ def date_range(start, end):
     return f'{a.day} {month(a)} {a.year} – {b.day} {month(b)} {b.year}'
 
 
+def joined(words):
+    """"A", "A & B", "A, B & C"."""
+    return words[0] if len(words) == 1 else ', '.join(words[:-1]) + ' & ' + words[-1]
+
+
 def page_values(config):
     names = places(config)
-    city, country = names[config.destination]['city'], names[config.destination]['country']
+    # A trip with several destinations names them all; the stamp shows the first.
+    city = joined(list(dict.fromkeys(names[code]['city'] for code in config.destinations)))
+    countries = list(dict.fromkeys(names[code]['country'] for code in config.destinations if names[code]['country']))
+    country = ' · '.join(countries)
+    codes = ' · '.join(config.destinations)
     cities = list(dict.fromkeys(names[code]['city'] for code in config.origins))
     days = (f'{config.min_trip_days}–{config.max_trip_days} days' if config.min_trip_days != config.max_trip_days
             else f"{config.min_trip_days} day{'' if config.min_trip_days == 1 else 's'}")
@@ -62,8 +71,8 @@ def page_values(config):
         days = f'{config.min_trip_days}+ days · back by {back.day} {MONTHS[back.month - 1]}'
     minutes = config.max_direction_minutes
     return dict(
-        code=config.destination, city=city, region_upper=(country or city).upper(),
-        ticket_place=f'{country.upper()} / {config.destination}' if country else config.destination,
+        code=config.destination, route_codes=codes, city=city, region_upper=(country or city).upper(),
+        ticket_place=f'{country.upper()} / {codes}' if country else codes,
         origin_cities=', '.join(cities[:-1]) + ' and ' + cities[-1] if len(cities) > 1 else cities[0],
         route_origins=''.join(f'<span class="route-code">{html.escape(code)}</span>' for code in config.origins),
         trip_dates=date_range(config.departure_start, config.departure_end), trip_days=days,
@@ -109,7 +118,7 @@ def form_data(settings):
     # Everything here is already public in config.json; no state or credentials.
     return dict(version=2, repository=repository(), marker=MARKER, primary_trip=settings.primary_trip,
                 trips=[trip.form_dict() for trip in settings.trips], shared_fields=list(SHARED_FIELDS),
-                max_trips=MAX_TRIPS, airlines=airlines(), labels=LABELS, travel_classes=CLASSES,
+                max_trips=MAX_TRIPS, max_destinations=MAX_DESTINATIONS, airlines=airlines(), labels=LABELS, travel_classes=CLASSES,
                 limits=dict(int=INT_LIMITS, float=FLOAT_LIMITS, display_name=MAX_DISPLAY_NAME))
 
 
@@ -120,15 +129,20 @@ def instant(value):
     return dt.astimezone(timezone.utc)
 
 
-def export_data(db_path, config, now=None, variant=None):
-    if variant is not None and variant not in PROFILES:
-        raise ValueError('Unknown baggage profile')
-    now = now or datetime.now(timezone.utc)
-    public_config = {key: getattr(config, key) for key in (
+def public_config(config):
+    values = {key: getattr(config, key) for key in (
         'origins', 'destination', 'adults', 'departure_start', 'departure_end', 'min_trip_days',
         'max_trip_days', 'latest_return', 'max_direction_minutes', 'flight_times', 'good_deal_nonstop_eur',
         'good_deal_layover_eur', 'origin_targets', 'history_window_days', 'realert_improvement_eur')}
-    result = dict(version=1, generated_at=now.isoformat(), config=public_config,
+    return {**values, 'destinations': list(config.destinations)}
+
+
+def export_data(db_path, config, now=None, variant=None):
+    """One destination's offers, histories and search status (config: a single search)."""
+    if variant is not None and variant not in PROFILES:
+        raise ValueError('Unknown baggage profile')
+    now = now or datetime.now(timezone.utc)
+    result = dict(version=1, generated_at=now.isoformat(), config=public_config(config),
                   scan=None, offers_as_of=None, offers=[], histories={})
     db = sqlite3.connect(f'{Path(db_path).resolve().as_uri()}?mode=ro', uri=True)
     db.row_factory = sqlite3.Row
@@ -190,7 +204,7 @@ def export_data(db_path, config, now=None, variant=None):
                     or not 0 < q.outbound_minutes <= config.max_direction_minutes
                     or not 0 < q.inbound_minutes <= config.max_direction_minutes):
                 continue
-            key = hashlib.sha256(f'{q.origin}|{q.departure}|{q.return_date}|{q.category}'.encode()).hexdigest()[:16]
+            key = hashlib.sha256(f'{q.origin}|{config.destination}|{q.departure}|{q.return_date}|{q.category}'.encode()).hexdigest()[:16]
             if variant:
                 key = variant + ':tariff-v1:' + key
             result['histories'].setdefault(key, []).append(dict(at=observed_at, price=q.price))
@@ -198,7 +212,8 @@ def export_data(db_path, config, now=None, variant=None):
             # are exported. Research URLs are rebuilt, never trusted from state.
             item = {k: getattr(q, k) for k in ('origin', 'departure', 'return_date', 'category',
                     'price', 'outbound_minutes', 'inbound_minutes', 'outbound_stops', 'inbound_stops', 'airlines')}
-            item.update(id=key, days=days, at=observed_at, link=search_link(q, config.destination, config.travel_class, config.adults))
+            item.update(id=key, destination=config.destination, days=days, at=observed_at,
+                        link=search_link(q, config.destination, config.travel_class, config.adults))
             item['schedule'] = public_schedule(q)
             item['layovers'] = public_layovers(q)
             item['itinerary_id'] = q.itinerary_id if isinstance(q.itinerary_id,str) and re.fullmatch(r'[a-f0-9]{64}',q.itinerary_id) else None
@@ -253,10 +268,36 @@ def public_layovers(quote):
     return result
 
 
+def merged(views, trip):
+    """One view of a trip from its destinations' views; each destination is searched on its own."""
+    if len(views) == 1:
+        return views[0]
+    result = dict(views[0], config=public_config(trip), offers=[], histories={})
+    for view in views:
+        result['offers'] += view['offers']
+        result['histories'].update(view['histories'])
+    result['offers'].sort(key=lambda q: (q['price'], q['origin'], q['destination'], q['departure']))
+    times = [view['offers_as_of'] for view in views if view['offers_as_of']]
+    result['offers_as_of'] = max(times) if times else None
+    scans = [view['scan'] for view in views if view['scan']]
+    if scans:
+        statuses = {scan['status'] for scan in scans}
+        status = next((s for s in ('partial', 'running') if s in statuses), 'expired' if statuses == {'expired'} else 'ok')
+        result['scan'] = dict(at=max(scan['at'] for scan in scans), status=status,
+                              **{key: sum(scan[key] for scan in scans)
+                                 for key in ('batches_ok', 'batches_planned', 'verified', 'issues')})
+    bases = [view['base_at'] for view in views if view.get('base_at')]
+    if bases or 'base_at' in result:
+        result['base_at'] = max(bases) if bases else None
+    return result
+
+
 def trip_data(db_path, config, now):
     """One trip's offers, histories, baggage views and page texts for the dashboard."""
-    data = export_data(db_path, config, now)
-    data['baggage_profiles'] = {variant: export_data(db_path, config, now, variant) for variant in PROFILES}
+    searches = config.searches()
+    data = merged([export_data(db_path, search, now) for search in searches], config)
+    data['baggage_profiles'] = {variant: merged([export_data(db_path, search, now, variant) for search in searches], config)
+                                for variant in PROFILES}
     for view in (data, *data['baggage_profiles'].values()):
         del view['version'], view['generated_at']
     # Plain texts only; the browser builds the route markup itself.

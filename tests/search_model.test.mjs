@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {searchAirports,searchAirlines,validateTrips,timeWindows,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
+import {searchAirports,searchAirlines,validateTrips,timeWindows,restartsHistory,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
   tripIds,tripErrors,settingsJson,settingsChanges,MAX_URL,distanceKm,niceEuro,suggestPrices,observedPrices,alertAmounts,MIN_PRICES} from '../website/search-model.mjs';
 
 const table=JSON.parse(readFileSync(new URL('../tracker/airports.json',import.meta.url),'utf8'));
@@ -9,7 +9,7 @@ const airlines=JSON.parse(readFileSync(new URL('../tracker/airlines.json',import
 const file=JSON.parse(readFileSync(new URL('../config.json',import.meta.url),'utf8'));
 const shared=['pending_ttl_hours','max_http_attempts_per_run','max_run_seconds','http_timeout_seconds','http_attempts','request_interval_seconds','max_parallel_requests'];
 const main={...file,latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],origin_targets:{},display_names:{},id:'main'};
-const meta={trips:[main],primary_trip:'main',shared_fields:shared,max_trips:5,airlines,
+const meta={trips:[main],primary_trip:'main',shared_fields:shared,max_trips:5,max_destinations:5,airlines,
   marker:'<!-- flightwatch-search-settings -->',repository:'Fabiano225/flight-tracker',
   labels:{destination:'Destination',origins:'Departure airports',max_stops:'Max. stops per direction',max_http_attempts_per_run:'Request budget per run',
     good_deal_layover_eur:'Price target, with stops (€)',primary_trip:'Shown first on the website',trips:'Trips'},
@@ -250,4 +250,20 @@ test('flight time windows are checked and shown in plain words',()=>{
   assert.equal(shownValue('flight_times',{return_arrival:[6,24],outbound_departure:[8,22]},meta),'outbound departs 08:00–22:00; return lands 06:00–24:00');
   assert.deepEqual(timeWindows,['outbound_departure','outbound_arrival','return_departure','return_arrival']);
   assert.ok(!('flight_times' in settingsJson(meta,[{id:'main',config:main}],0).trips[0]));
+});
+test('several destinations: checked, counted in the estimate and keeping their histories',()=>{
+  const errors=c=>tripErrors(config(c),meta,table,today).errors;
+  assert.deepEqual(errors({more_destinations:['HKT','CNX']}),{});
+  for(const more_destinations of [['BKK'],['HKT','HKT'],['FRA'],['XQZ'],['HKT','CNX','USM','KBV','DPS']])
+    assert.ok(errors({more_destinations}).destination,JSON.stringify(more_destinations));
+  const one=requestEstimate(main,today), three=requestEstimate(config({more_destinations:['HKT','CNX']}),today);
+  assert.equal(three.calendar,3*one.calendar);
+  assert.equal(three.verification,3*one.verification);
+  assert.equal(restartsHistory(main,config({more_destinations:['HKT']})),false);
+  assert.equal(restartsHistory(config({more_destinations:['HKT']}),config({destination:'HKT',more_destinations:['BKK']})),false);
+  assert.equal(restartsHistory(main,config({destination:'HKT'})),true);
+  assert.equal(restartsHistory(main,config({travel_class:'business'})),true);
+  assert.equal(shownValue('more_destinations',['HKT','CNX'],meta),'HKT, CNX');
+  assert.ok(!('more_destinations' in settingsJson(meta,[{id:'main',config:main}],0).trips[0]));
+  assert.match(issueTitle({trips:[{...config({more_destinations:['HKT']})}]}),/→ BKK, HKT$/);
 });

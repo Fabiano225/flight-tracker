@@ -1,6 +1,7 @@
 export function filteredOffers(offers, filters) {
   const selectedAirlines=Array.isArray(filters.airlines)?filters.airlines:[];
   return offers.filter(q => (!filters.origin || q.origin === filters.origin)
+    && (!filters.destination || q.destination === filters.destination)
     && (!filters.category || q.category === filters.category)
     && (!filters.departure || q.departure === filters.departure)
     && (!filters.days || q.days === Number(filters.days))
@@ -37,8 +38,9 @@ export function airlineChoices(offers, names={}) {
 
 export const favoritesStorageKey = 'flightwatch:flight-tracker:favorites:v1';
 // Track the same comparison as the chart, not a price/vendor that can change.
+// An offer names its own destination (trips can have several); `destination` is the fallback.
 export function favoriteKey(offer, destination, profile = 'base') {
-  return JSON.stringify([destination, offer.origin, offer.departure, offer.return_date, offer.category, profile]);
+  return JSON.stringify([offer.destination || destination, offer.origin, offer.departure, offer.return_date, offer.category, profile]);
 }
 function validFavoriteKey(key) {
   try {
@@ -78,7 +80,7 @@ export function parseFavorite(key) {
 // departure has passed, or its airport, dates or trip length are no longer searched.
 export function favoriteExpired(fav, config, today) {
   const days=(Date.parse(fav.return_date)-Date.parse(fav.departure))/86400000;
-  return fav.destination!==config.destination || !config.origins.includes(fav.origin)
+  return !(config.destinations || [config.destination]).includes(fav.destination) || !config.origins.includes(fav.origin)
     || fav.departure<=today || fav.departure<config.departure_start || fav.departure>config.departure_end
     || days<config.min_trip_days || days>config.max_trip_days
     || Boolean(config.latest_return) && fav.return_date>config.latest_return;
@@ -155,7 +157,7 @@ export function baggageView(root, profile) {
 }
 export function matchingBase(offer, root, view) {
   if(!offer.itinerary_id || !view.base_at)return null;
-  return root.offers.find(q=>q.itinerary_id===offer.itinerary_id && q.origin===offer.origin
+  return root.offers.find(q=>q.itinerary_id===offer.itinerary_id && q.origin===offer.origin && q.destination===offer.destination
     && q.departure===offer.departure && q.return_date===offer.return_date && q.category===offer.category
     && q.at===view.base_at) || null;
 }

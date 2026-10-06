@@ -167,7 +167,8 @@ function renderSummary() {
   for(const type of ['layover','nonstop']) {
     const q=data.offers.filter(q=>q.category===type).sort((a,b)=>a.price-b.price)[0];
     $('best-'+type).textContent=q?euro(q.price):'—';
-    $('best-'+type+'-info').textContent=q?`from ${q.origin} · ${q.days} days · ${day(q.departure)}`:'No checked offer in the latest prices';
+    const route=(data.config.destinations||[]).length>1?`${q?.origin} → ${q?.destination}`:`from ${q?.origin}`;
+    $('best-'+type+'-info').textContent=q?`${route} · ${q.days} days · ${day(q.departure)}`:'No checked offer in the latest prices';
   }
   const c=data.config;
   const perAirport=Object.keys(c.origin_targets||{}).length>0;
@@ -195,7 +196,8 @@ function renderOffers() {
   if((filters.departs||filters.arrives) && data.offers.length)$('empty').textContent='No offers in these flight times. The filter applies to both flights in local time; offers checked before times were recorded have none and are hidden.';
   if(filters.favorites)$('empty').textContent=favorites.size?'No available favorites for these filters and this baggage choice. Your saved selection is kept; missing offers are not current prices.':'No favorites yet. Turn off “Favorites only” and save offers with the star.';
   const select=$('history-select');select.replaceChildren();
-  offers.forEach(q=>{const o=node('option',`${q.origin} · ${q.category==='nonstop'?'Non-stop':'With stops'} · ${day(q.departure)}–${day(q.return_date)} · ${q.days} days`);o.value=q.id;select.append(o);});
+  const several=(data.config.destinations||[]).length>1;
+  offers.forEach(q=>{const o=node('option',`${several?`${q.origin} → ${q.destination}`:q.origin} · ${q.category==='nonstop'?'Non-stop':'With stops'} · ${day(q.departure)}–${day(q.return_date)} · ${q.days} days`);o.value=q.id;select.append(o);});
   if(!offers.some(q=>q.id===selectedId))selectedId=offers[0]?.id;
   select.value=selectedId||'';select.disabled=!offers.length;
   for(const q of offers) {
@@ -204,9 +206,9 @@ function renderOffers() {
     const route=node('td'),routeTitle=node('div',undefined,'route-title'),key=favoriteKey(q,data.config.destination,profile),marked=favorites.has(key);
     const star=node('button',marked?'★':'☆','favorite-button');star.type='button';star.dataset.favoriteKey=key;
     star.setAttribute('aria-pressed',String(marked));
-    star.setAttribute('aria-label',`${marked?'Remove favorite':'Save as favorite'}: ${q.origin} to ${data.config.destination}, ${q.departure} to ${q.return_date}, ${category(q)}, ${baggageLabels[profile]}`);
+    star.setAttribute('aria-label',`${marked?'Remove favorite':'Save as favorite'}: ${q.origin} to ${q.destination||data.config.destination}, ${q.departure} to ${q.return_date}, ${category(q)}, ${baggageLabels[profile]}`);
     star.title=marked?'Remove favorite':'Save as favorite';star.addEventListener('click',()=>toggleFavorite(key));
-    routeTitle.append(node('strong',`${q.origin} → ${data.config.destination}`),star);
+    routeTitle.append(node('strong',`${q.origin} → ${q.destination||data.config.destination}`),star);
     route.append(routeTitle,node('small',`${category(q)} · ${q.airlines}`));
     const dates=node('td');dates.append(node('strong',`${day(q.departure)} – ${day(q.return_date)}`),node('small',`${q.days} days · ${q.departure.slice(0,4)}`));
     const flights=flightsCell(q);
@@ -276,7 +278,7 @@ function renderSwitcher() {
   const box=$('trip-switcher');box.replaceChildren();box.hidden=site.trips.length<2;
   for(const trip of box.hidden?[]:site.trips) {
     const link=node('a',undefined,'trip-tab');link.href=tripHref(site,trip.id);
-    link.append(node('strong',trip.page.city),node('small',`${trip.page.code} · ${trip.page.trip_dates}`));
+    link.append(node('strong',trip.page.city),node('small',`${trip.page.route_codes||trip.page.code} · ${trip.page.trip_dates}`));
     if(trip.id===tripId)link.setAttribute('aria-current','page');
     link.addEventListener('click',event=>{
       if(event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)return;
@@ -296,7 +298,12 @@ function showTrip(wanted) {
     $('filters').reset();selectedAirlines.clear();airlineMode='include';selectedId=null;
   }
   applyPage(trip);renderSwitcher();pruneExpiredFavorites();
-  fillSelect('origin',trip.config.origins,v=>trip.places?.[v]?.city&&trip.places[v].city!==v?`${trip.places[v].city} (${v})`:v);
+  const place=v=>trip.places?.[v]?.city&&trip.places[v].city!==v?`${trip.places[v].city} (${v})`:v;
+  fillSelect('origin',trip.config.origins,place);
+  // The destination filter appears for trips with several destinations.
+  const destinations=trip.config.destinations||[trip.config.destination];
+  fillSelect('destination-filter',destinations,place);
+  $('destination-filter').closest('label').hidden=destinations.length<2;
   fillSelect('days',Array.from({length:trip.config.max_trip_days-trip.config.min_trip_days+1},(_,i)=>trip.config.min_trip_days+i),v=>`${v} days`);
   activateBaggage();
   document.documentElement.removeAttribute('data-trip-loading');
