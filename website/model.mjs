@@ -165,3 +165,12 @@ export function chooseTrip(site, wanted) {
 export function tripHref(site, id, page='./') {
   return id===site.primary_trip?page:`${page}?trip=${encodeURIComponent(id)}`;
 }
+// Both directions of an offer; with the local times at each airport when the search
+// had them. dayShift counts calendar days from departure to arrival (+1: next day).
+export function flightLegs(offer) {
+  const times=Array.isArray(offer.schedule)&&offer.schedule.length===4&&offer.schedule.every(t=>/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(t))?offer.schedule:null;
+  const dayNumber=t=>Date.parse(t.slice(0,10)+'T00:00:00Z')/864e5;
+  return [['Out',0,offer.outbound_minutes,offer.outbound_stops],['Back',2,offer.inbound_minutes,offer.inbound_stops]].map(([label,i,minutes,stops])=>({
+    label,minutes,stops,
+    ...(times?{departs:times[i].slice(11),arrives:times[i+1].slice(11),dayShift:dayNumber(times[i+1])-dayNumber(times[i])}:{})}));
+}

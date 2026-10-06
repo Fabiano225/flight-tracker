@@ -18,8 +18,9 @@ trips can be tracked at once.
 
 ## What you get
 
-- **A dashboard** with the cheapest checked flights, filters for airport, dates, trip
-  length, stops and airlines, and a price-history chart for every flight comparison.
+- **A dashboard** with the cheapest checked flights and their departure and arrival
+  times, filters for airport, dates, trip length, stops and airlines, and a
+  price-history chart for every flight comparison.
 - **Price alerts** when a fare drops, rises, reaches your price target or hits a new
   low, plus a short "no change" note after searches without news.
 - **Flexible dates:** every departure day in your window is combined with every trip
@@ -44,6 +45,9 @@ trips can be tracked at once.
 
 - **Trips:** with several trips, a bar at the top switches between them. Each trip has
   its own link, e.g. `…/flight-tracker/?trip=ams`.
+- **Flight times:** each offer shows when the outbound and return flights leave and
+  land, in the local time of each airport (*+1* means the next day), with travel time
+  and stops.
 - **Filters:** departure airport, connection type, outbound day, trip length and
   airlines (show only or hide selected airlines).
 - **Price history:** pick a flight to see every checked price, your price target and

@@ -1,10 +1,34 @@
-import {targetFor, filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref} from './model.mjs';
+import {targetFor, filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref, flightLegs} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const day = s => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'Europe/Berlin'}).format(new Date(s+'T12:00:00Z'));
 const when = s => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'}).format(new Date(s));
 const category = q => q.category==='nonstop' ? 'Non-stop · both directions' : 'With stops';
 const hours = m => `${Math.floor(m/60)} h ${String(m%60).padStart(2,'0')}`;
+const stopsText = n => n===0?'Non-stop':`${n} stop${n===1?'':'s'}`;
+const shiftText = n => `${n>0?'+':'−'}${Math.abs(n)}`;
+// One line per direction: departure → arrival (local times), then travel time and stops.
+function flightsCell(q) {
+  const cell=node('td'),legs=node('div',undefined,'legs');
+  for(const leg of flightLegs(q)) {
+    const row=node('div',undefined,'leg'),time=node('span',undefined,'leg-time');
+    if(leg.departs) {
+      time.append(node('strong',leg.departs),node('span','→','leg-arrow'),node('strong',leg.arrives));
+      if(leg.dayShift) {
+        const shift=node('sup',shiftText(leg.dayShift),'leg-shift');shift.setAttribute('aria-hidden','true');
+        shift.title=`Arrives ${Math.abs(leg.dayShift)} day${Math.abs(leg.dayShift)===1?'':'s'} ${leg.dayShift>0?'later':'earlier'}`;
+        time.append(shift,node('span',` (${shift.title.toLowerCase()})`,'sr-only'));
+      }
+      row.append(node('span',leg.label,'leg-label'),time,node('small',`${hours(leg.minutes)} · ${stopsText(leg.stops)}`,'leg-meta'));
+    } else {
+      time.append(node('strong',hours(leg.minutes)));
+      row.append(node('span',leg.label,'leg-label'),time,node('small',stopsText(leg.stops),'leg-meta'));
+    }
+    legs.append(row);
+  }
+  cell.append(legs);
+  return cell;
+}
 const node = (tag, text, cls) => {const n=document.createElement(tag); if(text!==undefined)n.textContent=text; if(cls)n.className=cls; return n;};
 const svgNode = (tag, attrs, text) => {const n=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));if(text!==undefined)n.textContent=text;return n;};
 let site, data, rootData, selectedId, tripId, tripNotice='';
@@ -167,7 +191,7 @@ function renderOffers() {
     routeTitle.append(node('strong',`${q.origin} → ${data.config.destination}`),star);
     route.append(routeTitle,node('small',`${category(q)} · ${q.airlines}`));
     const dates=node('td');dates.append(node('strong',`${day(q.departure)} – ${day(q.return_date)}`),node('small',`${q.days} days · ${q.departure.slice(0,4)}`));
-    const duration=node('td');duration.append(node('strong',`${hours(q.outbound_minutes)} / ${hours(q.inbound_minutes)}`),node('small',`Out / back · stops ${q.outbound_stops}/${q.inbound_stops}`));
+    const flights=flightsCell(q);
     const price=node('td'),status=priceStatus(c);price.append(node('strong',euro(q.price),'price'),node('div',status.main,`delta ${status.tone}`));
     if(status.detail)price.append(node('small',status.detail,'delta-detail'));
     price.append(node('small',baggageDescription(q.baggage,'cabin'),'baggage-detail'));
@@ -190,7 +214,7 @@ function renderOffers() {
     const actionCell=node('td'),actions=node('div',undefined,'actions'),button=node('button','History','chart-button');button.type='button';button.setAttribute('aria-label',`Price history ${q.origin}, ${q.departure} to ${q.return_date}, ${q.category==='nonstop'?'non-stop':'with stops'}`);
     button.addEventListener('click',()=>{selectedId=q.id;select.value=q.id;renderChart();$('history').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});select.focus({preventScroll:true});});actions.append(button);
     const url=safeFlightLink(q.link);if(url){const link=node('a','Find flight ↗','book-link');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.setAttribute('aria-label',`Find flight ${q.origin}, ${q.departure} on Google Flights`);actions.append(link);}
-    actionCell.append(actions);row.append(route,dates,duration,price,verdict,actionCell);body.append(row);
+    actionCell.append(actions);row.append(route,dates,flights,price,verdict,actionCell);body.append(row);
   }
   renderChart();
 }

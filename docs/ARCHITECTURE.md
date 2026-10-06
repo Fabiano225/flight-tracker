@@ -52,7 +52,11 @@ and pending digests are validated against their own trip's window. Health messag
 aggregated per run, and pruning runs once with the longest comparison period.
 
 The dashboard's `data.json` (version 2) lists the trips primary first; each carries its
-configuration, page texts, offers, histories and baggage views. `index.html` is
+configuration, page texts, offers, histories and baggage views. An offer's `schedule`
+holds the local departure and arrival times of both directions (first departure, last
+arrival), taken from the checked itinerary; it is `null` for quotes stored before times
+were recorded or when the source omits them, and the table then shows travel times
+only. `index.html` is
 prerendered for the primary trip; `app.js` replaces the texts marked `data-page` when
 another trip is chosen, and `trip.js` hides them before the first paint while a
 `?trip=` link loads. `search-config.json` (version 2) gives the form every trip, the
