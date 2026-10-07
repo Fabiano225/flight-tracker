@@ -5,31 +5,33 @@
 [![Tests](https://github.com/Fabiano225/flight-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/Fabiano225/flight-tracker/actions/workflows/tests.yml)
 [![Track flights](https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml/badge.svg)](https://github.com/Fabiano225/flight-tracker/actions/workflows/track-flights.yml)
 
-Flightwatch watches round-trip fares for flexible travel dates, keeps a real price
+Flightwatch watches flight prices for flexible travel dates, keeps a real price
 history and tells you on Discord or Telegram when a price is worth a look. It runs
 entirely on GitHub: no server, no paid flight API, no account to sign up for.
 
 Right now it tracks flights from **Düsseldorf, Frankfurt and Amsterdam to Bangkok**
-in October 2026. The trip can be changed on the website at any time, and up to five
-trips can be tracked at once.
+in October 2026. The search can be changed on the website at any time: up to five
+trips, each with up to five destinations, for 1–9 travellers, as round trips or open
+jaw (back from another airport).
 
 > A personal travel project. Prices come from Google Flights' public (unofficial)
 > search, which can change without notice. Always check the fare before booking.
 
 ## What you get
 
-- **A dashboard** with the cheapest checked flights, their departure and arrival
-  times and connections, the cheapest price per airport, a price calendar, a 7-day
-  trend, filters for airport, destination, dates, trip length, stops, flight times and
-  airlines, and a price-history chart for every flight comparison.
+- **A dashboard** with the cheapest checked flights: departure and arrival times,
+  connections and waiting times, a 7-day trend per flight, the cheapest price per
+  airport, a price calendar, a price-history chart and filters for everything that
+  matters.
 - **Price alerts** when a fare drops, rises, reaches your price target or hits a new
-  low, plus a short "no change" note after searches without news.
-- **Flexible dates:** every departure day in your window is combined with every trip
-  length you allow (for example 14–21 days).
-- **Several destinations and travellers:** one trip can compare up to five destinations
-  (e.g. Bangkok, Phuket and Chiang Mai) for 1–9 travellers.
+  low, with flight times and connections, plus a short "no change" note after searches
+  without news.
+- **Flexible trips:** every departure day in your window is combined with every trip
+  length you allow (for example 14–21 days). A trip can compare several destinations
+  (e.g. Bangkok, Phuket and Chiang Mai), fly back from another airport, limit flight
+  times and count several travellers.
 - **Fair comparisons:** non-stop and connecting flights are kept apart, overly long
-  journeys are filtered out, and only actually checked round trips count.
+  journeys are filtered out, and only actually checked trips count.
 - **Baggage views** that show fares whose booking offer includes a cabin bag, a
   checked bag or both.
 - **Favorites** saved in your browser, **light/dark mode**, and a layout that works on
@@ -37,32 +39,34 @@ trips can be tracked at once.
 
 ## How it works
 
-1. Four times a day a GitHub Actions run searches every date combination.
-2. The most promising flights are checked in detail (real round trip, dates, stops,
-   travel time).
+1. Four times a day a GitHub Actions run searches every date combination of every
+   trip and destination.
+2. The most promising flights are checked in detail (real itinerary, dates, stops,
+   flight times, travel time).
 3. Prices are stored and compared with the last 30 days.
 4. If something changed meaningfully, you get a message; the dashboard updates a few
    minutes later.
+5. If GitHub skips a scheduled run, a check three hours later starts it.
 
 ## The dashboard
 
 - **Trips:** with several trips, a bar at the top switches between them. Each trip has
   its own link, e.g. `…/flight-tracker/?trip=ams`.
-- **Flight times:** each offer shows when the outbound and return flights leave and
-  land, in the local time of each airport (*+1* means the next day), with travel time
-  and connections, e.g. "via DOH 1 h 55". Waits under 1 hour or of 6 hours and more are
-  marked.
+- **Offers:** each checked flight shows when the outbound and return flights leave and
+  land (local time at each airport, *+1* means the next day), travel time and
+  connections, e.g. "via DOH 1 h 55". Waits under 1 hour or of 6 hours and more are
+  marked. With several travellers, prices are per person and the total is shown too.
+- **7-day trend:** each offer says how its price moved against the earliest check of
+  the last week. It describes the past; it is not a forecast.
 - **Cheapest per airport:** a chip per departure airport shows its cheapest offer;
   click one to see only that airport.
 - **Filters:** departure airport, destination (for trips with several), connection
   type, outbound day, trip length, departure and arrival time, and airlines (show only
   or hide selected airlines).
 - **Price calendar:** the cheapest price the date search found for every outbound day
-  and trip length, coloured from cheaper to pricier. These prices are indicative (the
-  return flight is not chosen yet); days with a checked offer can be clicked.
-- **7-day trend:** each offer says how its price moved against the earliest check of
-  the last week. It describes the past; it is not a forecast.
-- **Several travellers:** prices are per person; the dashboard also shows the total.
+  and trip length, coloured in five steps from cheaper to pricier. These prices are
+  indicative because the return flight is not chosen yet; days with a checked offer
+  can be clicked.
 - **Price history:** pick a flight to see every checked price, your price target and
   the lowest price of the comparison period.
 - **Baggage:** choose *Base price*, *1 cabin bag*, *1 checked bag* or both. Baggage views
@@ -76,7 +80,10 @@ The page clearly says when a search was incomplete or the data is older than 12 
 
 ## Price alerts
 
-Alerts go to a Discord channel (or a Telegram chat) and name their trip in the title.
+Alerts go to a Discord channel (or a Telegram chat) and name their destination in the
+title. Each flight in an alert lists its dates, price (per person, plus the total with
+several travellers), flight times, connections and a link to search it on Google
+Flights.
 
 | Message | Meaning |
 |---|---|
@@ -94,31 +101,27 @@ treated as a price change.
 
 ## Search settings (website)
 
-Open **Change search** on the dashboard to change what is tracked: departure airports,
-destinations, a return airport, travellers, travel dates, trip length, cabin, stops, airlines, flight
-times, maximum travel time, price targets and when to alert. Airports can be searched by city, airport name or
-code (German names such as "München" work too).
+Open **Change search** on the dashboard to change what is tracked. Airports can be
+searched by city, airport name or code (German names such as "München" work too).
 
 - **Several trips:** use **+ Add trip** for up to five trips, e.g. Bangkok in October
   and a weekend in Amsterdam. Each trip has its own price targets, alerts and history;
   choose which one the website shows first.
-- **Several destinations:** add up to five destinations to a trip. Each is searched on
-  its own, with its own price history and alerts, and costs its own requests; the
-  dashboard shows them together with a destination filter.
-- **Open jaw:** fly out to the destination and back from another airport, e.g. to
-  Bangkok and back from Phuket (**Return flight from**). Google searches these as
-  multi-city trips, which can be slower or fail more often than round trips; the
-  dashboard and alerts name the return airport. Changing it starts a new price history.
-- **Travellers:** 1–9 adults. Google searches seats for all of them; prices and price
-  targets stay per person. Changing it starts a new price history.
+- **Route:** departure airports and up to five destinations per trip. Each destination
+  is searched on its own, with its own price history and alerts, and costs its own
+  requests; the dashboard shows them together with a destination filter.
+- **Open jaw (return flight from):** fly out to the destination and back from another
+  airport, e.g. to Bangkok and back from Phuket. See the note below.
+- **Dates:** an earliest and latest departure day and the trip length, or a
+  **Return date** by which you must be back. With a return date, each departure day is
+  only combined with the lengths that return in time (from 20 Oct up to 19 days, from
+  23 Oct up to 16 days for a return by 8 Nov).
+- **Flights:** travellers (1–9 adults), cabin, maximum stops, maximum travel time per
+  direction, airlines to include or exclude, separate tickets and bags in the base
+  search.
 - **Flight times:** limit when the outbound and return flights may leave and land
   (local time), e.g. not before 08:00 or no landing at night. Google then searches only
-  such flights, so alerts and history follow them. Changing them starts a new price
-  history.
-- **Trip length or return date:** limit trips by their longest length, or switch to
-  **Return date** to say when you must be back. Each departure day is then only
-  combined with the lengths that return in time (from 20 Oct up to 19 days, from
-  23 Oct up to 16 days for a return by 8 Nov).
+  such flights, so alerts and history follow them.
 - **Price targets per airport:** prices can differ a lot between departure airports
   (for Bangkok, Amsterdam is often well over €100 cheaper than Düsseldorf). Optionally
   give an airport its own target; alerts and the website then judge each flight by
@@ -127,13 +130,26 @@ code (German names such as "München" work too).
   airport from them (the price a quarter of them reached) and fills them in with one
   click. A new trip only gets a rough guide from the flight distance, which knows
   nothing about differences between airports.
-- **Request estimate:** the form shows how many searches a run needs. All trips share
-  one budget, so very wide date ranges or many trips are rejected before anything is
-  sent.
+- **Request estimate:** the form shows how many searches a run needs. All trips and
+  destinations share one budget, so very wide date ranges or too many destinations are
+  rejected before anything is sent.
 - **Applying:** the form opens a prefilled GitHub issue. Once you create it, a workflow
   checks the settings, saves them, replies in the issue and starts a new search. When
   that search has finished, the website shows the new settings with their first
   prices, usually after 5–15 minutes.
+
+Changing a destination, the return airport, travellers, cabin, bags, separate tickets,
+the travel time limit, flight times, airlines or stops starts a new price history for
+that trip; the old one stays stored. Adding or reordering destinations keeps the
+existing histories.
+
+> **Open jaw is experimental.** Google searches these trips as multi-city flights. The
+> search library warns that Google can answer such searches slowly or not at all, and
+> this could not be tested live yet. If it fails, the dashboard reports an incomplete
+> search and you get a "needs attention" message (at most once a day); no made-up
+> prices are shown. The "Find flight" link asks Google for the multi-city trip in words
+> and may open a plain search instead. Check the first results of such a trip, and use
+> round trips if they keep failing.
 
 Only issues from the repository owner are applied; anyone else's are closed
 automatically. Settings are stored on the `search-config` branch; deleting that
@@ -208,9 +224,15 @@ More on operation and troubleshooting: [DEPLOYMENT.md](DEPLOYMENT.md).
 - GitHub can start scheduled runs late or skip them. Three hours after each scheduled
   search, a check starts one if none was saved in the last 5 hours.
 - Google may limit or change its search; the tracker then reports an incomplete search
-  instead of guessing.
+  instead of guessing. Open-jaw (multi-city) searches are the most likely to fail (see
+  the note under Search settings).
 - Only a shortlist of flights is checked in detail, so a cheaper itinerary can be
-  missed.
+  missed. Calendar prices are indicative and can differ from checked prices.
+- With several travellers, Google prices the whole party; the tracker divides that
+  price by the number of travellers. Compare the total with the "Find flight" link
+  before booking.
+- Every extra destination multiplies the requests of its trip, so the request budget
+  limits how many dates and destinations fit into one run.
 - Prices are search results, not reservations, and can change before you book.
 
 ## For developers
@@ -240,5 +262,6 @@ workflow is running.
 History lives in a SQLite database on the `tracker-state` branch. Old observations are
 cleaned up automatically, so it stays small. The search uses the open-source
 [`fli`](https://github.com/punitarani/fli) client. Details on the data model, alerts,
-multi-trip runs and the website: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+trips, destinations and open-jaw searches, and the website:
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
