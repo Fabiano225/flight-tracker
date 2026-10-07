@@ -2,7 +2,7 @@
 // (tracker/config.py, scripts/search_settings.py); these checks give early feedback.
 
 // Settings that start a separate price history (tracker/config.py: Config.scope).
-export const scopeFields=['destination','adults','travel_class','max_direction_minutes','hide_separate_tickets','carry_on_bags','checked_bags',
+export const scopeFields=['destination','return_from','adults','travel_class','max_direction_minutes','hide_separate_tickets','carry_on_bags','checked_bags',
   'max_stops','airlines','airlines_exclude','flight_times'];
 export const priceFields=['good_deal_nonstop_eur','good_deal_layover_eur','drop_eur','realert_improvement_eur'];
 // Local-time windows [from hour, until hour) a trip can limit (tracker/config.py: TIME_WINDOWS).
@@ -97,6 +97,11 @@ export function tripErrors(config, meta, table, today) {
     else if(config.origins.includes(code))error('destination',`${code} cannot be both a departure airport and a destination.`);
   }
   if(new Set(destinations).size!==destinations.length)error('destination','Choose each destination once.');
+  if(config.return_from) {
+    if(!table.airports[config.return_from])error('return_from',`${config.return_from} is not supported by the flight search.`);
+    else if(config.origins.includes(config.return_from))error('return_from','The return flight cannot leave from a departure airport.');
+    else if(config.return_from===config.destination)error('return_from','Same as the destination: leave this empty for a round trip.');
+  }
   if(destinations.length>(meta.max_destinations||5))error('destination',`At most ${meta.max_destinations||5} destinations per trip.`);
   for(const field of ['departure_start','departure_end'])if(!isoDate(config[field]))error(field,'Enter a valid date.');
   if(!errors.departure_start && !errors.departure_end) {
@@ -190,6 +195,7 @@ export function shownValue(key, value, meta) {
   if(key==='latest_return')return value||'none';
   if(key==='origins')return value.join(', ');
   if(key==='more_destinations')return value.join(', ')||'none';
+  if(key==='return_from')return value||'the destination';
   if(key==='airlines')return value.join(', ')||'all';
   if(key==='airlines_exclude')return value.join(', ')||'none';
   if(key==='max_stops')return value===null?'any':value===0?'non-stop only':`up to ${value}`;
@@ -221,7 +227,8 @@ export function tripName(config, configs) {
 }
 
 // "BKK" or "BKK, HKT": all destinations of a trip.
-export const destinationList=config=>[config.destination,...(config.more_destinations||[])].join(', ');
+export const destinationList=config=>[config.destination,...(config.more_destinations||[])].join(', ')
+  +(config.return_from?` (back from ${config.return_from})`:'');
 // Whether a saved trip's price history starts over: no destination stays, or a
 // setting that defines comparable prices changes (each destination keeps its own).
 export function restartsHistory(saved, config) {
@@ -235,7 +242,7 @@ export function tripSummary(config) {
 }
 
 // Optional settings at these values are left out of the issue (as in config.json).
-const optional={more_destinations:[],latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],flight_times:{},origin_targets:{},display_names:{}};
+const optional={more_destinations:[],return_from:null,latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],flight_times:{},origin_targets:{},display_names:{}};
 
 // The issue's settings block: every trip in config.json field order, shared request settings once.
 export function settingsJson(meta, trips, primary) {

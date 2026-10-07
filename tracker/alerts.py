@@ -17,11 +17,19 @@ def travellers(adults):
     return "one adult" if adults == 1 else f"{adults} adults"
 
 
-def search_link(quote, destination, cabin="economy", adults=1):
-    # Compact research link, not a guaranteed booking offer or locked fare.
-    query = (f"Round trip flights {quote.origin} to {destination} {quote.departure} return {quote.return_date} "
-             f"{cabin} {travellers(adults)}")
+def search_query(origin, destination, departure, return_date, cabin="economy", adults=1, return_from=None):
+    """Compact research link, not a guaranteed booking offer or locked fare. An open-jaw
+    trip (return_from) is asked for as a multi-city trip."""
+    if return_from:
+        query = (f"Multi-city flights {origin} to {destination} {departure}, {return_from} to {origin} {return_date} "
+                 f"{cabin} {travellers(adults)}")
+    else:
+        query = f"Round trip flights {origin} to {destination} {departure} return {return_date} {cabin} {travellers(adults)}"
     return "https://www.google.com/travel/flights?" + urlencode({"q": query, "curr": "EUR", "hl": "en"})
+
+
+def search_link(quote, destination, cabin="economy", adults=1, return_from=None):
+    return search_query(quote.origin, destination, quote.departure, quote.return_date, cabin, adults, return_from)
 
 
 def diverse_take(items, limit, key):

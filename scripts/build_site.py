@@ -77,6 +77,8 @@ def page_values(config):
         route_origins=''.join(f'<span class="route-code">{html.escape(code)}</span>' for code in config.origins),
         trip_dates=date_range(config.departure_start, config.departure_end), trip_days=days,
         travellers='1 adult' if config.adults == 1 else f'{config.adults} adults',
+        trip_kind=(f"Back from {names[config.return_from]['city']} ({config.return_from})" if config.return_from
+                   else 'Round trip'),
         travel_class=CLASSES[config.travel_class],
         budget=('Per airport' if config.origin_targets else euro_text(config.good_deal_nonstop_eur)
                 if config.good_deal_nonstop_eur == config.good_deal_layover_eur else 'Separate targets'),
@@ -131,7 +133,7 @@ def instant(value):
 
 def public_config(config):
     values = {key: getattr(config, key) for key in (
-        'origins', 'destination', 'adults', 'departure_start', 'departure_end', 'min_trip_days',
+        'origins', 'destination', 'return_from', 'adults', 'departure_start', 'departure_end', 'min_trip_days',
         'max_trip_days', 'latest_return', 'max_direction_minutes', 'flight_times', 'good_deal_nonstop_eur',
         'good_deal_layover_eur', 'origin_targets', 'history_window_days', 'realert_improvement_eur')}
     return {**values, 'destinations': list(config.destinations)}
@@ -212,8 +214,8 @@ def export_data(db_path, config, now=None, variant=None):
             # are exported. Research URLs are rebuilt, never trusted from state.
             item = {k: getattr(q, k) for k in ('origin', 'departure', 'return_date', 'category',
                     'price', 'outbound_minutes', 'inbound_minutes', 'outbound_stops', 'inbound_stops', 'airlines')}
-            item.update(id=key, destination=config.destination, days=days, at=observed_at,
-                        link=search_link(q, config.destination, config.travel_class, config.adults))
+            item.update(id=key, destination=config.destination, return_from=config.return_from, days=days, at=observed_at,
+                        link=search_link(q, config.destination, config.travel_class, config.adults, config.return_from))
             item['schedule'] = public_schedule(q)
             item['layovers'] = public_layovers(q)
             item['itinerary_id'] = q.itinerary_id if isinstance(q.itinerary_id,str) and re.fullmatch(r'[a-f0-9]{64}',q.itinerary_id) else None

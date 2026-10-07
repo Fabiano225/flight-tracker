@@ -55,7 +55,7 @@ TRIP_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,19}")
 SHARED_FIELDS = ("pending_ttl_hours", "max_http_attempts_per_run", "max_run_seconds", "http_timeout_seconds",
                  "http_attempts", "request_interval_seconds", "max_parallel_requests")
 # Optional settings: config.json leaves them out while they have these values.
-OPTIONAL = {"more_destinations": (), "latest_return": None, "max_stops": None, "airlines": (), "airlines_exclude": (), "flight_times": {},
+OPTIONAL = {"more_destinations": (), "return_from": None, "latest_return": None, "max_stops": None, "airlines": (), "airlines_exclude": (), "flight_times": {},
             "origin_targets": {}, "display_names": {}, "id": MAIN_TRIP}
 TARGET_CATEGORIES = ("nonstop", "layover")
 # Local-time windows a search can limit, in the order of Quote.schedule.
@@ -69,6 +69,9 @@ class Config:
     # Further destinations of this trip. Each gets its own price history and messages;
     # the first destination keeps the trip's original history.
     more_destinations: tuple = ()
+    # Open jaw: the return flight leaves from this airport instead of the destination
+    # (a multi-city search). A destination equal to it is searched as a round trip.
+    return_from: str | None = None
     departure_start: str = "2026-10-14"
     departure_end: str = "2026-10-23"
     min_trip_days: int = 14
@@ -126,6 +129,11 @@ class Config:
                 raise ValueError("Use uppercase airport codes")
         if set(self.destinations) & set(self.origins):
             raise ValueError("Origin and destination must differ")
+        if self.return_from is not None:
+            if not isinstance(self.return_from, str) or not re.fullmatch(r"[A-Z]{3}", self.return_from):
+                raise ValueError("return_from must be an uppercase airport code or null")
+            if self.return_from in self.origins or self.return_from == self.destination:
+                raise ValueError("return_from must differ from the departure airports and the destination")
         start, end = date.fromisoformat(self.departure_start), date.fromisoformat(self.departure_end)
         if not 0 <= (end - start).days <= 365:
             raise ValueError("Departure window must span 1 to 366 dates")
@@ -217,6 +225,8 @@ class Config:
                 data[name] = sorted(getattr(self, name)) if name != "max_stops" else self.max_stops
         if self.flight_times:
             data["flight_times"] = {name: list(window) for name, window in self.flight_times.items()}
+        if self.return_from:
+            data["return_from"] = self.return_from
         # Further trips never share history or alerts with another trip, even to the same place.
         if self.id != MAIN_TRIP:
             data["trip"] = self.id
@@ -243,7 +253,9 @@ class Config:
     def searches(self):
         """One single-destination search per destination. The first has this trip's scope
         (more_destinations is not part of it), so its history continues."""
-        return tuple(replace(self, destination=code, more_destinations=()) for code in self.destinations)
+        return tuple(replace(self, destination=code, more_destinations=(),
+                             return_from=None if code == self.return_from else self.return_from)
+                     for code in self.destinations)
 
     def fits(self, departure, return_date):
         """Whether a departure/return date pair (YYYY-MM-DD) belongs to this trip's search."""

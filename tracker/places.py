@@ -29,7 +29,8 @@ def city(code, display_names=None):
 
 
 def places(config):
-    return {code: place(code, config.display_names) for code in (*config.origins, *config.destinations)}
+    codes = (*config.origins, *config.destinations, *([config.return_from] if config.return_from else []))
+    return {code: place(code, config.display_names) for code in codes}
 
 
 @lru_cache(maxsize=1)

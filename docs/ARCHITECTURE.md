@@ -43,6 +43,12 @@ direction (`outbound_departure`, `outbound_arrival`, `return_departure`,
 if its first departure and last arrival lie inside the exact windows (unknown times
 never do).
 
+`return_from` makes a trip open jaw: `FreeProvider.common` builds a multi-city search
+(origin → destination, return airport → origin) for the date grid, the itinerary checks
+and the booking offers, and `normalize_pairs` requires the return to leave from that
+airport. It is part of the scope when set; a destination equal to it is searched as an
+ordinary round trip. Research links ask Google for the multi-city trip in words.
+
 `adults` (1–9) is part of the scope. Google prices the whole party; calendar, itinerary
 and booking prices are divided per person (`per_person`), so targets, history and
 alerts stay per person, and messages and the dashboard add the party's total.

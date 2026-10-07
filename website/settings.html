@@ -62,6 +62,16 @@
           </div>
           <p class="field-error" id="destination-error"></p>
         </div>
+        <div class="picker-field" data-field="return_from">
+          <label for="return_from-input" class="field-label">Return flight from <small class="label-note">optional · open jaw</small></label>
+          <ul class="chips" id="return_from-chips" aria-label="Airport of the return flight"></ul>
+          <div class="combo">
+            <input id="return_from-input" type="text" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="return_from-list" aria-describedby="return_from-error return_from-hint" placeholder="Same as the destination – or add another airport">
+            <ul id="return_from-list" class="suggestions" role="listbox" aria-label="Airport suggestions" hidden></ul>
+          </div>
+          <p class="field-error" id="return_from-error"></p>
+          <p class="footnote" id="return_from-hint">For example out to Bangkok and back from Phuket. Google searches these as multi-city trips, which can be slower or fail more often than round trips. A destination equal to this airport is searched as a normal round trip. Changing it starts a new price history.</p>
+        </div>
       </fieldset>
 
       <fieldset class="settings-card">

@@ -95,7 +95,7 @@ treated as a price change.
 ## Search settings (website)
 
 Open **Change search** on the dashboard to change what is tracked: departure airports,
-destinations, travellers, travel dates, trip length, cabin, stops, airlines, flight
+destinations, a return airport, travellers, travel dates, trip length, cabin, stops, airlines, flight
 times, maximum travel time, price targets and when to alert. Airports can be searched by city, airport name or
 code (German names such as "München" work too).
 
@@ -105,6 +105,10 @@ code (German names such as "München" work too).
 - **Several destinations:** add up to five destinations to a trip. Each is searched on
   its own, with its own price history and alerts, and costs its own requests; the
   dashboard shows them together with a destination filter.
+- **Open jaw:** fly out to the destination and back from another airport, e.g. to
+  Bangkok and back from Phuket (**Return flight from**). Google searches these as
+  multi-city trips, which can be slower or fail more often than round trips; the
+  dashboard and alerts name the return airport. Changing it starts a new price history.
 - **Travellers:** 1–9 adults. Google searches seats for all of them; prices and price
   targets stay per person. Changing it starts a new price history.
 - **Flight times:** limit when the outbound and return flights may leave and land
