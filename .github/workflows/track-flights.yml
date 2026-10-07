@@ -10,7 +10,7 @@ on:
         default: false
 permissions:
   contents: write  # save the history on the tracker-state branch
-  actions: write   # start Publish dashboard after a search started by the settings form
+  actions: write   # start Publish dashboard after a search started by another workflow
 concurrency:
   group: flight-tracker-persistent-state
   cancel-in-progress: false
@@ -83,8 +83,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       # "Publish dashboard" starts by itself after scheduled and manual runs. Runs started
-      # by the settings workflow (with the workflow token) don't trigger it, so start it here.
-      - name: Publish the dashboard after a search started by the settings form
+      # by another workflow (settings form, catch-up) with the workflow token don't
+      # trigger it, so start it here.
+      - name: Publish the dashboard after a search started by another workflow
         if: always() && github.event_name == 'workflow_dispatch' && github.triggering_actor == 'github-actions[bot]'
         env:
           GH_TOKEN: ${{ github.token }}

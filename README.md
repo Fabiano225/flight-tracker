@@ -201,7 +201,8 @@ More on operation and troubleshooting: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Limitations
 
-- GitHub can start scheduled runs late or skip them.
+- GitHub can start scheduled runs late or skip them. Three hours after each scheduled
+  search, a check starts one if none was saved in the last 5 hours.
 - Google may limit or change its search; the tracker then reports an incomplete search
   instead of guessing.
 - Only a shortlist of flights is checked in detail, so a cheaper itinerary can be
@@ -226,6 +227,7 @@ workflow is running.
 |---|---|
 | `Track flights` | Searches, checks flights, saves the history and sends messages |
 | `Publish dashboard` | Builds the website from the saved data |
+| `Catch up missed searches` | Starts a search when GitHub skipped a scheduled one |
 | `Apply search settings` | Applies settings issues from the owner |
 | `Tests` | Offline tests; no secrets, no live searches |
 | `Check setup` | Checklist of what a copy still needs |

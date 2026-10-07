@@ -7,7 +7,9 @@ written for the repository maintainer; the user-facing overview is in
 ## Current production configuration
 
 - **Repository:** `Fabiano225/flight-tracker`
-- **Schedule:** 00:17, 06:17, 12:17 and 18:17 UTC
+- **Schedule:** 00:17, 06:17, 12:17 and 18:17 UTC; **Catch up missed searches** at 03:17,
+  09:17, 15:17 and 21:17 UTC starts a search when none was saved in the last 5 hours
+  and none is queued or running
 - **Search window:** departures 20–23 October 2026; 14–21-day trips
 - **Routes:** DUS/FRA/AMS → BKK, one adult, economy, EUR (as in `config.json`)
 - **Duration guard:** below 21 hours in each direction
@@ -145,9 +147,10 @@ changed.
 ### GitHub Pages dashboard
 
 Pages uses **GitHub Actions** as its publishing source. `Publish dashboard` runs
-after `Track flights` completes (including failed scans), on website/config changes,
-or on manual dispatch. GitHub doesn't start it after a `Track flights` run that the
-settings workflow started with its workflow token, so such a run starts it itself as
+after `Track flights` completes (including failed scans), on changes to the website,
+the tracker code or its airport and airline data, or on manual dispatch. GitHub doesn't
+start it after a `Track flights` run that another workflow (settings form, catch-up)
+started with its workflow token, so such a run starts it itself as
 its last step (this needs `actions: write`). It reads the latest trusted `main` and
 `tracker-state` branches, not workflow artifacts or pull-request code.
 
