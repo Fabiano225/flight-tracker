@@ -306,3 +306,5 @@ button.calendar-cell{cursor:pointer;width:100%}button.calendar-cell:hover{filter
   .calendar-table{display:table}.calendar-table thead{display:table-header-group}.calendar-table tbody{display:table-row-group}
   .calendar-table tr,:where([data-theme="dark"]) .calendar-table tr{display:table-row;border:0;border-radius:0;padding:0;margin:0;background:none}
   .calendar-table th,.calendar-table td{display:table-cell}}
+.label-note{font-weight:400;color:var(--muted);margin-left:6px;font-size:10px}
+[data-field="return_from"]{margin-top:18px}

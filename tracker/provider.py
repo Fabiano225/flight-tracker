@@ -9,7 +9,7 @@ from pathlib import Path
 import threading
 import time
 
-from .alerts import travellers
+from .alerts import search_query
 from .config import cents, per_person
 from .network import ServiceError, BudgetError, TransientSourceError
 
@@ -294,8 +294,14 @@ class FreeProvider:
 
     def common(self, origin, departure, return_date, profile):
         from fli.models import Airline, Airport, PassengerInfo, SeatType, MaxStops, BagsFilter, TimeRestrictions
-        from fli.core.builders import build_flight_segments
-        segments, trip = build_flight_segments(Airport[origin], Airport[self.config.destination], departure, return_date)
+        from fli.core.builders import build_flight_segments, build_multi_city_segments
+        if self.config.return_from:
+            # Open jaw: out to the destination, back from another airport.
+            segments, trip = build_multi_city_segments([
+                (Airport[origin], Airport[self.config.destination], departure),
+                (Airport[self.config.return_from], Airport[origin], return_date)])
+        else:
+            segments, trip = build_flight_segments(Airport[origin], Airport[self.config.destination], departure, return_date)
         # Google gets each window widened to whole hours (it may read "until 21" as 21:59);
         # normalize_pairs then keeps only flights inside the exact windows.
         for segment, direction in zip(segments, ("outbound", "return")):
@@ -359,10 +365,9 @@ class FreeProvider:
         session = getattr(flights, "_last_session_id", None)
         if pairs and isinstance(session, str) and session:
             self.searches[self.search_key(origin, departure, return_date, profile)] = (pairs, session)
-        return normalize_pairs(pairs or [], origin, departure, return_date, profile, self.config,
-            lambda pair: "https://www.google.com/travel/flights?" + urlencode({"q":
-                f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} {self.config.travel_class} {travellers(self.config.adults)}",
-                "curr": "EUR", "hl": "en"}))
+        link = search_query(origin, self.config.destination, departure, return_date, self.config.travel_class,
+                            self.config.adults, self.config.return_from)
+        return normalize_pairs(pairs or [], origin, departure, return_date, profile, self.config, lambda _: link)
 
     def baggage_offers(self, origin, departure, return_date, profile):
         """Inspect actual vendor offers, not prices from a requested bag filter."""
@@ -395,10 +400,9 @@ class FreeProvider:
                                        currency="EUR", language="en", country="DE") or []
             candidates = []
             for pair in pairs:
-                quotes = normalize_pairs([pair], origin, departure, return_date, profile, self.config,
-                    lambda _: "https://www.google.com/travel/flights?" + urlencode({"q":
-                        f"Round trip flights {origin} to {self.config.destination} {departure} return {return_date} economy {travellers(self.config.adults)}",
-                        "curr": "EUR", "hl": "en"}))
+                link = search_query(origin, self.config.destination, departure, return_date, "economy",
+                                    self.config.adults, self.config.return_from)
+                quotes = normalize_pairs([pair], origin, departure, return_date, profile, self.config, lambda _: link)
                 if quotes and quotes[0].itinerary_id:
                     candidates.append((quotes[0], pair))
             # Inspect one cheapest return per outbound first, rather than using
@@ -486,7 +490,7 @@ def normalize_pairs(pairs, origin, departure, return_date, profile, config, make
             continue
         if config.hide_separate_tickets and any(x.self_transfer is True for x in pair):
             continue
-        endpoints = [(origin, config.destination, departure), (config.destination, origin, return_date)]
+        endpoints = [(origin, config.destination, departure), (config.return_from or config.destination, origin, return_date)]
         if any(x.legs[0].departure_airport.name != src or x.legs[-1].arrival_airport.name != dst
                or x.legs[0].departure_datetime.date().isoformat() != day
                for x, (src, dst, day) in zip(pair, endpoints)):

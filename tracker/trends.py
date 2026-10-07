@@ -125,7 +125,8 @@ def block(quote, history, prior, config):
         title = "PRICE DROPPED" if quote.price < prior["price"] else "PRICE ROSE"
     category = "NON-STOP (both directions)" if quote.category == "nonstop" else "WITH STOPS"
     party = f" per person, {eur(quote.price * config.adults)} for {config.adults}" if config.adults > 1 else ""
-    lines = [f"{title} | {quote.origin}-{config.destination} | {category}",
+    route = f"{quote.origin}-{config.destination}" + (f", back {config.return_from}-{quote.origin}" if config.return_from else "")
+    lines = [f"{title} | {route} | {category}",
              f"{quote.departure} to {quote.return_date} | {eur(quote.price)}{party}"]
     if prior is not None:
         label = "Since alert " if same_dates else "Compared with the alerted alternative "
@@ -156,7 +157,7 @@ def block(quote, history, prior, config):
     if history["count"] < 3:
         lines.append("Little history: judged mainly against your price target.")
     lines.extend(flight_lines(quote))
-    lines.append(search_link(quote, config.destination, config.travel_class, config.adults))
+    lines.append(search_link(quote, config.destination, config.travel_class, config.adults, config.return_from))
     return "\n".join(lines)
 
 

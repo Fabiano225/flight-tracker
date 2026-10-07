@@ -31,6 +31,7 @@ MARKER = "<!-- flightwatch-search-settings -->"
 MAX_BODY = 20000
 LABELS = {
     "origins": "Departure airports", "destination": "Destination", "more_destinations": "More destinations",
+    "return_from": "Return flight from",
     "departure_start": "Earliest departure",
     "departure_end": "Latest departure", "min_trip_days": "Shortest trip (days)",
     "max_trip_days": "Longest trip (days)", "latest_return": "Latest return", "currency": "Currency", "adults": "Travellers",
@@ -50,8 +51,8 @@ LABELS = {
     "primary_trip": "Shown first on the website", "trips": "Trips",
 }
 # The settings of Config.scope, in words.
-SCOPE_WORDS = ("destination, travellers, cabin, bags, separate tickets, travel time limit, flight times, "
-               "airlines or stops")
+SCOPE_WORDS = ("destination, return airport, travellers, cabin, bags, separate tickets, travel time limit, "
+               "flight times, airlines or stops")
 CLASSES = {"economy": "Economy", "premium_economy": "Premium Economy", "business": "Business", "first_class": "First"}
 
 
@@ -83,7 +84,8 @@ def serialize(settings):
 
 
 def route(config, arrow="→"):
-    return f"{', '.join(config.origins)} {arrow} {', '.join(config.destinations)}"
+    back = f" (back from {config.return_from})" if config.return_from else ""
+    return f"{', '.join(config.origins)} {arrow} {', '.join(config.destinations)}{back}"
 
 
 def routes(settings, arrow="→"):
@@ -149,7 +151,7 @@ def normalize(settings):
     if isinstance(settings, Settings):
         return Settings(tuple(normalize(trip) for trip in settings.trips), settings.primary_trip)
     config = settings
-    codes = (*config.origins, *config.destinations)
+    codes = (*config.origins, *config.destinations, *([config.return_from] if config.return_from else []))
     names = {code: name for code, name in config.display_names.items()
              if code in codes and name != place(code)["city"]}
     # An airport's own price target equal to the trip's adds nothing.
@@ -184,7 +186,7 @@ def check(settings, today):
     trips = trips_of(settings)
     for trip in trips:
         label = "" if len(trips) == 1 else f"{trip_name(trip, trips)} trip: "
-        for code in (*trip.origins, *trip.destinations):
+        for code in (*trip.origins, *trip.destinations, *([trip.return_from] if trip.return_from else [])):
             if not supported(code):
                 raise Rejected(f"{label}The airport {code} is not supported by the flight search.")
         for code in (*trip.airlines, *trip.airlines_exclude):
@@ -223,6 +225,8 @@ def shown(name, value):
         return ", ".join(value)
     if name == "more_destinations":
         return ", ".join(value) or "none"
+    if name == "return_from":
+        return value or "the destination"
     if name in ("airlines", "airlines_exclude"):
         return ", ".join(value) or ("all" if name == "airlines" else "none")
     if name == "max_stops":

@@ -6,9 +6,8 @@ on:
       - 'website/**'
       - 'scripts/build_site.py'
       - 'config.json'
-      - 'tracker/config.py'
-      - 'tracker/places.py'
-      - 'tracker/airports.json'
+      # Airport and airline names and the tracker code the build uses.
+      - 'tracker/**'
       - 'scripts/search_settings.py'
       - '.github/workflows/pages.yml'
   workflow_run:

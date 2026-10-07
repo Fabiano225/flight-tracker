@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {searchAirports,searchAirlines,validateTrips,timeWindows,restartsHistory,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
+import {searchAirports,searchAirlines,validateTrips,timeWindows,restartsHistory,destinationList,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
   tripIds,tripErrors,settingsJson,settingsChanges,MAX_URL,distanceKm,niceEuro,suggestPrices,observedPrices,alertAmounts,MIN_PRICES} from '../website/search-model.mjs';
 
 const table=JSON.parse(readFileSync(new URL('../tracker/airports.json',import.meta.url),'utf8'));
@@ -266,4 +266,14 @@ test('several destinations: checked, counted in the estimate and keeping their h
   assert.equal(shownValue('more_destinations',['HKT','CNX'],meta),'HKT, CNX');
   assert.ok(!('more_destinations' in settingsJson(meta,[{id:'main',config:main}],0).trips[0]));
   assert.match(issueTitle({trips:[{...config({more_destinations:['HKT']})}]}),/→ BKK, HKT$/);
+});
+test('open jaw: a return airport is checked, named and starts a new history',()=>{
+  const errors=c=>tripErrors(config(c),meta,table,today).errors;
+  assert.deepEqual(errors({return_from:'HKT'}),{});
+  for(const return_from of ['BKK','FRA','XQZ'])assert.ok(errors({return_from}).return_from,return_from);
+  assert.equal(destinationList(config({return_from:'HKT',more_destinations:['CNX']})),'BKK, CNX (back from HKT)');
+  assert.equal(restartsHistory(main,config({return_from:'HKT'})),true);
+  assert.equal(shownValue('return_from',null,meta),'the destination');
+  assert.ok(!('return_from' in settingsJson(meta,[{id:'main',config:main}],0).trips[0]));
+  assert.equal(requestEstimate(config({return_from:'HKT'}),today).requests,requestEstimate(main,today).requests);
 });

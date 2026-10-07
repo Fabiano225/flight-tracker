@@ -266,7 +266,7 @@ function renderOffers() {
     star.setAttribute('aria-label',`${marked?'Remove favorite':'Save as favorite'}: ${q.origin} to ${q.destination||data.config.destination}, ${q.departure} to ${q.return_date}, ${category(q)}, ${baggageLabels[profile]}`);
     star.title=marked?'Remove favorite':'Save as favorite';star.addEventListener('click',()=>toggleFavorite(key));
     routeTitle.append(node('strong',`${q.origin} → ${q.destination||data.config.destination}`),star);
-    route.append(routeTitle,node('small',`${category(q)} · ${q.airlines}`));
+    route.append(routeTitle,node('small',`${q.return_from?`Back from ${q.return_from} · `:''}${category(q)} · ${q.airlines}`));
     const dates=node('td');dates.append(node('strong',`${day(q.departure)} – ${day(q.return_date)}`),node('small',`${q.days} days · ${q.departure.slice(0,4)}`));
     const flights=flightsCell(q);
     const price=node('td'),status=priceStatus(c);price.append(node('strong',euro(q.price),'price'));

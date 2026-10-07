@@ -1,0 +1,43 @@
+name: Catch up missed searches
+# GitHub sometimes starts scheduled runs late or skips them. Three hours after each
+# scheduled search this checks whether one was saved recently and, if not, starts it.
+on:
+  schedule:
+    - cron: '17 3,9,15,21 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write   # start Track flights
+jobs:
+  check:
+    if: vars.TRACKER_ENABLED != 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Start a search if the last one is more than 5 hours old
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for status in queued in_progress; do
+            busy=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/track-flights.yml/runs?status=$status&per_page=1" --jq .total_count)
+            if [ "$busy" != "0" ]; then
+              echo "::notice::A search is $status, so there is nothing to catch up."
+              exit 0
+            fi
+          done
+          # Every search saves the price history on the tracker-state branch.
+          if last=$(gh api "repos/$GITHUB_REPOSITORY/branches/tracker-state" --jq .commit.commit.committer.date 2>"$RUNNER_TEMP/error"); then
+            age=$(( $(date -u +%s) - $(date -u -d "$last" +%s) ))
+            if [ "$age" -lt $(( 5 * 3600 )) ]; then
+              echo "::notice::The last search was saved $(( age / 60 )) minutes ago, so there is nothing to catch up."
+              exit 0
+            fi
+            echo "::notice::The last search was saved $(( age / 3600 )) hours ago: GitHub probably skipped a scheduled run. Starting one."
+          elif grep -q "HTTP 404" "$RUNNER_TEMP/error"; then
+            echo "::notice::No search has been saved yet. Starting the first one."
+          else
+            cat "$RUNNER_TEMP/error"
+            exit 1
+          fi
+          gh workflow run track-flights.yml --repo "$GITHUB_REPOSITORY" --ref main

@@ -7,7 +7,7 @@ const node = (tag, text, cls) => {const n=document.createElement(tag); if(text!=
 const berlinToday = () => new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin'}).format(new Date());
 const shortDate = value => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z'));
 const numberValue = value => String(value).trim()==='' ? NaN : Number(value);
-const routeFields = ['origins','destination','more_destinations','departure_start','departure_end','min_trip_days','max_trip_days','latest_return'];
+const routeFields = ['origins','destination','more_destinations','return_from','departure_start','departure_end','min_trip_days','max_trip_days','latest_return'];
 const dayMs = 86400000;
 const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value+'T00:00:00Z'));
 const plusDays = (value, days) => new Date(Date.parse(value+'T00:00:00Z')+days*dayMs).toISOString().slice(0,10);
@@ -21,7 +21,7 @@ const suggestedFields=['good_deal_nonstop_eur','good_deal_layover_eur','realert_
 const euroText=value=>`€${value.toLocaleString('en-GB')}`;
 
 function cityOf(code) {return airportInfo(table,code)?.city || code;}
-function routeCodes() {return [...new Set([...state.origins,...state.destination].filter(Boolean))];}
+function routeCodes() {return [...new Set([...state.origins,...state.destination,...state.return_from].filter(Boolean))];}
 const configs = () => trips.map(trip=>trip.config);
 const primaryIndex = () => Math.max(0,trips.findIndex(trip=>trip.key===primaryKey));
 function tripLabel(trip) {
@@ -43,6 +43,8 @@ const pickers = {
     label:x=>`${x.city} (${x.code})`, detail:x=>[x.name,x.country].filter(Boolean).join(' · '),
     chip:code=>{const x=airportInfo(table,code);return x?`${x.city}${x.country?' · '+x.country:''}`:'unknown';}, name:cityOf},
 };
+// Open jaw: at most one airport; removing it flies back from the destination again.
+pickers.return_from = {...pickers.destination};
 pickers.airlines = {multiple:true, search:q=>searchAirlines(meta.airlines,q,30), code:x=>x.code,
   label:x=>`${x.name} (${x.code})`, detail:()=>'', chip:code=>meta.airlines[code]||'unknown', name:code=>meta.airlines[code]||code};
 pickers.airlines_exclude = pickers.airlines;
@@ -51,7 +53,8 @@ function selected(kind) {return state[kind];}
 
 // Show one trip in the form. Shared request settings are the same for every trip.
 function fill(config) {
-  state={origins:[...config.origins],destination:[config.destination,...(config.more_destinations||[])].filter(Boolean),airlines:[...config.airlines],
+  state={origins:[...config.origins],destination:[config.destination,...(config.more_destinations||[])].filter(Boolean),
+    return_from:config.return_from?[config.return_from]:[],airlines:[...config.airlines],
     airlines_exclude:[...config.airlines_exclude],names:{...config.display_names},
     targets:Object.fromEntries(Object.entries(config.origin_targets||{}).map(([code,own])=>
       [code,Object.fromEntries(Object.entries(own).map(([k,v])=>[k,String(v)]))]))};
@@ -80,6 +83,7 @@ function showTripEnd() {
 
 function collect() {
   const config={...trips[active].config,origins:[...state.origins],destination:state.destination[0]||'',more_destinations:state.destination.slice(1),
+    return_from:state.return_from[0]||null,
     airlines:[...state.airlines],airlines_exclude:[...state.airlines_exclude]};
   for(const name of ['departure_start','departure_end','travel_class'])config[name]=field(name).value;
   for(const name of numberFields)config[name]=numberValue(field(name).value);
@@ -209,7 +213,7 @@ function addTrip() {
   sync();
   // A new trip starts as a copy of the trip shown, without destination and names.
   const base=trips[active].config;
-  trips.push({key:nextKey++,id:null,config:{...structuredClone(base),destination:'',more_destinations:[],display_names:{},origin_targets:{}}});
+  trips.push({key:nextKey++,id:null,config:{...structuredClone(base),destination:'',more_destinations:[],return_from:null,display_names:{},origin_targets:{}}});
   active=trips.length-1;fill(trips[active].config);update();
   $('trip-note').textContent='New trip: settings copied from the trip you were editing. Choose a destination and check the price targets: the form shows a rough guide for them.';
   $('destination-input').focus();
@@ -236,6 +240,7 @@ function combo(kind) {
     if(kind==='destination' && state[kind].length>=meta.max_destinations){
       input.value='';close();$('destination-error').textContent=`At most ${meta.max_destinations} destinations per trip.`;return;
     }
+    if(kind==='return_from')state[kind]=[];  // One return airport; a new choice replaces it.
     if(picker.multiple){if(!state[kind].includes(code))state[kind].push(code);}
     else state[kind]=code;
     input.value='';close();renderChips();renderNames();update();input.focus();
