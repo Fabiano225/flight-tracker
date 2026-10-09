@@ -152,7 +152,7 @@ function showStatus() {
     if(!scan)messages.push('There is no search data for this baggage choice yet. No base price is used as a baggage price.');
     else if(data.base_at!==rootData.offers_as_of)messages.push('The baggage check belongs to a different base data set, so no direct price difference is shown.');
   }
-  if(!scan && $('baggage').value==='base')messages.push('No search has run for this trip yet. Searches run four times a day; prices appear about 10–40 minutes after one starts (see “View search runs” below).');
+  if(!scan && $('baggage').value==='base')messages.push('No search has run for this trip yet. Searches run about every 6 hours; prices appear a few minutes after one starts (see “View search runs” below).');
   if(data.workflow_conclusion && data.workflow_conclusion!=='success')messages.push('The latest tracker workflow did not succeed. The website shows the last stored data; details are under “View search runs”.');
   if(fresh.stale && scan)messages.push('The latest search is more than 12 hours old or not available yet. The prices shown are not live.');
   if(fresh.partial && scan.status!=='expired')messages.push(`The search was incomplete (${scan.batches_ok}/${scan.batches_planned} search blocks). Missing results do not mean “sold out” or “unchanged”.`);

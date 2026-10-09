@@ -7,9 +7,9 @@ written for the repository maintainer; the user-facing overview is in
 ## Current production configuration
 
 - **Repository:** `Fabiano225/flight-tracker`
-- **Schedule:** 00:17, 06:17, 12:17 and 18:17 UTC; **Catch up missed searches** at 03:17,
-  09:17, 15:17 and 21:17 UTC starts a search when none was saved in the last 5 hours
-  and none is queued or running
+- **Schedule:** **Search schedule** starts **Track flights** about every 6 hours: at the
+  times of an external timer (see [Exact search times](#exact-search-times-with-an-external-timer)),
+  with an hourly check as the fallback. Track flights has no schedule of its own.
 - **Search window:** departures 20–23 October 2026; 14–21-day trips
 - **Routes:** DUS/FRA/AMS → BKK, one adult, economy, EUR (as in `config.json`)
 - **Duration guard:** below 21 hours in each direction
@@ -21,6 +21,74 @@ written for the repository maintainer; the user-facing overview is in
 The current code records stable date watches and sends change alerts instead of a
 full price digest every six hours. Existing quote history is retained when the
 notification policy changes.
+
+## Exact search times with an external timer
+
+GitHub starts scheduled workflows only on a best-effort basis: under load they run
+hours late or not at all. The **Search schedule** workflow therefore runs every hour
+as a fallback and starts **Track flights** when the last saved search is at least
+5 h 45 min old. For searches at fixed times, let an external timer start that workflow
+four times a day; it then starts a search when the last one is at least 5 hours old.
+Both paths share the same check, so a search is never started twice.
+
+The steps below use [cron-job.org](https://cron-job.org) (free). Any service or computer
+that can send an HTTPS request on a schedule works the same way.
+
+### 1. Create a token that can only start workflows
+
+1. On GitHub: your profile picture → **Settings → Developer settings → Personal access
+   tokens → Fine-grained tokens → Generate new token**.
+2. Name it e.g. `flight-tracker timer`, choose an expiration and note the date.
+3. **Repository access:** *Only select repositories* → `flight-tracker`.
+4. **Permissions → Repository permissions → Actions:** *Read and write*. Leave
+   everything else at *No access* (*Metadata: read-only* is added automatically).
+5. **Generate token** and copy it. It is shown only once.
+
+The token can start, cancel and re-run workflows of this repository and nothing else.
+Keep it only in the timer service; never put it in the repository, an issue or a
+message.
+
+### 2. Create the timer on cron-job.org
+
+1. Sign up and choose **Create cronjob**.
+2. **URL:**
+   `https://api.github.com/repos/<user>/<repository>/actions/workflows/search-schedule.yml/dispatches`
+   (for this repository: `Fabiano225/flight-tracker`).
+3. **Execution schedule:** custom, every day at **00:05, 06:05, 12:05 and 18:05** (any
+   four times six hours apart; avoid full hours, when many timers fire).
+4. **Advanced:**
+   - **Request method:** `POST`
+   - **Headers:**
+     - `Authorization: Bearer <your token>`
+     - `Accept: application/vnd.github+json`
+     - `X-GitHub-Api-Version: 2022-11-28`
+     - `Content-Type: application/json`
+   - **Request body:** `{"ref":"main"}`
+5. Turn on the notification for failed executions, save, and use **Test run**: GitHub
+   answers `204 No Content`, and a **Search schedule** run appears under Actions a few
+   seconds later.
+
+The same request from a terminal, e.g. for a test:
+
+```bash
+curl -X POST -H "Authorization: Bearer <your token>" -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  https://api.github.com/repos/Fabiano225/flight-tracker/actions/workflows/search-schedule.yml/dispatches \
+  -d '{"ref":"main"}'
+```
+
+### When it fails
+
+- `401 Unauthorized`: the token expired or was deleted. Create a new one and replace it
+  in the timer.
+- `403` or `404`: the token lacks *Actions: Read and write* or access to this repository,
+  or the URL has a typo.
+- `422`: the workflow is disabled. GitHub disables scheduled workflows in public
+  repositories after 60 days without activity; enable it again under **Actions →
+  Search schedule**.
+
+Without the external timer the hourly fallback alone still searches about every 6–7
+hours.
 
 ## First-time deployment checklist
 
@@ -149,7 +217,7 @@ changed.
 Pages uses **GitHub Actions** as its publishing source. `Publish dashboard` runs
 after `Track flights` completes (including failed scans), on changes to the website,
 the tracker code or its airport and airline data, or on manual dispatch. GitHub doesn't
-start it after a `Track flights` run that another workflow (settings form, catch-up)
+start it after a `Track flights` run that another workflow (search schedule, settings form)
 started with its workflow token, so such a run starts it itself as
 its last step (this needs `actions: write`). It reads the latest trusted `main` and
 `tracker-state` branches, not workflow artifacts or pull-request code.
@@ -272,8 +340,8 @@ qualifying offer is not evidence that no such fare exists.
 ### Routine maintenance checklist
 
 - Review Dependabot pull requests for pinned actions and Python dependencies.
-- Disable the schedule after the October/November trip window if this repository is
-  not being reused.
+- Disable the **Search schedule** workflow (and the external timer) after the trip
+  window if this repository is not being reused.
 - Remove old recovery artifacts when they are no longer useful.
 - Keep secrets in GitHub Secrets only; never paste them into issues, logs or commits.
 - Run the full offline test suite before changing search or notification logic.

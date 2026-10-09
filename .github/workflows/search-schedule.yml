@@ -1,9 +1,14 @@
-name: Catch up missed searches
-# GitHub sometimes starts scheduled runs late or skips them. Three hours after each
-# scheduled search this checks whether one was saved recently and, if not, starts it.
+name: Search schedule
+# Starts Track flights about every 6 hours, robust against GitHub's late or skipped
+# scheduled runs:
+# - an external timer (e.g. cron-job.org, see DEPLOYMENT.md) starts this workflow at
+#   fixed times; it searches when the last search is at least 5 hours old;
+# - an hourly check is the fallback; it searches when the last search is at least
+#   5 h 45 min old, so it steps in only when the external timer did not.
+# A search that is queued or running, or saved recently, is never started twice.
 on:
   schedule:
-    - cron: '17 3,9,15,21 * * *'
+    - cron: '41 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,26 +19,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Start a search if the last one is more than 5 hours old
+      - name: Start a search if the last one is old enough
         env:
           GH_TOKEN: ${{ github.token }}
+          # Minutes since the last saved search before a new one starts.
+          MIN_AGE: ${{ github.event_name == 'schedule' && '345' || '300' }}
         run: |
           set -euo pipefail
           for status in queued in_progress; do
             busy=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/track-flights.yml/runs?status=$status&per_page=1" --jq .total_count)
             if [ "$busy" != "0" ]; then
-              echo "::notice::A search is $status, so there is nothing to catch up."
+              echo "::notice::A search is $status; nothing to start."
               exit 0
             fi
           done
           # Every search saves the price history on the tracker-state branch.
           if last=$(gh api "repos/$GITHUB_REPOSITORY/branches/tracker-state" --jq .commit.commit.committer.date 2>"$RUNNER_TEMP/error"); then
-            age=$(( $(date -u +%s) - $(date -u -d "$last" +%s) ))
-            if [ "$age" -lt $(( 5 * 3600 )) ]; then
-              echo "::notice::The last search was saved $(( age / 60 )) minutes ago, so there is nothing to catch up."
+            age=$(( ( $(date -u +%s) - $(date -u -d "$last" +%s) ) / 60 ))
+            if [ "$age" -lt "$MIN_AGE" ]; then
+              echo "::notice::The last search was saved $age minutes ago (a new one starts from $MIN_AGE); nothing to start."
               exit 0
             fi
-            echo "::notice::The last search was saved $(( age / 3600 )) hours ago: GitHub probably skipped a scheduled run. Starting one."
+            echo "::notice::The last search was saved $age minutes ago. Starting a search."
           elif grep -q "HTTP 404" "$RUNNER_TEMP/error"; then
             echo "::notice::No search has been saved yet. Starting the first one."
           else
