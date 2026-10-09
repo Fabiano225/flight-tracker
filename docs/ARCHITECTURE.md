@@ -3,10 +3,10 @@
 ## Overview
 
 ```text
-GitHub Actions cron
+Search schedule (hourly check / external timer)
         |
         v
-  tracker scan  --->  unofficial Google Flights adapter
+  Track flights: tracker scan  --->  unofficial Google Flights adapter
         |
         +-----------> SQLite history and alert outbox
                               |

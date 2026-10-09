@@ -39,14 +39,15 @@ jaw (back from another airport).
 
 ## How it works
 
-1. Four times a day a GitHub Actions run searches every date combination of every
+1. About every 6 hours a GitHub Actions run searches every date combination of every
    trip and destination.
 2. The most promising flights are checked in detail (real itinerary, dates, stops,
    flight times, travel time).
 3. Prices are stored and compared with the last 30 days.
 4. If something changed meaningfully, you get a message; the dashboard updates a few
    minutes later.
-5. If GitHub skips a scheduled run, a check three hours later starts it.
+5. An hourly check makes sure no search is skipped, even when GitHub starts scheduled
+   runs late; an optional external timer gives exact search times.
 
 ## The dashboard
 
@@ -198,9 +199,13 @@ the website address and the settings form adjust to your copy automatically.
 
 Good to know:
 
-- Searches then run by themselves four times a day. To pause them, add the
+- Searches then run by themselves about every 6 hours. To pause them, add the
   repository variable `TRACKER_ENABLED` with the value `false`
   (**Settings → Secrets and variables → Actions → Variables**).
+- GitHub starts scheduled runs on a best-effort basis, often late. An hourly check
+  covers that; for searches at fixed times, set up the free external timer described in
+  [DEPLOYMENT.md](DEPLOYMENT.md#exact-search-times-with-an-external-timer) (about
+  10 minutes, needs a GitHub token that can only start workflows).
 - Using your own domain for GitHub Pages? Add the variable `DASHBOARD_URL` (for example
   `https://flights.example.org/`) so links in messages point there.
 - Only you, the owner of the copy, can change its search through the form.
@@ -221,8 +226,9 @@ More on operation and troubleshooting: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Limitations
 
-- GitHub can start scheduled runs late or skip them. Three hours after each scheduled
-  search, a check starts one if none was saved in the last 5 hours.
+- GitHub can start scheduled runs late or skip them. The hourly check starts a search
+  when none was saved for 5 h 45 min, so without an external timer the times drift
+  (about every 6–7 hours).
 - Google may limit or change its search; the tracker then reports an incomplete search
   instead of guessing. Open-jaw (multi-city) searches are the most likely to fail (see
   the note under Search settings).
@@ -253,7 +259,7 @@ workflow is running.
 |---|---|
 | `Track flights` | Searches, checks flights, saves the history and sends messages |
 | `Publish dashboard` | Builds the website from the saved data |
-| `Catch up missed searches` | Starts a search when GitHub skipped a scheduled one |
+| `Search schedule` | Starts a search about every 6 hours (hourly check, optional external timer) |
 | `Apply search settings` | Applies settings issues from the owner |
 | `Tests` | Offline tests; no secrets, no live searches |
 | `Check setup` | Checklist of what a copy still needs |

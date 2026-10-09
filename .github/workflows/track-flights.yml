@@ -1,7 +1,7 @@
 name: Track flights
+# Started by the Search schedule workflow (about every 6 hours), by the settings form,
+# or by hand; it has no schedule of its own, so a late GitHub run cannot double a search.
 on:
-  schedule:
-    - cron: '17 0,6,12,18 * * *'
   workflow_dispatch:
     inputs:
       baggage_only:
@@ -83,7 +83,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       # "Publish dashboard" starts by itself after scheduled and manual runs. Runs started
-      # by another workflow (settings form, catch-up) with the workflow token don't
+      # by another workflow (search schedule, settings form) with the workflow token don't
       # trigger it, so start it here.
       - name: Publish the dashboard after a search started by another workflow
         if: always() && github.event_name == 'workflow_dispatch' && github.triggering_actor == 'github-actions[bot]'

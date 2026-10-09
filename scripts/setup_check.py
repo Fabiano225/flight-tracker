@@ -65,7 +65,7 @@ def checks(facts, today):
     else:
         rows.append((TODO, "No search has run yet",
                      f"Open [Track flights]({url}/actions/workflows/track-flights.yml), click **Run workflow**. "
-                     "After that it runs four times a day by itself."))
+                     "After that searches start by themselves about every 6 hours."))
     if facts["paused"]:
         rows.append((NOTE, "Tracking is paused",
                      f"The repository variable `TRACKER_ENABLED` is `false`. Delete it under "
