@@ -2,9 +2,10 @@ name: Search schedule
 # Starts Track flights about every 6 hours, robust against GitHub's late or skipped
 # scheduled runs:
 # - an external timer (e.g. cron-job.org, see DEPLOYMENT.md) starts this workflow at
-#   fixed times; it searches when the last search is at least 5 hours old;
+#   fixed times; it searches unless the last search is less than 2 hours old, so the
+#   fixed times hold even after a search started by hand or by the settings form;
 # - an hourly check is the fallback; it searches when the last search is at least
-#   5 h 45 min old, so it steps in only when the external timer did not.
+#   6 h 30 min old, so it steps in only when the external timer did not.
 # A search that is queued or running, or saved recently, is never started twice.
 on:
   schedule:
@@ -23,7 +24,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           # Minutes since the last saved search before a new one starts.
-          MIN_AGE: ${{ github.event_name == 'schedule' && '345' || '300' }}
+          MIN_AGE: ${{ github.event_name == 'schedule' && '390' || '120' }}
         run: |
           set -euo pipefail
           for status in queued in_progress; do
