@@ -27,8 +27,9 @@ notification policy changes.
 GitHub starts scheduled workflows only on a best-effort basis: under load they run
 hours late or not at all. The **Search schedule** workflow therefore runs every hour
 as a fallback and starts **Track flights** when the last saved search is at least
-5 h 45 min old. For searches at fixed times, let an external timer start that workflow
-four times a day; it then starts a search when the last one is at least 5 hours old.
+6 h 30 min old. For searches at fixed times, let an external timer start that workflow
+four times a day; it then starts a search unless the last one is less than 2 hours old,
+so the fixed times hold even after a search started by hand or by the settings form.
 Both paths share the same check, so a search is never started twice.
 
 The steps below use [cron-job.org](https://cron-job.org) (free). Any service or computer
@@ -87,7 +88,7 @@ curl -X POST -H "Authorization: Bearer <your token>" -H "Accept: application/vnd
   repositories after 60 days without activity; enable it again under **Actions →
   Search schedule**.
 
-Without the external timer the hourly fallback alone still searches about every 6–7
+Without the external timer the hourly fallback alone still searches about every 7
 hours.
 
 ## First-time deployment checklist

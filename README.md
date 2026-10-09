@@ -227,8 +227,8 @@ More on operation and troubleshooting: [DEPLOYMENT.md](DEPLOYMENT.md).
 ## Limitations
 
 - GitHub can start scheduled runs late or skip them. The hourly check starts a search
-  when none was saved for 5 h 45 min, so without an external timer the times drift
-  (about every 6–7 hours).
+  when none was saved for 6 h 30 min, so without an external timer searches run about
+  every 7 hours at drifting times.
 - Google may limit or change its search; the tracker then reports an incomplete search
   instead of guessing. Open-jaw (multi-city) searches are the most likely to fail (see
   the note under Search settings).
