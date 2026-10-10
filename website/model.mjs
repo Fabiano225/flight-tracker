@@ -103,7 +103,7 @@ export function unavailableFavorites(keys, offers, destination, profile, config=
     .map(fav=>({...fav,reason:fav.profile===profile?'No checked offer at the moment':'Saved with another baggage choice'}))
     .sort((a,b)=>(a.profile!==profile)-(b.profile!==profile) || a.departure.localeCompare(b.departure) || a.return_date.localeCompare(b.return_date));
 }
-// Price target in euros: the departure airport's own one, if set, else the trip's.
+// Price target in the trip's currency: the departure airport's own one, if set, else the trip's.
 export function targetFor(config, origin, category) {
   return config.origin_targets?.[origin]?.[category]
     ?? (category === 'nonstop' ? config.good_deal_nonstop_eur : config.good_deal_layover_eur);
@@ -123,18 +123,27 @@ export function comparison(offer, history, config) {
     percent: previous === null ? null : delta/previous*100, threshold, verdict};
 }
 
-export const euro = value => new Intl.NumberFormat('en-GB', {style:'currency',currency:'EUR',minimumFractionDigits: value%100 ? 2 : 0,maximumFractionDigits: value%100 ? 2 : 0}).format(value/100);
+// An amount in cents in the trip's currency, with the symbol the tracker uses for it
+// (tracker/config.py: CURRENCIES): "€650", "฿24,500", "CHF 95.50". Whole amounts and
+// currencies without minor units have no decimals.
+export function money(value, config={}) {
+  const currency=config.currency||'EUR', symbol=config.currency_symbol??'€';
+  const whole=value%100===0 || new Intl.NumberFormat('en-GB',{style:'currency',currency}).resolvedOptions().maximumFractionDigits===0;
+  const digits=whole?0:2;
+  return (value<0?'-':'')+symbol+new Intl.NumberFormat('en-GB',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Math.abs(value)/100);
+}
 export const shortDate = s => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'Europe/Berlin'}).format(new Date(s));
 
 // Compare with the observed low of the history window first: "unchanged since
 // the last check" alone hides that the same trip may have been cheaper days ago.
-export function priceStatus(c) {
+export function priceStatus(c, config={}) {
+  const cash = value => money(value, config);
   if (c.low === null) return {main:'First check', detail:null, tone:'neutral'};
   const last = c.delta === 0 ? 'unchanged since the last check'
-    : `since the last check ${c.delta < 0 ? '↓' : '↑'} ${euro(Math.abs(c.delta))}`;
-  if (c.vsLow < 0) return {main:'↓ New low', detail:`previously ${euro(c.low)} on ${shortDate(c.lowAt)} · ${last}`, tone:'down'};
+    : `since the last check ${c.delta < 0 ? '↓' : '↑'} ${cash(Math.abs(c.delta))}`;
+  if (c.vsLow < 0) return {main:'↓ New low', detail:`previously ${cash(c.low)} on ${shortDate(c.lowAt)} · ${last}`, tone:'down'};
   if (c.vsLow === 0) return {main:'At the low', detail:`as on ${shortDate(c.lowAt)} · ${last}`, tone:'down'};
-  return {main:`↑ ${euro(c.vsLow)} above the low`, detail:`low ${euro(c.low)} on ${shortDate(c.lowAt)} · ${last}`, tone:'up'};
+  return {main:`↑ ${cash(c.vsLow)} above the low`, detail:`low ${cash(c.low)} on ${shortDate(c.lowAt)} · ${last}`, tone:'up'};
 }
 export function freshness(data, now = Date.now()) {
   const at = Date.parse(data.scan?.at || '');

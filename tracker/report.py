@@ -2,9 +2,10 @@ import csv
 import json
 from pathlib import Path
 from .alerts import hours, travellers
+from .config import COUNTRIES
 
 
-CSV_KEYS = ["origin", "departure", "return_date", "category", "price_eur", "outbound_minutes", "inbound_minutes",
+CSV_KEYS = ["origin", "departure", "return_date", "category", "price", "currency", "outbound_minutes", "inbound_minutes",
             "outbound_stops", "inbound_stops", "airlines", "link"]
 
 
@@ -21,8 +22,10 @@ def latest_runs(store):
 
 def section(summary, quotes, level):
     config = summary["config"]
+    currency, country = config.get("currency", "EUR"), config.get("country", "DE")
+    searched = f" Searched as from {COUNTRIES.get(country, country)}." if country != "DE" else ""
     lines = [f"{level} {config.get('destination', 'BKK')} flight tracker", "", f"**{summary['mode'].upper()}** · {summary['started']} · **{summary['status']}**", "",
-        f"{travellers(config.get('adults', 1)).capitalize()}, {config['travel_class']}, EUR round-trip prices per person. Departure dates: {config['departure_start']} to {config['departure_end']}.",
+        f"{travellers(config.get('adults', 1)).capitalize()}, {config['travel_class']}, {currency} round-trip prices per person.{searched} Departure dates: {config['departure_start']} to {config['departure_end']}.",
         f"Trips last {config['min_trip_days']}–{config['max_trip_days']} days"
         f"{', returning by ' + config['latest_return'] if config.get('latest_return') else ''}. Direction duration limit: {config['max_direction_minutes']} minutes including layovers.", "",
         f"- Date-search batches: {summary['calendar_queries_ok']}/{summary['calendar_queries_planned']}"
@@ -33,7 +36,7 @@ def section(summary, quotes, level):
         f"- HTTP attempts: {summary['http_attempts']}; queued price-alert items: {summary['queued_deals']}", "",
         "Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.",
         "The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.", "",
-        "| Origin | Departure | Return | Type | EUR | Out / back | Stops | Airlines |", "|---|---|---|---|---:|---|---|---|"]
+        f"| Origin | Departure | Return | Type | {currency} | Out / back | Stops | Airlines |", "|---|---|---|---|---:|---|---|---|"]
     for q in quotes:
         lines.append(f"| {q['origin']} | {q['departure']} | {q['return_date']} | {q['category']} | {q['price']/100:.2f} | "
                      f"{hours(q['outbound_minutes'])} / {hours(q['inbound_minutes'])} | {q['outbound_stops']}/{q['inbound_stops']} | {q['airlines']} |")
@@ -60,8 +63,9 @@ def report(store):
         writer.writeheader()
         for document in documents:
             for quote in document["quotes"]:
-                item = dict(quote, trip=document.get("trip", "main"), destination=document["config"].get("destination"))
-                item["price_eur"] = f"{item.pop('price') / 100:.2f}"
+                item = dict(quote, trip=document.get("trip", "main"), destination=document["config"].get("destination"),
+                            currency=document["config"].get("currency", "EUR"))
+                item["price"] = f"{item['price'] / 100:.2f}"
                 writer.writerow({key: item[key] for key in keys})
     lines = []
     if several:
@@ -78,7 +82,8 @@ def report(store):
 def export_history(store, output):
     with Path(output).open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["observed_utc", "scope", "kind", "origin", "departure", "return", "profile_or_category", "price_eur"])
+        # Prices are in the currency of the trip whose scope they belong to.
+        writer.writerow(["observed_utc", "scope", "kind", "origin", "departure", "return", "profile_or_category", "price"])
         for table, field in (("calendar", "profile"), ("quotes", "category")):
             for row in store.db.execute(f"SELECT observed,scope,origin,departure,return_date,{field},price FROM {table} ORDER BY observed"):
                 writer.writerow([row[0], row[1], table, *row[2:6], f"{row[6]/100:.2f}" if row[6] is not None else ""])

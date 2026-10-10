@@ -1,4 +1,4 @@
-import {targetFor, filteredOffers, comparison, priceStatus, euro, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref, flightLegs, calendarGrid, priceStep, weekTrend, cheapestPerOrigin} from './model.mjs';
+import {targetFor, filteredOffers, comparison, priceStatus, money, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref, flightLegs, calendarGrid, priceStep, weekTrend, cheapestPerOrigin} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const day = s => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'Europe/Berlin'}).format(new Date(s+'T12:00:00Z'));
@@ -49,6 +49,8 @@ function flightsCell(q) {
 const node = (tag, text, cls) => {const n=document.createElement(tag); if(text!==undefined)n.textContent=text; if(cls)n.className=cls; return n;};
 const svgNode = (tag, attrs, text) => {const n=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));if(text!==undefined)n.textContent=text;return n;};
 let site, data, rootData, selectedId, tripId, tripNotice='';
+// Prices of the trip shown, in its currency.
+const cash = value => money(value, rootData?.config);
 let selectedAirlines=new Set(),airlineMode='include';
 const savedFavorites=readFavorites();
 let favorites=savedFavorites.keys, favoritesStored=savedFavorites.ok, prunedNotice='';
@@ -166,25 +168,26 @@ function showStatus() {
 function renderSummary() {
   for(const type of ['layover','nonstop']) {
     const q=data.offers.filter(q=>q.category===type).sort((a,b)=>a.price-b.price)[0];
-    $('best-'+type).textContent=q?euro(q.price):'—';
+    $('best-'+type).textContent=q?cash(q.price):'—';
     const route=(data.config.destinations||[]).length>1?`${q?.origin} → ${q?.destination}`:`from ${q?.origin}`;
     $('best-'+type+'-info').textContent=q?`${route} · ${q.days} days · ${day(q.departure)}`:'No checked offer in the latest prices';
   }
   const c=data.config;
   const perAirport=Object.keys(c.origin_targets||{}).length>0;
-  $('budget-value').textContent=perAirport?'Per airport':c.good_deal_layover_eur===c.good_deal_nonstop_eur?euro(c.good_deal_layover_eur*100):'Separate targets';
+  $('budget-value').textContent=perAirport?'Per airport':c.good_deal_layover_eur===c.good_deal_nonstop_eur?cash(c.good_deal_layover_eur*100):'Separate targets';
   // With airport targets, list them for the airport filter's choice (or all airports).
   const airports=$('origin').value?[$('origin').value]:c.origins;
   $('budget-note').textContent=perAirport
-    ?airports.map(code=>`${code} ${euro(targetFor(c,code,'layover')*100)}`+(targetFor(c,code,'nonstop')!==targetFor(c,code,'layover')?` / non-stop ${euro(targetFor(c,code,'nonstop')*100)}`:'')).join(' · ')
-    :c.good_deal_layover_eur===c.good_deal_nonstop_eur?'per person · round trip':`With stops ${euro(c.good_deal_layover_eur*100)} / non-stop ${euro(c.good_deal_nonstop_eur*100)}`;
+    ?airports.map(code=>`${code} ${cash(targetFor(c,code,'layover')*100)}`+(targetFor(c,code,'nonstop')!==targetFor(c,code,'layover')?` / non-stop ${cash(targetFor(c,code,'nonstop')*100)}`:'')).join(' · ')
+    :c.good_deal_layover_eur===c.good_deal_nonstop_eur?'per person · round trip':`With stops ${cash(c.good_deal_layover_eur*100)} / non-stop ${cash(c.good_deal_nonstop_eur*100)}`;
   $('offer-count').textContent=data.offers.length;
   $('trip-dates').textContent=`${day(c.departure_start)} – ${day(c.departure_end)} ${c.departure_end.slice(0,4)}`;
   $('trip-days').textContent=c.latest_return?`${c.min_trip_days}+ days · back by ${day(c.latest_return)}`:c.min_trip_days===c.max_trip_days?`${c.min_trip_days} day${c.min_trip_days===1?'':'s'}`:`${c.min_trip_days}–${c.max_trip_days} days`;
   $('offer-timestamp').textContent=data.offers_as_of?`${baggageLabels[$('baggage').value]} · ${when(data.offers_as_of)} · Berlin time`:'No checked prices for this choice yet';
 }
 const weekday = s => new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(s+'T12:00:00Z'));
-const wholeEuro = cents => `€${Math.round(cents/100).toLocaleString('en-GB')}`;
+// Rounded to whole units: the calendar's date-search prices are only indicative.
+const wholeCash = cents => cash(Math.round(cents/100)*100);
 const plusDays = (s, days) => new Date(Date.parse(s+'T12:00:00Z')+days*86400000).toISOString().slice(0,10);
 // Cheapest offer from each departure airport for the other filters; a click filters by it.
 function renderAirportBest(available, filters) {
@@ -196,8 +199,8 @@ function renderAirportBest(available, filters) {
     const chip=node('button',undefined,'airport-chip'), city=rootData.places?.[origin]?.city||origin;chip.type='button';
     chip.setAttribute('aria-pressed',String(filters.origin===origin));
     const detail=offer?`${offer.category==='nonstop'?'non-stop':'with stops'} · ${day(offer.departure)}${several?` · ${offer.destination}`:''}`:'no checked offer';
-    chip.append(node('strong',origin),node('span',offer?euro(offer.price):'—','airport-price'),node('small',detail));
-    chip.setAttribute('aria-label',`${city} (${origin}): ${offer?`from ${euro(offer.price)}, ${detail}`:detail}. ${filters.origin===origin?'Show all airports':'Show only this airport'}`);
+    chip.append(node('strong',origin),node('span',offer?cash(offer.price):'—','airport-price'),node('small',detail));
+    chip.setAttribute('aria-label',`${city} (${origin}): ${offer?`from ${cash(offer.price)}, ${detail}`:detail}. ${filters.origin===origin?'Show all airports':'Show only this airport'}`);
     chip.addEventListener('click',()=>{$('origin').value=filters.origin===origin?'':origin;renderSummary();renderOffers();});
     box.append(chip);
   }
@@ -209,7 +212,7 @@ function renderCalendar(filters) {
   table.replaceChildren();table.hidden=empty;$('calendar-legend').hidden=empty;$('calendar-empty').hidden=!empty;
   $('calendar-note').textContent=rootData.calendar?.at?`Date search · ${when(rootData.calendar.at)} · Berlin time`:'No date search yet';
   if(empty)return;
-  $('calendar-range').textContent=`${wholeEuro(grid.min)} – ${wholeEuro(grid.max)} per person`;
+  $('calendar-range').textContent=`${wholeCash(grid.min)} – ${wholeCash(grid.max)} per person`;
   // Dates with a checked offer for the other filters lead to it in the table.
   const checked=new Set(filteredOffers(data.offers,{...filters,departure:'',days:''}).map(q=>`${q.departure}|${q.days}`));
   table.append(node('caption','Cheapest date-search price per person by outbound day and trip length','sr-only'));
@@ -223,8 +226,8 @@ function renderCalendar(filters) {
       const cell=grid.cells.get(`${departure}|${days}`), td=node('td');
       if(!cell || cell.price===null){td.append(node('span','—','calendar-cell heat-none'));td.title='No price found';row.append(td);continue;}
       const step=priceStep(cell.price,grid.min,grid.max), key=`${departure}|${days}`;
-      const text=`${weekday(departure)} → ${weekday(plusDays(departure,days))} · ${days} days · ${cell.origin}${several?` → ${cell.destination}`:''} · about ${wholeEuro(cell.price)} per person`;
-      const mark=node(checked.has(key)?'button':'span',wholeEuro(cell.price),`calendar-cell heat-${step}`);
+      const text=`${weekday(departure)} → ${weekday(plusDays(departure,days))} · ${days} days · ${cell.origin}${several?` → ${cell.destination}`:''} · about ${wholeCash(cell.price)} per person`;
+      const mark=node(checked.has(key)?'button':'span',wholeCash(cell.price),`calendar-cell heat-${step}`);
       mark.title=text+(checked.has(key)?' · show the checked offer':'');
       if(filters.departure===departure && Number(filters.days)===days)mark.classList.add('is-selected');
       if(checked.has(key)) {
@@ -269,16 +272,16 @@ function renderOffers() {
     route.append(routeTitle,node('small',`${q.return_from?`Back from ${q.return_from} · `:''}${category(q)} · ${q.airlines}`));
     const dates=node('td');dates.append(node('strong',`${day(q.departure)} – ${day(q.return_date)}`),node('small',`${q.days} days · ${q.departure.slice(0,4)}`));
     const flights=flightsCell(q);
-    const price=node('td'),status=priceStatus(c);price.append(node('strong',euro(q.price),'price'));
+    const price=node('td'),status=priceStatus(c,rootData.config);price.append(node('strong',cash(q.price),'price'));
     // Prices are per person; with several travellers the party's total follows.
     const adults=data.config.adults||1;
-    if(adults>1)price.append(node('small',`per person · ${euro(q.price*adults)} for ${adults}`,'party-price'));
+    if(adults>1)price.append(node('small',`per person · ${cash(q.price*adults)} for ${adults}`,'party-price'));
     price.append(node('div',status.main,`delta ${status.tone}`));
     if(status.detail)price.append(node('small',status.detail,'delta-detail'));
     // The week's direction from the stored checks; not a forecast.
     const trend=weekTrend(q,data.histories[q.id]||[]);
     if(trend) {
-      const arrow=trend.delta<0?'↓':trend.delta>0?'↑':'→', amount=trend.delta?` ${euro(Math.abs(trend.delta))}`:' unchanged';
+      const arrow=trend.delta<0?'↓':trend.delta>0?'↑':'→', amount=trend.delta?` ${cash(Math.abs(trend.delta))}`:' unchanged';
       price.append(node('small',`7 days: ${arrow}${amount}${trend.full?'':` (since ${day(trend.since.slice(0,10))})`}`,`week-trend ${trend.delta<0?'down':trend.delta>0?'up':'neutral'}`));
     }
     price.append(node('small',baggageDescription(q.baggage,'cabin'),'baggage-detail'));
@@ -292,7 +295,7 @@ function renderOffers() {
       const base=matchingBase(q,rootData,data);
       if(base) {
         const delta=q.price-base.price;
-        price.append(node('small',`Base price of the same flights: ${euro(base.price)} · offer difference ${delta>0?'+':''}${euro(delta)}`,'baggage-detail'));
+        price.append(node('small',`Base price of the same flights: ${cash(base.price)} · offer difference ${delta>0?'+':''}${cash(delta)}`,'baggage-detail'));
         price.append(node('small','Possibly a different vendor or fare; not a separate baggage fee.','baggage-detail'));
       }
     }
@@ -310,21 +313,21 @@ function renderChart() {
   document.querySelectorAll('#offers-body tr').forEach(row=>row.classList.toggle('selected-row',row.dataset.id===selectedId));
   if(!q){$('chart-price').textContent='—';$('chart-change').textContent='Nothing selected';chart.append(node('p','No price observations for this filter yet.','empty'));$('chart-note').textContent='Choose another filter to see existing histories.';return;}
   const points=(data.histories[q.id]||[]).filter(p=>Date.parse(p.at)<=Date.parse(q.at)).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at)), c=comparison(q,points,data.config);
-  const status=priceStatus(c);
-  $('chart-price').textContent=euro(q.price);$('chart-change').textContent=status.detail?`${status.main} · ${status.detail}`:status.main;
-  $('chart-note').textContent=`${baggageLabels[$('baggage').value]} · ${points.length} checks${points.length?' since '+when(points[0].at):''}. ${c.low===null?'No earlier comparison price yet.':`Low of the ${data.config.history_window_days} days before this check: ${euro(c.low)} on ${when(c.lowAt)}.`} Only actually checked prices count. Same travel dates, flight type and baggage search; the airline may differ.`;
+  const status=priceStatus(c,rootData.config);
+  $('chart-price').textContent=cash(q.price);$('chart-change').textContent=status.detail?`${status.main} · ${status.detail}`:status.main;
+  $('chart-note').textContent=`${baggageLabels[$('baggage').value]} · ${points.length} checks${points.length?' since '+when(points[0].at):''}. ${c.low===null?'No earlier comparison price yet.':`Low of the ${data.config.history_window_days} days before this check: ${cash(c.low)} on ${when(c.lowAt)}.`} Only actually checked prices count. Same travel dates, flight type and baggage search; the airline may differ.`;
   if(!points.length){chart.append(node('p','No history available yet.','empty'));return;}
   const width=640,height=228,left=48,right=18,top=16,bottom=35;
   const values=points.map(p=>p.price).concat(c.threshold), min=Math.floor((Math.min(...values)-2000)/2500)*2500, max=Math.ceil((Math.max(...values)+2000)/2500)*2500;
   const times=points.map(p=>Date.parse(p.at)), start=times[0],end=times[times.length-1];
   const x=t=>end===start?(left+width-right)/2:left+(t-start)/(end-start)*(width-left-right),y=v=>top+(max-v)/(max-min)*(height-top-bottom);
-  const svg=svgNode('svg',{viewBox:`0 0 ${width} ${height}`,role:'img','aria-label':`Price history ${q.origin}, ${q.departure} to ${q.return_date}: ${points.length} checks, currently ${euro(q.price)}`});
-  for(let i=0;i<4;i++){const value=min+(max-min)*i/3,pos=y(value);svg.append(svgNode('line',{x1:left,y1:pos,x2:width-right,y2:pos,class:'chart-grid'}),svgNode('text',{x:left-9,y:pos+3,'text-anchor':'end',class:'chart-label'},'€'+Math.round(value/100)));}
+  const svg=svgNode('svg',{viewBox:`0 0 ${width} ${height}`,role:'img','aria-label':`Price history ${q.origin}, ${q.departure} to ${q.return_date}: ${points.length} checks, currently ${cash(q.price)}`});
+  for(let i=0;i<4;i++){const value=min+(max-min)*i/3,pos=y(value);svg.append(svgNode('line',{x1:left,y1:pos,x2:width-right,y2:pos,class:'chart-grid'}),svgNode('text',{x:left-9,y:pos+3,'text-anchor':'end',class:'chart-label'},wholeCash(value)));}
   const coords=points.map((p,i)=>[x(times[i]),y(p.price)]);
   if(coords.length>1){svg.append(svgNode('path',{d:`M ${coords[0][0]} ${height-bottom} L `+coords.map(p=>p.join(' ')).join(' L ')+` L ${coords.at(-1)[0]} ${height-bottom} Z`,class:'chart-area'}));}
   svg.append(svgNode('line',{x1:left,x2:width-right,y1:y(c.threshold),y2:y(c.threshold),class:'chart-budget'}));
   if(coords.length>1)svg.append(svgNode('path',{d:'M '+coords.map(p=>p.join(' ')).join(' L '),class:'chart-line'}));
-  coords.forEach(([cx,cy],i)=>{const dot=svgNode('circle',{cx,cy,r:4,class:'chart-point',tabindex:0,'aria-label':`${when(points[i].at)}: ${euro(points[i].price)}`});dot.append(svgNode('title',{},`${when(points[i].at)} · ${euro(points[i].price)}`));svg.append(dot);});
+  coords.forEach(([cx,cy],i)=>{const dot=svgNode('circle',{cx,cy,r:4,class:'chart-point',tabindex:0,'aria-label':`${when(points[i].at)}: ${cash(points[i].price)}`});dot.append(svgNode('title',{},`${when(points[i].at)} · ${cash(points[i].price)}`));svg.append(dot);});
   [0,...(times.length>1?[times.length-1]:[])].forEach((i,j)=>svg.append(svgNode('text',{x:x(times[i]),y:height-8,'text-anchor':times.length===1?'middle':j?'end':'start',class:'chart-label'},when(points[i].at))));
   chart.append(svg);
 }

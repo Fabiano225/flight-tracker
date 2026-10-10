@@ -61,7 +61,7 @@ def covers(value, profile):
     return bool(bags and profile in required and all(bags[k]['status'] == 'included' for k in required[profile]))
 
 
-def decode_booking_quotes(text, pair, quote, adults=1):
+def decode_booking_quotes(text, pair, quote, adults=1, currency="EUR"):
     from fli.search._wire import iter_wrb_chunks
     from fli.search._decoders import _try_parse_booking_row
     expected = [(leg.airline.name.removeprefix('_'), str(leg.flight_number)) for direction in pair for leg in direction.legs]
@@ -75,7 +75,7 @@ def decode_booking_quotes(text, pair, quote, adults=1):
             for child in node:
                 walk(child)
             return
-        if option.currency != 'EUR' or option.flights != expected:
+        if option.currency != currency or option.flights != expected:
             return
         try:
             # Booking offers price the whole party, like the search; keep per-person prices.
@@ -94,7 +94,7 @@ def decode_booking_quotes(text, pair, quote, adults=1):
     return list(found.values())
 
 
-def booking_quotes(search, http, pair, filters, quote):
+def booking_quotes(search, http, pair, filters, quote, locale):
     """Capture only this bounded, read-only SDK request; never persist response URLs/tokens."""
     captured = []
 
@@ -107,8 +107,8 @@ def booking_quotes(search, http, pair, filters, quote):
     previous = search.client
     try:
         search.client = Capture()
-        search.get_booking_options(pair, filters, currency='EUR', language='en', country='DE')
+        search.get_booking_options(pair, filters, **locale)
     finally:
         search.client = previous
     adults = getattr(getattr(filters, 'passenger_info', None), 'adults', 1)
-    return decode_booking_quotes(captured[-1], pair, quote, adults) if captured else []
+    return decode_booking_quotes(captured[-1], pair, quote, adults, locale['currency']) if captured else []

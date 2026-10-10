@@ -38,7 +38,7 @@ def gather(config_path="config.json"):
     return dict(repo=api(f"repos/{repo}") or {}, pages=api(f"repos/{repo}/pages"),
                 state=state.returncode == 0, trips=trips, config_error=config_error,
                 discord=flag("HAS_DISCORD"), telegram_token=flag("HAS_TELEGRAM_TOKEN"),
-                telegram_chat=flag("HAS_TELEGRAM_CHAT"),
+                telegram_chat=flag("HAS_TELEGRAM_CHAT"), trip_channels=flag("HAS_TRIP_CHANNELS"),
                 channel=os.environ.get("NOTIFICATION_CHANNEL", "").strip().lower(),
                 paused=os.environ.get("TRACKER_ENABLED", "").strip().lower() == "false")
 
@@ -96,6 +96,12 @@ def checks(facts, today):
         rows.append((NOTE, "No price alerts yet (optional)",
                      f"Add a Discord webhook as the secret `DISCORD_WEBHOOK_URL` under [Secrets]({secrets}). "
                      "The website works without it."))
+    if facts.get("trip_channels"):
+        ids = ", ".join(f"`{trip.id}`" for trip in facts["trips"])
+        rows.append((OK, "Some trips have their own message channel",
+                     f"`DISCORD_WEBHOOKS` / `TELEGRAM_CHAT_IDS` name trips by ID ({ids}). Run "
+                     f"[Test Discord]({url}/actions/workflows/discord-test.yml) or "
+                     f"[Test Telegram]({url}/actions/workflows/telegram-test.yml) to check each channel."))
     return rows
 
 

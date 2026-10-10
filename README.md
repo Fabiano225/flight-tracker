@@ -30,6 +30,9 @@ jaw (back from another airport).
   length you allow (for example 14–21 days). A trip can compare several destinations
   (e.g. Bangkok, Phuket and Chiang Mai), fly back from another airport, limit flight
   times and count several travellers.
+- **Your currency and country:** each trip can be priced in its own currency (e.g.
+  Thai baht) and searched as from another country (e.g. Thailand), and can send its
+  alerts to its own Discord channel or Telegram chat, for example a friend's.
 - **Fair comparisons:** non-stop and connecting flights are kept apart, overly long
   journeys are filtered out, and only actually checked trips count.
 - **Baggage views** that show fares whose booking offer includes a cabin bag, a
@@ -81,10 +84,11 @@ The page clearly says when a search was incomplete or the data is older than 12 
 
 ## Price alerts
 
-Alerts go to a Discord channel (or a Telegram chat) and name their destination in the
-title. Each flight in an alert lists its dates, price (per person, plus the total with
-several travellers), flight times, connections and a link to search it on Google
-Flights.
+Alerts go to a Discord channel (or a Telegram chat), or to the trip's own one, and name
+their destination in the title. Each flight in an alert lists its dates, price (per
+person in the trip's currency, plus the total with several travellers), flight times,
+connections and a link to search it on Google Flights. The amounts below are the
+defaults for a trip in euros.
 
 | Message | Meaning |
 |---|---|
@@ -120,6 +124,11 @@ searched by city, airport name or code (German names such as "München" work too
 - **Flights:** travellers (1–9 adults), cabin, maximum stops, maximum travel time per
   direction, airlines to include or exclude, separate tickets and bags in the base
   search.
+- **Currency and search country:** Google prices a trip in its currency (21 to choose
+  from, e.g. euro, Thai baht, US dollar); the tracker never converts a price. **Search
+  from** is the country Google assumes you search from (Germany unless you choose
+  another); offers and prices can differ, for example for someone living in Thailand.
+  Choosing another currency converts the trip's price targets roughly, to be checked.
 - **Flight times:** limit when the outbound and return flights may leave and land
   (local time), e.g. not before 08:00 or no landing at night. Google then searches only
   such flights, so alerts and history follow them.
@@ -139,9 +148,9 @@ searched by city, airport name or code (German names such as "München" work too
   that search has finished, the website shows the new settings with their first
   prices, usually after 5–15 minutes.
 
-Changing a destination, the return airport, travellers, cabin, bags, separate tickets,
-the travel time limit, flight times, airlines or stops starts a new price history for
-that trip; the old one stays stored. Adding or reordering destinations keeps the
+Changing a destination, the return airport, the currency, the search country,
+travellers, cabin, bags, separate tickets, the travel time limit, flight times,
+airlines or stops starts a new price history for that trip; the old one stays stored. Adding or reordering destinations keeps the
 existing histories.
 
 > **Open jaw is experimental.** Google searches these trips as multi-city flights. The
@@ -176,6 +185,27 @@ branch returns to `config.json` on `main`.
 
 If both are set up, Discord is used. The repository variable `NOTIFICATION_CHANNEL`
 (`auto`, `discord` or `telegram`) picks one explicitly.
+
+### A trip's own message channel
+
+A trip can send its price alerts, check notes and "travel window ended" message to
+its own Discord channel or Telegram chat, for example a friend's who is tracking
+flights home. "Needs attention" messages about the tracker itself always go to the
+main channel above. Every trip has a **trip ID**, shown on **Change search** below the
+trips (the first trip is `main`).
+
+- **Discord:** create a webhook in the other channel (as above) and add the secret
+  **`DISCORD_WEBHOOKS`** with one entry per trip ID:
+  `{"ber": "https://discord.com/api/webhooks/…"}`. Run **Test Discord**; it greets
+  every channel.
+- **Telegram (same bot):** the other person sends `/start` to your bot; within 30
+  minutes run **Telegram setup**, which replies to them with their chat ID. Add the
+  secret **`TELEGRAM_CHAT_IDS`**, e.g. `{"ber": "123456789"}`, and run **Test
+  Telegram**.
+
+A trip listed in both gets Discord. Trips without an entry use the main channel, and
+if one channel fails, the others still get their messages. Without a main channel,
+only trips with their own channel get messages.
 
 ## Run your own copy
 

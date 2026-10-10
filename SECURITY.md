@@ -3,8 +3,10 @@
 ## Secrets
 
 The Telegram bot token and chat ID belong in GitHub Actions repository secrets named
-`TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`. They must never appear in source files,
-issues, workflow output, test fixtures or state commits.
+`TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`, a Discord webhook in `DISCORD_WEBHOOK_URL`,
+and the channels of single trips in `DISCORD_WEBHOOKS` and `TELEGRAM_CHAT_IDS`. They
+must never appear in source files, `config.json` or the settings form, issues, workflow
+output, test fixtures or state commits; error messages name a trip ID, never a value.
 
 The public `tracker-state` branch contains route, fare and alert history. It is not a
 secret store. Do not put private travel details or credentials into that branch.

@@ -40,6 +40,7 @@
           <button type="button" id="remove-trip" class="reset remove-trip">Remove this trip</button>
         </div>
         <p id="trip-note" class="footnote" aria-live="polite">Every trip has its own airports, dates, filters, price targets, alerts and price history. All trips are searched in every run and share its request budget.</p>
+        <p class="footnote">Trip ID <code id="trip-id"></code><span id="trip-id-new" hidden> (once applied)</span>: the trip’s <code>?trip=</code> links use it, and it can give the trip its own Discord channel or Telegram chat (<a href="{{repo_url}}#a-trips-own-message-channel" target="_blank" rel="noopener noreferrer">how</a>).</p>
       </section>
 
       <fieldset class="settings-card">
@@ -148,22 +149,28 @@
           <p class="field-error" id="flight_times-error"></p>
           <p class="footnote">00:00–24:00 is any time. Google searches only flights inside the windows; “until 22:00” means leaving or landing before 22:00. Changing them starts a new price history.</p>
         </div>
-        <p class="footnote">Travellers are adults; Google searches seats for all of them. Prices and price targets stay per person, in EUR; with several travellers the dashboard and alerts also show the total.</p>
+        <p class="footnote">Travellers are adults; Google searches seats for all of them. Prices and price targets stay per person, in the trip's currency; with several travellers the dashboard and alerts also show the total.</p>
       </fieldset>
 
       <fieldset class="settings-card">
         <legend><span class="eyebrow">04 · PRICE ALERTS</span>When should it tell you?</legend>
+        <div class="field-grid">
+          <label class="field">Currency<select name="currency" aria-describedby="currency-error currency-note"></select><span class="field-error" id="currency-error"></span></label>
+          <label class="field">Search from<select name="country" aria-describedby="country-error currency-note"></select><span class="field-error" id="country-error"></span></label>
+        </div>
+        <p class="footnote" id="currency-note">Google prices the search in this currency; the tracker never converts a price. “Search from” is the country Google assumes you search from: offers and prices can differ, for example for someone living in Thailand. Changing either starts a new price history.</p>
+        <p class="price-suggestion" id="currency-converted" role="status" hidden></p>
         <div id="price-suggestion" class="price-suggestion" role="status" hidden>
           <p id="suggestion-text"></p>
           <button type="button" id="use-suggestion" class="chart-button">Use suggested values</button>
         </div>
         <div class="field-grid">
-          <label class="field">Price target, non-stop (€)<input type="number" inputmode="decimal" step="0.01" min="0.01" name="good_deal_nonstop_eur" aria-describedby="good_deal_nonstop_eur-error"><span class="field-error" id="good_deal_nonstop_eur-error"></span></label>
-          <label class="field">Price target, with stops (€)<input type="number" inputmode="decimal" step="0.01" min="0.01" name="good_deal_layover_eur" aria-describedby="good_deal_layover_eur-error"><span class="field-error" id="good_deal_layover_eur-error"></span></label>
-          <label class="field">New price alert from a change of (€)<input type="number" inputmode="decimal" step="0.01" min="0.01" name="realert_improvement_eur" aria-describedby="realert_improvement_eur-error"><span class="field-error" id="realert_improvement_eur-error"></span></label>
+          <label class="field">Price target, non-stop (<span data-currency>€</span>)<input type="number" inputmode="decimal" step="0.01" min="0.01" name="good_deal_nonstop_eur" aria-describedby="good_deal_nonstop_eur-error"><span class="field-error" id="good_deal_nonstop_eur-error"></span></label>
+          <label class="field">Price target, with stops (<span data-currency>€</span>)<input type="number" inputmode="decimal" step="0.01" min="0.01" name="good_deal_layover_eur" aria-describedby="good_deal_layover_eur-error"><span class="field-error" id="good_deal_layover_eur-error"></span></label>
+          <label class="field">New price alert from a change of (<span data-currency>€</span>)<input type="number" inputmode="decimal" step="0.01" min="0.01" name="realert_improvement_eur" aria-describedby="realert_improvement_eur-error"><span class="field-error" id="realert_improvement_eur-error"></span></label>
           <label class="field">Comparison period (days)<input type="number" inputmode="numeric" step="1" name="history_window_days" aria-describedby="history_window_days-error"><span class="field-error" id="history_window_days-error"></span></label>
           <label class="field">Strong deal: at least % below the low<input type="number" inputmode="decimal" step="0.01" name="drop_percent" aria-describedby="drop_percent-error"><span class="field-error" id="drop_percent-error"></span></label>
-          <label class="field">… and at least € below the low<input type="number" inputmode="decimal" step="0.01" min="0.01" name="drop_eur" aria-describedby="drop_eur-error"><span class="field-error" id="drop_eur-error"></span></label>
+          <label class="field">… and at least <span data-currency>€</span> below the low<input type="number" inputmode="decimal" step="0.01" min="0.01" name="drop_eur" aria-describedby="drop_eur-error"><span class="field-error" id="drop_eur-error"></span></label>
           <label class="field">Max. offers per message<input type="number" inputmode="numeric" step="1" name="max_deals_per_run" aria-describedby="max_deals_per_run-error"><span class="field-error" id="max_deals_per_run-error"></span></label>
         </div>
         <div id="airport-targets" class="airport-targets" hidden>

@@ -4,7 +4,7 @@ import hashlib
 import json
 
 from .alerts import hours, is_drop, search_link
-from .config import cents
+from .config import cents, money
 from .store import stamp
 
 
@@ -105,13 +105,10 @@ def flight_lines(quote):
     return lines
 
 
-def eur(price):
-    return f"{price / 100:.2f} EUR"
-
-
-def change(price, previous):
+def change(price, previous, currency):
     delta = price - previous
-    return f"{eur(previous)} -> {eur(price)} ({delta / 100:+.2f} EUR / {delta / previous:+.1%})"
+    return (f"{money(previous, currency)} -> {money(price, currency)} "
+            f"({money(delta, currency, sign=True)} / {delta / previous:+.1%})")
 
 
 def block(quote, history, prior, config):
@@ -124,32 +121,33 @@ def block(quote, history, prior, config):
     else:
         title = "PRICE DROPPED" if quote.price < prior["price"] else "PRICE ROSE"
     category = "NON-STOP (both directions)" if quote.category == "nonstop" else "WITH STOPS"
-    party = f" per person, {eur(quote.price * config.adults)} for {config.adults}" if config.adults > 1 else ""
+    cash = lambda price: money(price, config.currency)
+    party = f" per person, {cash(quote.price * config.adults)} for {config.adults}" if config.adults > 1 else ""
     route = f"{quote.origin}-{config.destination}" + (f", back {config.return_from}-{quote.origin}" if config.return_from else "")
     lines = [f"{title} | {route} | {category}",
-             f"{quote.departure} to {quote.return_date} | {eur(quote.price)}{party}"]
+             f"{quote.departure} to {quote.return_date} | {cash(quote.price)}{party}"]
     if prior is not None:
         label = "Since alert " if same_dates else "Compared with the alerted alternative "
         lines.append(label + prior["created"][:16].replace("T", " ") + " UTC:")
-        lines.append(change(quote.price, prior["price"]))
+        lines.append(change(quote.price, prior["price"], config.currency))
         if not same_dates:
             lines.append(f"Previous dates: {prior['departure']} to {prior['return_date']}")
     if history["previous"] is not None:
         lines.append("Last check of the same dates (" +
                      history["previous_at"][:16].replace("T", " ") + " UTC):")
-        lines.append(change(quote.price, history["previous"]))
-        lines.append(f"Previous {config.history_window_days}-day low: {eur(history['low'])}; "
+        lines.append(change(quote.price, history["previous"], config.currency))
+        lines.append(f"Previous {config.history_window_days}-day low: {cash(history['low'])}; "
                      f"{history['count']} checks since {history['first_at'][:10]}.")
     else:
         lines.append("No price history for these dates yet.")
     threshold = config.threshold(quote.category, quote.origin)
     if quote.price <= threshold:
         if history["low"] is not None and quote.price - history["low"] >= cents(config.realert_improvement_eur):
-            lines.append(f"WITHIN BUDGET, but {eur(quote.price - history['low'])} above the previous low.")
+            lines.append(f"WITHIN BUDGET, but {cash(quote.price - history['low'])} above the previous low.")
         else:
-            lines.append(f"CHECK TO BUY: within your {eur(threshold)} target.")
+            lines.append(f"CHECK TO BUY: within your {cash(threshold)} target.")
     else:
-        lines.append(f"WATCH: {eur(quote.price - threshold)} above your target.")
+        lines.append(f"WATCH: {cash(quote.price - threshold)} above your target.")
     if is_drop(quote.price, history["low"], config):
         lines.append("STRONG DEAL: clear drop from the previous low.")
     elif history["low"] is not None and quote.price <= history["low"]:
@@ -157,7 +155,7 @@ def block(quote, history, prior, config):
     if history["count"] < 3:
         lines.append("Little history: judged mainly against your price target.")
     lines.extend(flight_lines(quote))
-    lines.append(search_link(quote, config.destination, config.travel_class, config.adults, config.return_from))
+    lines.append(search_link(quote, config))
     return "\n".join(lines)
 
 
@@ -200,7 +198,7 @@ def queue_trends(store, config, scope, run_id, verified, now, demo=False):
             eligible.append((selected, block(selected, history, prior, config)))
     store.set_meta(watch_key(config, scope), json.dumps(watches))
     header = ("DEMO - synthetic prices\n" if demo else f"{config.destination} price alert\n") + stamp(now) + "\n"
-    footer = ("\n\nEUR per person, round trip. Observed search prices, not a forecast. "
+    footer = (f"\n\n{config.currency} per person, round trip. Observed search prices, not a forecast. "
               "Same dates and category; the airline may differ. Limited selection. "
               "Check price, baggage and conditions before booking.")
     # Split only at group boundaries to keep every message within Telegram's cap.

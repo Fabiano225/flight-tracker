@@ -197,12 +197,12 @@ class PrefetchDates:
                 max_duration=filters.max_duration, airlines=filters.airlines,
                 airlines_exclude=filters.airlines_exclude, bags=filters.bags, sort_by=SortBy.CHEAPEST)
             offers = self.shopping._fetch_flights(search, capture_session=False, **locale) or []
-            if any(offer.currency != "EUR" for offer in offers if offer.price is not None):
-                raise ServiceError("Date-search currency is missing or differs from EUR")
+            if any(offer.currency != locale["currency"] for offer in offers if offer.price is not None):
+                raise ServiceError(f"Date-search currency is missing or differs from {locale['currency']}")
             prices = [offer.price for offer in offers if offer.price is not None and offer.price > 0]
             if prices:
                 rows.append(DatePrice(date=(datetime.combine(day, datetime.min.time()),
-                    datetime.combine(returning, datetime.min.time())), price=min(prices), currency="EUR"))
+                    datetime.combine(returning, datetime.min.time())), price=min(prices), currency=locale["currency"]))
 
         while current <= end:
             try:
@@ -315,6 +315,10 @@ class FreeProvider:
         except Exception:
             self.searches = {}
 
+    def locale(self):
+        """Google prices the search in the trip's currency, as if searched from its country."""
+        return dict(currency=self.config.currency, language="en", country=self.config.country)
+
     def common(self, origin, departure, return_date, profile):
         from fli.models import Airline, Airport, PassengerInfo, SeatType, MaxStops, BagsFilter, TimeRestrictions
         from fli.core.builders import build_flight_segments, build_multi_city_segments
@@ -353,7 +357,7 @@ class FreeProvider:
         params = self.common(batch.origin, *pairs[0], batch.profile)
         filters = DateSearchFilters(**params, from_date=batch.start.isoformat(), to_date=batch.end.isoformat(), duration=batch.duration)
         try:
-            rows = self.dates.search(filters, currency="EUR", language="en", country="DE")
+            rows = self.dates.search(filters, **self.locale())
         except ServiceError:
             raise
         except Exception:
@@ -367,8 +371,8 @@ class FreeProvider:
             pair = tuple(d.date().isoformat() for d in row.date)
             if pair not in result:
                 continue
-            if row.currency != "EUR":
-                raise ServiceError("Calendar currency is missing or differs from EUR")
+            if row.currency != self.config.currency:
+                raise ServiceError(f"Calendar currency is missing or differs from {self.config.currency}")
             result[pair] = per_person(cents(row.price), self.config.adults)
         return result
 
@@ -377,8 +381,7 @@ class FreeProvider:
         filters = FlightSearchFilters(**self.common(origin, departure, return_date, profile), sort_by=SortBy.CHEAPEST)
         flights = self.searcher()
         try:
-            pairs = flights.search(filters, top_n=self.config.outbound_candidates,
-                                   currency="EUR", language="en", country="DE")
+            pairs = flights.search(filters, top_n=self.config.outbound_candidates, **self.locale())
         except ServiceError:
             raise
         except Exception:
@@ -389,7 +392,7 @@ class FreeProvider:
         if pairs and isinstance(session, str) and session:
             self.searches[self.search_key(origin, departure, return_date, profile)] = (pairs, session)
         link = search_query(origin, self.config.destination, departure, return_date, self.config.travel_class,
-                            self.config.adults, self.config.return_from)
+                            self.config.adults, self.config.return_from, self.config.currency, self.config.country)
         return normalize_pairs(pairs or [], origin, departure, return_date, profile, self.config, lambda _: link)
 
     def baggage_offers(self, origin, departure, return_date, profile):
@@ -419,12 +422,11 @@ class FreeProvider:
             if cached:
                 pairs, flights._last_session_id = cached
             else:
-                pairs = flights.search(filters, top_n=self.config.outbound_candidates,
-                                       currency="EUR", language="en", country="DE") or []
+                pairs = flights.search(filters, top_n=self.config.outbound_candidates, **self.locale()) or []
             candidates = []
             for pair in pairs:
                 link = search_query(origin, self.config.destination, departure, return_date, "economy",
-                                    self.config.adults, self.config.return_from)
+                                    self.config.adults, self.config.return_from, self.config.currency, self.config.country)
                 quotes = normalize_pairs([pair], origin, departure, return_date, profile, self.config, lambda _: link)
                 if quotes and quotes[0].itinerary_id:
                     candidates.append((quotes[0], pair))
@@ -440,7 +442,7 @@ class FreeProvider:
             selected += [x for x in ordered if x not in selected]
             found = []
             for q, pair in selected[:self.config.outbound_candidates]:
-                found.extend(booking_quotes(flights, self.http, pair, filters, q))
+                found.extend(booking_quotes(flights, self.http, pair, filters, q, self.locale()))
             return found
         except ServiceError:
             raise
@@ -513,7 +515,7 @@ def normalize_pairs(pairs, origin, departure, return_date, profile, config, make
         if not isinstance(pair, tuple) or len(pair) != 2:
             continue
         outbound, inbound = pair
-        if any(x.currency != "EUR" or not x.legs for x in pair):
+        if any(x.currency != config.currency or not x.legs for x in pair):
             continue
         if any(not 0 < x.duration <= config.max_direction_minutes for x in pair):
             continue

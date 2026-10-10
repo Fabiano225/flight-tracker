@@ -23,6 +23,46 @@ def cents(value):
         raise ValueError("Invalid price") from None
 
 
+# Currencies a trip can be priced in: code -> (name, symbol for the website, about this
+# much per euro). Google prices every search in the trip's currency; the tracker never
+# converts a price. The rate only turns suggested price targets into rough amounts.
+CURRENCIES = {
+    "EUR": ("Euro", "€", 1), "THB": ("Thai baht", "฿", 38), "USD": ("US dollar", "US$", 1.1),
+    "GBP": ("British pound", "£", 0.85), "CHF": ("Swiss franc", "CHF ", 0.95), "PLN": ("Polish złoty", "zł ", 4.3),
+    "CZK": ("Czech koruna", "Kč ", 25), "SEK": ("Swedish krona", "SEK ", 11.5), "NOK": ("Norwegian krone", "NOK ", 11.7),
+    "DKK": ("Danish krone", "DKK ", 7.45), "AUD": ("Australian dollar", "A$", 1.7), "NZD": ("New Zealand dollar", "NZ$", 1.85),
+    "CAD": ("Canadian dollar", "CA$", 1.5), "SGD": ("Singapore dollar", "SGD ", 1.45), "MYR": ("Malaysian ringgit", "RM ", 5),
+    "PHP": ("Philippine peso", "₱", 63), "HKD": ("Hong Kong dollar", "HK$", 8.5), "JPY": ("Japanese yen", "¥", 165),
+    "KRW": ("South Korean won", "₩", 1500), "INR": ("Indian rupee", "₹", 95), "AED": ("UAE dirham", "AED ", 4),
+}
+# Currencies without minor units: Google gives whole amounts, shown without decimals.
+WHOLE_CURRENCIES = ("JPY", "KRW")
+# Countries a trip can search from. Google's offers and prices can depend on where a
+# search comes from; the tracker searches from Germany unless a trip says otherwise.
+COUNTRIES = {
+    "DE": "Germany", "AT": "Austria", "CH": "Switzerland", "NL": "Netherlands", "BE": "Belgium", "FR": "France",
+    "ES": "Spain", "IT": "Italy", "GB": "United Kingdom", "IE": "Ireland", "PL": "Poland", "CZ": "Czechia",
+    "DK": "Denmark", "SE": "Sweden", "NO": "Norway", "US": "United States", "CA": "Canada", "AU": "Australia",
+    "NZ": "New Zealand", "TH": "Thailand", "SG": "Singapore", "MY": "Malaysia", "PH": "Philippines",
+    "HK": "Hong Kong", "JP": "Japan", "KR": "South Korea", "IN": "India", "AE": "United Arab Emirates",
+}
+
+
+def money(amount, currency="EUR", sign=False):
+    """An amount in cents for messages and reports: "616.00 EUR", "24,500.00 THB", "98,000 JPY"."""
+    digits = 0 if currency in WHOLE_CURRENCIES else 2
+    return f"{amount / 100:{'+' if sign else ''},.{digits}f} {currency}"
+
+
+def money_text(value, currency="EUR"):
+    """A settings amount (whole units) for the website: "€650", "฿24,500", "CHF 95.50"."""
+    amount = Decimal(str(value))
+    symbol = CURRENCIES[currency][1]
+    if amount == amount.to_integral_value() or currency in WHOLE_CURRENCIES:
+        return f"{symbol}{int(amount.to_integral_value()):,}"
+    return f"{symbol}{amount:,.2f}"
+
+
 def per_person(total, travellers):
     """A party's total price in cents, per traveller (rounded to the cent)."""
     return (2 * total + travellers) // (2 * travellers)
@@ -55,7 +95,7 @@ TRIP_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,19}")
 SHARED_FIELDS = ("pending_ttl_hours", "max_http_attempts_per_run", "max_run_seconds", "http_timeout_seconds",
                  "http_attempts", "request_interval_seconds", "max_parallel_requests")
 # Optional settings: config.json leaves them out while they have these values.
-OPTIONAL = {"more_destinations": (), "return_from": None, "latest_return": None, "max_stops": None, "airlines": (), "airlines_exclude": (), "flight_times": {},
+OPTIONAL = {"more_destinations": (), "return_from": None, "country": "DE", "latest_return": None, "max_stops": None, "airlines": (), "airlines_exclude": (), "flight_times": {},
             "origin_targets": {}, "display_names": {}, "id": MAIN_TRIP}
 TARGET_CATEGORIES = ("nonstop", "layover")
 # Local-time windows a search can limit, in the order of Quote.schedule.
@@ -79,6 +119,8 @@ class Config:
     # Optional last return date (YYYY-MM-DD): date pairs returning later are not searched.
     latest_return: str | None = None
     currency: str = "EUR"
+    # Where Google is searched from (two-letter country code, see COUNTRIES).
+    country: str = "DE"
     adults: int = 1
     travel_class: str = "economy"
     max_direction_minutes: int = 1259
@@ -150,8 +192,10 @@ class Config:
             if (date.fromisoformat(self.latest_return) - start).days < self.min_trip_days:
                 raise ValueError("latest_return is too early: even the shortest trip from the earliest departure returns later")
         # With several travellers Google prices the whole party; the tracker keeps per-person prices.
-        if self.currency != "EUR":
-            raise ValueError("This tracker supports EUR prices only")
+        if self.currency not in CURRENCIES:
+            raise ValueError(f"currency must be one of {', '.join(CURRENCIES)}")
+        if self.country not in COUNTRIES:
+            raise ValueError(f"country must be one of {', '.join(COUNTRIES)}")
         if self.travel_class not in TRAVEL_CLASSES:
             raise ValueError("Invalid travel class")
         if type(self.hide_separate_tickets) is not bool:
@@ -230,7 +274,7 @@ class Config:
         # Further trips never share history or alerts with another trip, even to the same place.
         if self.id != MAIN_TRIP:
             data["trip"] = self.id
-        data.update(provider="fli-0.9-prefetch-v2", mode=mode, gl="DE", hl="en")
+        data.update(provider="fli-0.9-prefetch-v2", mode=mode, gl=self.country, hl="en")
         return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()[:24]
 
     def public_dict(self):

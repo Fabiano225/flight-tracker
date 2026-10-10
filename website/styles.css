@@ -176,6 +176,7 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 /* Settings: suggested price targets. */
 .price-suggestion{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin:0 0 18px;padding:12px 14px;border:1px dashed #b9c9ad;border-radius:10px;background:#f4f7ec;font-size:12px;line-height:1.6}
 .price-suggestion p{margin:0;flex:1 1 320px}
+#currency-converted{margin-top:10px}
 .airport-targets{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
 .airport-targets .footnote{margin:4px 0 12px}
 .target-rows{display:grid;gap:10px}

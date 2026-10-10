@@ -2,18 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {searchAirports,searchAirlines,validateTrips,timeWindows,restartsHistory,destinationList,requestEstimate,changedFields,shownValue,issueBody,issueUrl,issueTitle,
-  tripIds,tripErrors,settingsJson,settingsChanges,MAX_URL,distanceKm,niceEuro,suggestPrices,observedPrices,alertAmounts,MIN_PRICES} from '../website/search-model.mjs';
+  tripIds,tripErrors,settingsJson,settingsChanges,MAX_URL,distanceKm,niceAmount,convertAmount,amountText,suggestPrices,observedPrices,alertAmounts,MIN_PRICES} from '../website/search-model.mjs';
 
 const table=JSON.parse(readFileSync(new URL('../tracker/airports.json',import.meta.url),'utf8'));
 const airlines=JSON.parse(readFileSync(new URL('../tracker/airlines.json',import.meta.url),'utf8')).airlines;
 const file=JSON.parse(readFileSync(new URL('../config.json',import.meta.url),'utf8'));
 const shared=['pending_ttl_hours','max_http_attempts_per_run','max_run_seconds','http_timeout_seconds','http_attempts','request_interval_seconds','max_parallel_requests'];
-const main={...file,latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],origin_targets:{},display_names:{},id:'main'};
+const main={...file,country:'DE',latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],origin_targets:{},display_names:{},id:'main'};
 const meta={trips:[main],primary_trip:'main',shared_fields:shared,max_trips:5,max_destinations:5,airlines,
   marker:'<!-- flightwatch-search-settings -->',repository:'Fabiano225/flight-tracker',
   labels:{destination:'Destination',origins:'Departure airports',max_stops:'Max. stops per direction',max_http_attempts_per_run:'Request budget per run',
-    good_deal_layover_eur:'Price target, with stops (€)',primary_trip:'Shown first on the website',trips:'Trips'},
+    good_deal_layover_eur:'Price target, with stops',currency:'Currency',country:'Search from',primary_trip:'Shown first on the website',trips:'Trips'},
   travel_classes:{economy:'Economy',premium_economy:'Premium Economy',business:'Business',first_class:'First'},
+  currencies:{EUR:{name:'Euro',symbol:'€',rate:1},THB:{name:'Thai baht',symbol:'฿',rate:38},CHF:{name:'Swiss franc',symbol:'CHF ',rate:0.95}},
+  countries:{DE:'Germany',TH:'Thailand'},
   limits:{display_name:40,float:{drop_percent:[0.01,100],request_interval_seconds:[0,30]},
     int:{min_trip_days:[1,90],max_trip_days:[1,90],history_window_days:[1,365],max_deals_per_run:[1,6],pending_ttl_hours:[1,24],
       adults:[1,9],max_http_attempts_per_run:[1,2000],http_timeout_seconds:[1,120],http_attempts:[1,4],carry_on_bags:[0,1],checked_bags:[0,1],
@@ -157,7 +159,7 @@ test('several trips: changes name the trip and the issue holds all trips',()=>{
     {id:null,config:{...amsterdam,id:'ams',destination:'LIS',max_http_attempts_per_run:1700}}];
   const changes=settingsChanges(two,edited,1).map(c=>`${c.label}: ${c.before} → ${c.after}`);
   assert.deepEqual(changes,['Request budget per run: 1600 → 1700','Shown first on the website: BKK → AMS',
-    'AMS · Price target, with stops (€): 650 → 90','Trips: — → added: FRA → LIS, 2026-10-20 to 2026-10-23, 3–4 days']);
+    'AMS · Price target, with stops: €650 → €90','Trips: — → added: FRA → LIS, 2026-10-20 to 2026-10-23, 3–4 days']);
   assert.deepEqual(settingsChanges(two,[edited[0]],0).map(c=>c.after).slice(-1),['removed']);
   const settings=settingsJson(two,edited,1);
   assert.deepEqual(settings.trips.map(t=>t.id),['main','ams','lis']);
@@ -175,11 +177,41 @@ test('five full trips still fit into the issue link',()=>{
   assert.ok(issueUrl(meta,settings,changes).length<MAX_URL);
 });
 
+test('a trip\'s currency and search country are checked, shown and start a new history',()=>{
+  const errors=c=>tripErrors(config(c),meta,table,today).errors;
+  assert.deepEqual(errors({currency:'THB',country:'TH'}),{});
+  assert.ok(errors({currency:'XYZ'}).currency);
+  assert.ok(errors({country:'XX'}).country);
+  assert.ok(restartsHistory(main,config({currency:'THB'})));
+  assert.ok(restartsHistory(main,config({country:'TH'})));
+  assert.equal(shownValue('currency','THB',meta),'Thai baht (THB)');
+  assert.equal(shownValue('country','TH',meta),'Thailand');
+  assert.equal(shownValue('good_deal_layover_eur',24500,meta,'THB'),'฿24,500');
+  assert.equal(shownValue('origin_targets',{FRA:{layover:23000}},meta,'THB'),'FRA: with stops ฿23,000');
+  assert.equal(amountText(95.5,'CHF',meta),'CHF 95.5');
+  const rows=settingsChanges(meta,[{id:'main',config:config({currency:'THB',country:'TH',good_deal_layover_eur:24500})}],0)
+    .map(row=>`${row.label}: ${row.before} → ${row.after}`);
+  assert.deepEqual(rows,['Currency: Euro (EUR) → Thai baht (THB)','Price target, with stops: €650 → ฿24,500','Search from: Germany → Thailand']);
+  // Searching from Germany is the default and stays out of the issue, like in config.json.
+  assert.ok(!('country' in settingsJson(meta,[{id:'main',config:main}],0).trips[0]));
+  assert.equal(settingsJson(meta,[{id:'main',config:config({country:'TH'})}],0).trips[0].country,'TH');
+});
+
+test('amounts follow a new currency roughly, and suggestions use its rate',()=>{
+  assert.equal(convertAmount(650,'EUR','THB',meta.currencies),24500);
+  assert.equal(convertAmount(24500,'THB','EUR',meta.currencies),640);
+  assert.equal(convertAmount(650,'EUR','EUR',meta.currencies),650);
+  assert.equal(convertAmount(650,'EUR','XYZ',meta.currencies),650);
+  assert.deepEqual(alertAmounts(24500,38),{realert:980,drop:1950});
+  const baht=suggestPrices(config({origins:['FRA'],currency:'THB'}),table,null,38).values;
+  assert.deepEqual(baht,{good_deal_nonstop_eur:28500,good_deal_layover_eur:25000,realert_improvement_eur:1000,drop_eur:2000});
+});
+
 test('price suggestions start from the flight distance',()=>{
   assert.equal(distanceKm(table,'FRA','FRA'),0);
   assert.ok(Math.abs(distanceKm(table,'FRA','BKK')-9000)<50);
   assert.equal(distanceKm(table,'FRA','XQZ'),null);
-  assert.deepEqual([niceEuro(3),niceEuro(87),niceEuro(652),niceEuro(1234)],[5,85,650,1250]);
+  assert.deepEqual([niceAmount(3),niceAmount(87),niceAmount(652),niceAmount(1234),niceAmount(24730),niceAmount(107250)],[5,85,650,1250,24500,105000]);
   assert.deepEqual(alertAmounts(650),{realert:25,drop:50});
   const bangkok=suggestPrices(config({origins:['FRA']}),table);
   assert.equal(bangkok.source,'estimate');

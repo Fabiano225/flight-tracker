@@ -19,7 +19,7 @@ class ReportTests(unittest.TestCase):
             with (store.directory/'latest.csv').open(encoding='utf8',newline='') as f:
                 rows=list(csv.DictReader(f))
             self.assertTrue(rows)
-            self.assertIn('price_eur',rows[0])
+            self.assertEqual((rows[0]['price'],rows[0]['currency']),('600.00','EUR'))
             self.assertNotIn('itinerary_id',rows[0])
             self.assertTrue((store.directory/'latest.json').exists())
             self.assertTrue((store.directory/'report.md').exists())

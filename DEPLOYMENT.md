@@ -11,7 +11,7 @@ written for the repository maintainer; the user-facing overview is in
   times of an external timer (see [Exact search times](#exact-search-times-with-an-external-timer)),
   with an hourly check as the fallback. Track flights has no schedule of its own.
 - **Search window:** departures 20–23 October 2026; 14–21-day trips
-- **Routes:** DUS/FRA/AMS → BKK, one adult, economy, EUR (as in `config.json`)
+- **Routes:** DUS/FRA/AMS → BKK, one adult, economy, EUR, searched from Germany (as in `config.json`)
 - **Duration guard:** below 21 hours in each direction
 - **State branch:** `tracker-state`
 - **Search settings:** `config.json` on `main`, or the `search-config` branch once the
@@ -98,6 +98,9 @@ hours.
 - [ ] `NOTIFICATION_CHANNEL` is absent / `auto` (or explicitly `discord`).
 - [ ] For Telegram instead: set `NOTIFICATION_CHANNEL=telegram`, configure
       `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`, send `/start` and run **Test Telegram**.
+- [ ] Optional, a trip's own channel: `DISCORD_WEBHOOKS` / `TELEGRAM_CHAT_IDS` as JSON by
+      trip ID (README, "A trip's own message channel"); **Test Discord** / **Test Telegram**
+      then greet every channel.
 - [ ] The **Tests** workflow is green on the default branch.
 - [ ] `TRACKER_ENABLED` is absent or set to `true`.
 - [ ] The **Track flights** workflow has write permission for the `tracker-state`

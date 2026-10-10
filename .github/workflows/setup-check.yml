@@ -24,6 +24,7 @@ jobs:
           HAS_DISCORD: ${{ secrets.DISCORD_WEBHOOK_URL != '' }}
           HAS_TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
           HAS_TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT_ID != '' }}
+          HAS_TRIP_CHANNELS: ${{ secrets.DISCORD_WEBHOOKS != '' || secrets.TELEGRAM_CHAT_IDS != '' }}
           NOTIFICATION_CHANNEL: ${{ vars.NOTIFICATION_CHANNEL }}
           TRACKER_ENABLED: ${{ vars.TRACKER_ENABLED }}
           DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
