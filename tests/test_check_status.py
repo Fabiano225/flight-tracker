@@ -65,6 +65,11 @@ class CheckStatusTests(unittest.TestCase):
         self.assertIn('Check incomplete',self.text())
         self.assertNotIn('No price change',self.text())
 
+    def test_changes_are_in_the_trip_s_currency(self):
+        self.config = replace(self.config, currency='THB')
+        self.queue(price=61000)
+        self.assertIn('FRA with stops: 610.00 THB (+10.00 THB since the alert)', self.text())
+
     def test_small_decrease(self):
         self.queue(price=59700)
         self.assertIn('Only small price changes',self.text())

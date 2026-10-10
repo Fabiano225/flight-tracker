@@ -174,7 +174,7 @@ class TripIssueTests(unittest.TestCase):
         values['trips'][1]['good_deal_nonstop_eur'] = 99
         self.assertEqual(settings.changes(both, Settings.from_dict(values)), [
             ('Request budget per run', '1600', '1800'), ('Shown first on the website', 'BKK', 'AMS'),
-            ('AMS · Price target, non-stop (€)', '120', '99')])
+            ('AMS · Price target, non-stop', '€120', '€99')])
         twins = trips_values()
         twins['trips'][1].update(destination='BKK', origins=['MUC'])
         self.assertEqual(settings.trip_name(Settings.from_dict(twins).trip('ams'), Settings.from_dict(twins).trips),
@@ -239,7 +239,7 @@ class BranchTests(unittest.TestCase):
         # The current single-trip form sends one trip: it replaces the primary trip only.
         outcome, reply = settings.apply(body({**json.loads(self.original), 'good_deal_layover_eur': 600}), self.config, TODAY)
         self.assertEqual(outcome, 'applied')
-        self.assertIn('| BKK · Price target, with stops (€) | 650 | 600 |', reply)
+        self.assertIn('| BKK · Price target, with stops | €650 | €600 |', reply)
         settings.use(self.config)
         stored = Settings.load(self.config)
         self.assertEqual(stored.trip('main').good_deal_layover_eur, 600)
@@ -256,7 +256,7 @@ class BranchTests(unittest.TestCase):
         values['trips'][0]['good_deal_layover_eur'] = 600
         outcome, reply = settings.apply(body(values), self.config, TODAY)
         self.assertEqual(outcome, 'applied')
-        self.assertIn('| Price target, with stops (€) | 650 | 600 |', reply)
+        self.assertIn('| Price target, with stops | €650 | €600 |', reply)
         settings.use(self.config)
         stored = json.loads(self.config.read_text(encoding='utf-8'))
         self.assertEqual(stored, {**json.loads(self.original), 'good_deal_layover_eur': 600})

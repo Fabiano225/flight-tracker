@@ -56,6 +56,9 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Optional channels per trip, as JSON by trip ID; see "A trip's own message channel" in README.md.
+          DISCORD_WEBHOOKS: ${{ secrets.DISCORD_WEBHOOKS }}
+          TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
         run: python -m tracker notify
       - name: Persist delivery receipts even after a partial failure
         id: receipts

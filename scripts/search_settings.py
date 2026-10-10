@@ -21,8 +21,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tracker.config import (MAX_TRIPS, OPTIONAL, SHARED_FIELDS, TARGET_CATEGORIES, TIME_WINDOWS, Config, Settings,
-                            shared_values, trips_of)
+from tracker.config import (COUNTRIES, CURRENCIES, MAX_TRIPS, OPTIONAL, PRICE_FIELDS, SHARED_FIELDS, TARGET_CATEGORIES,
+                            TIME_WINDOWS, Config, Settings, money_text, shared_values, trips_of)
 from tracker.places import airline_supported, place, supported
 from tracker.planner import plan, request_estimate, settings_estimate
 
@@ -34,13 +34,13 @@ LABELS = {
     "return_from": "Return flight from",
     "departure_start": "Earliest departure",
     "departure_end": "Latest departure", "min_trip_days": "Shortest trip (days)",
-    "max_trip_days": "Longest trip (days)", "latest_return": "Latest return", "currency": "Currency", "adults": "Travellers",
+    "max_trip_days": "Longest trip (days)", "latest_return": "Latest return", "currency": "Currency", "country": "Search from", "adults": "Travellers",
     "travel_class": "Cabin", "max_direction_minutes": "Max. travel time per direction (minutes)",
     "hide_separate_tickets": "Hide separate tickets", "carry_on_bags": "Cabin bag in the base search",
-    "checked_bags": "Checked bag in the base search", "good_deal_nonstop_eur": "Price target, non-stop (€)",
-    "good_deal_layover_eur": "Price target, with stops (€)", "origin_targets": "Price targets per airport", "drop_percent": "Strong deal: at least % below the low",
-    "drop_eur": "Strong deal: at least € below the low", "history_window_days": "Comparison period (days)",
-    "realert_improvement_eur": "New price alert from a change of (€)", "max_deals_per_run": "Max. offers per message",
+    "checked_bags": "Checked bag in the base search", "good_deal_nonstop_eur": "Price target, non-stop",
+    "good_deal_layover_eur": "Price target, with stops", "origin_targets": "Price targets per airport", "drop_percent": "Strong deal: at least % below the low",
+    "drop_eur": "Strong deal: at least this much below the low", "history_window_days": "Comparison period (days)",
+    "realert_improvement_eur": "New price alert from a change of", "max_deals_per_run": "Max. offers per message",
     "pending_ttl_hours": "Undelivered messages expire after (hours)",
     "max_verifications_per_run": "Flight checks per run", "outbound_candidates": "Outbound candidates per check",
     "max_http_attempts_per_run": "Request budget per run", "max_run_seconds": "Time budget per run (seconds)",
@@ -51,8 +51,8 @@ LABELS = {
     "primary_trip": "Shown first on the website", "trips": "Trips",
 }
 # The settings of Config.scope, in words.
-SCOPE_WORDS = ("destination, return airport, travellers, cabin, bags, separate tickets, travel time limit, "
-               "flight times, airlines or stops")
+SCOPE_WORDS = ("destination, return airport, currency, search country, travellers, cabin, bags, separate tickets, "
+               "travel time limit, flight times, airlines or stops")
 CLASSES = {"economy": "Economy", "premium_economy": "Premium Economy", "business": "Business", "first_class": "First"}
 
 
@@ -216,7 +216,14 @@ def time_windows(value):
                      for name in TIME_WINDOWS if name in value)
 
 
-def shown(name, value):
+def shown(name, value, currency="EUR"):
+    """A setting's value in words; amounts in the trip's currency."""
+    if name in PRICE_FIELDS:
+        return money_text(value, currency)
+    if name == "currency":
+        return f"{CURRENCIES[value][0]} ({value})" if value in CURRENCIES else str(value)
+    if name == "country":
+        return COUNTRIES.get(value, value)
     if name == "flight_times":
         return time_windows(value) or "any time"
     if name == "latest_return":
@@ -235,7 +242,7 @@ def shown(name, value):
         return ", ".join(f"{k}: {v}" for k, v in sorted(value.items())) or "automatic"
     if name == "origin_targets":
         words = {"nonstop": "non-stop", "layover": "with stops"}
-        return "; ".join(f"{code}: " + ", ".join(f"{words[k]} €{v:g}" for k, v in sorted(targets.items(), key=lambda x: x[0] != "nonstop"))
+        return "; ".join(f"{code}: " + ", ".join(f"{words[k]} {money_text(v, currency)}" for k, v in sorted(targets.items(), key=lambda x: x[0] != "nonstop"))
                          for code, targets in sorted(value.items())) or "same for all airports"
     if name == "travel_class":
         return CLASSES.get(value, value)
@@ -250,7 +257,7 @@ def cell(text):
 
 def trip_changes(old, new, prefix="", skip=()):
     old_values, new_values = old.public_dict(), new.public_dict()
-    return [(prefix + LABELS[f.name], shown(f.name, old_values[f.name]), shown(f.name, new_values[f.name]))
+    return [(prefix + LABELS[f.name], shown(f.name, old_values[f.name], old.currency), shown(f.name, new_values[f.name], new.currency))
             for f in fields(Config) if f.name not in skip and old_values[f.name] != new_values[f.name]]
 
 
@@ -334,8 +341,9 @@ def apply(body, path, today, issue=None, paused=False):
                   "The old history stays stored.", ""]
     if several:
         lines += [f"All {len(new.trips)} trips are searched in every run and share its budget of "
-                  f"{new.trips[0].max_http_attempts_per_run} requests. Messages for all trips go to the same "
-                  "channel; each names its destination.", ""]
+                  f"{new.trips[0].max_http_attempts_per_run} requests. Messages go to the same channel unless a "
+                  "trip has its own (`DISCORD_WEBHOOKS` or `TELEGRAM_CHAT_IDS`, by trip ID: "
+                  + ", ".join(f"`{trip.id}`" for trip in new.trips) + "); each names its destination.", ""]
     if paused:
         lines += ["⏸️ Searches are paused (repository variable `TRACKER_ENABLED` is `false`): the website shows "
                   "the new settings in about 2 minutes, but no prices are searched until you turn searches back on.", ""]

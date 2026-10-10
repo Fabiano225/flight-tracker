@@ -86,7 +86,7 @@ class FareBaggageTests(unittest.TestCase):
         previous=object()
         def fail(*args,**kwargs):raise RuntimeError('failed')
         search=NS(client=previous,get_booking_options=fail)
-        with self.assertRaises(RuntimeError):booking_quotes(search,None,self.pair,None,self.q)
+        with self.assertRaises(RuntimeError):booking_quotes(search,None,self.pair,None,self.q,dict(currency='EUR',language='en',country='DE'))
         self.assertIs(search.client,previous)
 
 

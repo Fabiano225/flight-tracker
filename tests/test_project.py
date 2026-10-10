@@ -17,7 +17,7 @@ from tracker.notifications import notifications_configured
 
 ROOT = Path(__file__).resolve().parents[1]
 CLEAN = {name: "" for name in ("GITHUB_REPOSITORY", "DASHBOARD_URL", "NOTIFICATION_CHANNEL", "DISCORD_WEBHOOK_URL",
-                               "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")}
+                               "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "DISCORD_WEBHOOKS", "TELEGRAM_CHAT_IDS")}
 
 
 class ProjectTests(unittest.TestCase):
@@ -66,7 +66,8 @@ class NotificationSetupTests(unittest.TestCase):
     def test_runs_without_any_channel_skip_delivery(self):
         with mock.patch.dict(os.environ, CLEAN):
             self.assertFalse(notifications_configured())
-        for env in ({"DISCORD_WEBHOOK_URL": "x"}, {"TELEGRAM_BOT_TOKEN": "x"}, {"NOTIFICATION_CHANNEL": "discord"}):
+        for env in ({"DISCORD_WEBHOOK_URL": "x"}, {"TELEGRAM_BOT_TOKEN": "x"}, {"NOTIFICATION_CHANNEL": "discord"},
+                    {"DISCORD_WEBHOOKS": "{}"}, {"TELEGRAM_CHAT_IDS": "{}"}):
             with mock.patch.dict(os.environ, {**CLEAN, **env}):
                 self.assertTrue(notifications_configured(), env)
         with tempfile.TemporaryDirectory() as temp:

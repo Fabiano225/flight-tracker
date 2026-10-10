@@ -15,3 +15,4 @@ jobs:
       - run: python -m tracker discord-test
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOKS: ${{ secrets.DISCORD_WEBHOOKS }}

@@ -5,8 +5,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.build_site import export_data, build, ASSETS, GENERATED, render_page, date_range, euro_text
-from tracker.config import Config, Settings
+from scripts.build_site import export_data, build, ASSETS, GENERATED, render_page, date_range
+from tracker.config import Config, Settings, money_text
 from tracker.provider import Quote
 from tracker.store import Store, stamp
 
@@ -114,7 +114,7 @@ class SiteTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'empty'):build(self.path,output)
         form=json.loads((output/'search-config.json').read_text(encoding='utf-8'))
         self.assertEqual(set(form),{'version','repository','marker','primary_trip','trips','shared_fields','max_trips','max_destinations',
-                                    'airlines','labels','travel_classes','limits'})
+                                    'airlines','labels','travel_classes','currencies','countries','limits'})
         self.assertEqual((form['version'],form['primary_trip'],form['max_trips']),(2,'main',5))
         self.assertEqual(form['airlines']['QR'],'Qatar Airways')
         self.assertEqual(form['trips'][0]['max_stops'],None)
@@ -183,8 +183,11 @@ class SiteTests(unittest.TestCase):
         self.assertEqual(date_range('2026-10-20','2026-10-20'),'20 Oct 2026')
         self.assertEqual(date_range('2026-10-28','2026-11-03'),'28 Oct – 3 Nov 2026')
         self.assertEqual(date_range('2026-12-28','2027-01-03'),'28 Dec 2026 – 3 Jan 2027')
-        self.assertEqual(euro_text(1250),'€1,250')
-        self.assertEqual(euro_text(1250.5),'€1,250.50')
+        self.assertEqual(money_text(1250),'€1,250')
+        self.assertEqual(money_text(1250.5),'€1,250.50')
+        self.assertEqual(money_text(24500,'THB'),'฿24,500')
+        self.assertEqual(money_text(95.5,'CHF'),'CHF 95.50')
+        self.assertEqual(money_text(98000,'JPY'),'¥98,000')
 
 
 if __name__=='__main__':unittest.main()

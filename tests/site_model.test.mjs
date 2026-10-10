@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,priceStatus,euro,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs,timesFit,parseFavorite,belongsToTrip,calendarGrid,priceStep,weekTrend,cheapestPerOrigin} from '../website/model.mjs';
+import {filteredOffers,comparison,priceStatus,money,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs,timesFit,parseFavorite,belongsToTrip,calendarGrid,priceStep,weekTrend,cheapestPerOrigin} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -26,18 +26,30 @@ test('unchanged since the last check still reports an earlier, lower price',()=>
   const c=comparison(offer,history,config);
   assert.equal(c.delta,0);assert.equal(c.low,58000);assert.equal(c.lowAt,'2026-09-18T06:00:00+00:00');
   const s=priceStatus(c);
-  assert.equal(s.main,`↑ ${euro(2000)} above the low`);assert.equal(s.tone,'up');
-  assert.equal(s.detail,`low ${euro(58000)} on ${shortDate('2026-09-18T06:00:00+00:00')} · unchanged since the last check`);
+  assert.equal(s.main,`↑ ${money(2000)} above the low`);assert.equal(s.tone,'up');
+  assert.equal(s.detail,`low ${money(58000)} on ${shortDate('2026-09-18T06:00:00+00:00')} · unchanged since the last check`);
 });
 test('price status distinguishes new low, repeated low and first check',()=>{
   const at=p=>[{at:'2026-09-18T06:00:00+00:00',price:62000},{at:'2026-09-19T06:00:00+00:00',price:p}];
   const newLow=priceStatus(comparison(offer,at(61000),config));
   assert.equal(newLow.main,'↓ New low');assert.equal(newLow.tone,'down');
-  assert.equal(newLow.detail,`previously ${euro(61000)} on ${shortDate('2026-09-19T06:00:00+00:00')} · since the last check ↓ ${euro(1000)}`);
+  assert.equal(newLow.detail,`previously ${money(61000)} on ${shortDate('2026-09-19T06:00:00+00:00')} · since the last check ↓ ${money(1000)}`);
   const repeated=priceStatus(comparison(offer,[{at:'2026-09-17T06:00:00+00:00',price:60000},{at:'2026-09-19T06:00:00+00:00',price:64000}],config));
   assert.equal(repeated.main,'At the low');
-  assert.equal(repeated.detail,`as on ${shortDate('2026-09-17T06:00:00+00:00')} · since the last check ↓ ${euro(4000)}`);
+  assert.equal(repeated.detail,`as on ${shortDate('2026-09-17T06:00:00+00:00')} · since the last check ↓ ${money(4000)}`);
   assert.deepEqual(priceStatus(comparison(offer,[],config)),{main:'First check',detail:null,tone:'neutral'});
+});
+test('prices are shown in the trip\'s currency',()=>{
+  const baht={currency:'THB',currency_symbol:'฿'};
+  assert.equal(money(61600),'€616');
+  assert.equal(money(61650),'€616.50');
+  assert.equal(money(2432000,baht),'฿24,320');
+  assert.equal(money(-150000,baht),'-฿1,500');
+  assert.equal(money(9550,{currency:'CHF',currency_symbol:'CHF '}),'CHF 95.50');
+  // Currencies without minor units never show decimals, even for a share of a party's price.
+  assert.equal(money(3333367,{currency:'JPY',currency_symbol:'¥'}),'¥33,334');
+  const s=priceStatus(comparison(offer,[{at:'2026-09-18T06:00:00+00:00',price:58000},{at:offer.at,price:60000}],config),baht);
+  assert.equal(s.main,'↑ ฿20 above the low');
 });
 test('favorites outside the search window are pruned, temporarily missing ones kept',()=>{
   const cfg={destination:'BKK',origins:['DUS','FRA','AMS'],departure_start:'2026-10-20',departure_end:'2026-10-23',min_trip_days:14,max_trip_days:21};

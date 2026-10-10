@@ -39,7 +39,8 @@ def main():
     chat_id = message["chat"]["id"]
     call(token, "sendMessage", {"chat_id": chat_id, "text":
         f"Your Telegram chat ID: {chat_id}\n\n"
-        "Add this number in GitHub as the Actions secret TELEGRAM_CHAT_ID:\n"
+        "Add this number in GitHub as the Actions secret TELEGRAM_CHAT_ID (or, for a trip's own chat, "
+        "to TELEGRAM_CHAT_IDS by trip ID):\n"
         f"{repository_url()}/settings/secrets/actions\n\n"
         "Keep the bot token secret."})
     print("Chat ID sent privately through your bot. Add TELEGRAM_CHAT_ID in GitHub, then run the flight tracker.")

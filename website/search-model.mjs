@@ -2,7 +2,7 @@
 // (tracker/config.py, scripts/search_settings.py); these checks give early feedback.
 
 // Settings that start a separate price history (tracker/config.py: Config.scope).
-export const scopeFields=['destination','return_from','adults','travel_class','max_direction_minutes','hide_separate_tickets','carry_on_bags','checked_bags',
+export const scopeFields=['destination','return_from','currency','country','adults','travel_class','max_direction_minutes','hide_separate_tickets','carry_on_bags','checked_bags',
   'max_stops','airlines','airlines_exclude','flight_times'];
 export const priceFields=['good_deal_nonstop_eur','good_deal_layover_eur','drop_eur','realert_improvement_eur'];
 // Local-time windows [from hour, until hour) a trip can limit (tracker/config.py: TIME_WINDOWS).
@@ -127,9 +127,11 @@ export function tripErrors(config, meta, table, today) {
   }
   for(const field of priceFields) {
     const value=config[field];
-    if(!Number.isFinite(value) || value<0.01 || value>10000000)error(field,'Enter an amount above €0.');
+    if(!Number.isFinite(value) || value<0.01 || value>10000000)error(field,'Enter an amount above 0.');
   }
   if(!Object.hasOwn(meta.travel_classes,config.travel_class))error('travel_class','Choose a cabin.');
+  if(!Object.hasOwn(meta.currencies,config.currency))error('currency','Choose a currency.');
+  if(!Object.hasOwn(meta.countries,config.country))error('country','Choose a country.');
   if(![null,0,1,2].includes(config.max_stops))error('max_stops','Choose a number of stops.');
   for(const field of ['airlines','airlines_exclude']) {
     const codes=config[field];
@@ -147,7 +149,7 @@ export function tripErrors(config, meta, table, today) {
   for(const [code,targets] of Object.entries(config.origin_targets||{})) {
     if(!config.origins.includes(code))error('origin_targets',`${code} is not a departure airport of this trip.`);
     for(const value of Object.values(targets))
-      if(!Number.isFinite(value) || value<0.01 || value>10000000)error('origin_targets',`Price target for ${code}: enter an amount above €0.`);
+      if(!Number.isFinite(value) || value<0.01 || value>10000000)error('origin_targets',`Price target for ${code}: enter an amount above 0.`);
   }
   for(const [code,name] of Object.entries(config.display_names))
     if(!name || name.length>maxName || name!==name.trim() || !printable(name))error('display_names',`Name for ${code}: 1–${maxName} characters, no control characters.`);
@@ -190,7 +192,12 @@ export function changedFields(current, next) {
 
 const timeWords={outbound_departure:'outbound departs',outbound_arrival:'outbound lands',return_departure:'return departs',return_arrival:'return lands'};
 const clock=hour=>`${String(hour).padStart(2,'0')}:00`;
-export function shownValue(key, value, meta) {
+// An amount in whole units with the currency's symbol: "€650", "฿24,500".
+export const amountText=(value, currency, meta)=>`${meta.currencies?.[currency]?.symbol??''}${value.toLocaleString('en-GB')}`;
+export function shownValue(key, value, meta, currency='EUR') {
+  if(priceFields.includes(key))return amountText(value,currency,meta);
+  if(key==='currency')return meta.currencies?.[value]?`${meta.currencies[value].name} (${value})`:String(value);
+  if(key==='country')return meta.countries?.[value]||String(value);
   if(key==='flight_times')return timeWindows.filter(name=>value[name]).map(name=>`${timeWords[name]} ${clock(value[name][0])}–${clock(value[name][1])}`).join('; ')||'any time';
   if(key==='latest_return')return value||'none';
   if(key==='origins')return value.join(', ');
@@ -201,7 +208,7 @@ export function shownValue(key, value, meta) {
   if(key==='max_stops')return value===null?'any':value===0?'non-stop only':`up to ${value}`;
   if(key==='display_names')return Object.entries(value).sort().map(([k,v])=>`${k}: ${v}`).join(', ')||'automatic';
   if(key==='origin_targets')return Object.entries(value).sort().map(([code,targets])=>`${code}: `+
-    ['nonstop','layover'].filter(k=>k in targets).map(k=>`${k==='nonstop'?'non-stop':'with stops'} €${targets[k]}`).join(', ')).join('; ')||'same for all airports';
+    ['nonstop','layover'].filter(k=>k in targets).map(k=>`${k==='nonstop'?'non-stop':'with stops'} ${amountText(targets[k],currency,meta)}`).join(', ')).join('; ')||'same for all airports';
   if(key==='travel_class')return meta.travel_classes[value]||value;
   if(typeof value==='boolean')return value?'yes':'no';
   return String(value);
@@ -242,7 +249,7 @@ export function tripSummary(config) {
 }
 
 // Optional settings at these values are left out of the issue (as in config.json).
-const optional={more_destinations:[],return_from:null,latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],flight_times:{},origin_targets:{},display_names:{}};
+const optional={more_destinations:[],return_from:null,country:'DE',latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],flight_times:{},origin_targets:{},display_names:{}};
 
 // The issue's settings block: every trip in config.json field order, shared request settings once.
 export function settingsJson(meta, trips, primary) {
@@ -256,9 +263,9 @@ export function settingsJson(meta, trips, primary) {
 // Rows of "what changes", matched by trip id like the reply on the issue.
 export function settingsChanges(meta, trips, primary) {
   const ids=tripIds(trips), configs=trips.map(trip=>trip.config), shared=meta.shared_fields;
-  const row=(label,key,before,after)=>({label,before:shownValue(key,before,meta),after:shownValue(key,after,meta)});
+  const row=(label,key,before,after,old={},next={})=>({label,before:shownValue(key,before,meta,old.currency),after:shownValue(key,after,meta,next.currency)});
   const fieldRows=(old,next,prefix,skip)=>changedFields(old,next).filter(key=>key!=='id' && !skip.includes(key))
-    .map(key=>row(prefix+(meta.labels[key]||key),key,old[key],next[key]));
+    .map(key=>row(prefix+(meta.labels[key]||key),key,old[key],next[key],old,next));
   if(meta.trips.length===1 && trips.length===1 && ids[0]===meta.trips[0].id)return fieldRows(meta.trips[0],configs[0],'',[]);
   const before=new Map(meta.trips.map(config=>[config.id,config]));
   const rows=shared.filter(key=>!same(meta.trips[0][key],configs[0][key])).map(key=>row(meta.labels[key]||key,key,meta.trips[0][key],configs[0][key]));
@@ -310,9 +317,10 @@ export function distanceKm(table, from, to) {
   const h=Math.sin((lat2-lat1)/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin((lon2-lon1)/2)**2;
   return Math.round(2*EARTH_KM*Math.asin(Math.sqrt(h)));
 }
-// Round to amounts people would choose: €5 steps below €100, €10 below €1,000, then €50.
-export function niceEuro(value) {
-  const step=value<100?5:value<1000?10:50;
+// Round to amounts people would choose, in any currency: steps of 5 below 100, 10 below
+// 1,000, 50 below 10,000, then 500 below 100,000 and so on (€650, ฿24,500).
+export function niceAmount(value) {
+  const step=value<100?5:value<1000?10:50*10**Math.max(0,Math.floor(Math.log10(value))-3);
   return Math.max(step,Math.round(value/step)*step);
 }
 const CABIN_FACTOR={economy:1,premium_economy:1.6,business:3.2,first_class:5};
@@ -321,9 +329,16 @@ const CABIN_FACTOR={economy:1,premium_economy:1.6,business:3.2,first_class:5};
 export function estimatedTarget(km) {
   return km<=3000?60+0.08*km:300+0.059*(km-3000);
 }
-// Strong-deal and re-alert amounts follow the price target (€650 → €50 and €25).
-export function alertAmounts(target) {
-  return {realert:Math.max(5,niceEuro(target*0.04)),drop:Math.max(10,niceEuro(target*0.08))};
+// Strong-deal and re-alert amounts follow the price target (€650 → €50 and €25); the
+// smallest ones (€5 and €10) are converted with the currency's rough rate per euro.
+export function alertAmounts(target, rate=1) {
+  return {realert:Math.max(niceAmount(5*rate),niceAmount(target*0.04)),drop:Math.max(niceAmount(10*rate),niceAmount(target*0.08))};
+}
+// A saved amount in another currency, with the rough rates per euro (meta.currencies);
+// only for suggestions, the tracker never converts a price.
+export function convertAmount(value, from, to, currencies) {
+  const a=currencies?.[from]?.rate, b=currencies?.[to]?.rate;
+  return a && b && from!==to ? niceAmount(value*b/a) : value;
 }
 function percentile(values, p) {
   const sorted=[...values].sort((a,b)=>a-b), index=(sorted.length-1)*p, low=Math.floor(index);
@@ -348,33 +363,34 @@ const median=values=>percentile(values,0.5);
 // Suggested price targets. With enough checked prices: per airport and category the
 // price a quarter of them reached; the trip's targets are the middle of those, and an
 // airport keeps its own target only where it differs by more than 5%. Without prices,
-// a rough guide from the distance that knows nothing about differences between airports.
-export function suggestPrices(config, table, observed=null) {
+// a rough guide from the distance that knows nothing about differences between airports;
+// it is computed in euros and converted with the currency's rough rate.
+export function suggestPrices(config, table, observed=null, rate=1) {
   const distances=config.origins.map(origin=>distanceKm(table,origin,config.destination)).filter(km=>km!==null);
   let estimate=null;
   if(config.destination && distances.length) {
     const km=Math.round(distances.reduce((a,b)=>a+b,0)/distances.length);
-    const layover=estimatedTarget(km)*(CABIN_FACTOR[config.travel_class]||1)+(config.checked_bags && km<3000?40:0);
+    const layover=(estimatedTarget(km)*(CABIN_FACTOR[config.travel_class]||1)+(config.checked_bags && km<3000?40:0))*rate;
     // Long-haul non-stop flights usually cost more than connections.
     estimate={km,layover,nonstop:layover*(km>3000?1.15:1)};
   }
   const airports={};
   for(const origin of config.origins)for(const category of ['nonstop','layover']) {
     const prices=observed?.byOrigin?.[origin]?.[category]||[];
-    if(prices.length>=MIN_PRICES)(airports[origin]??={})[category]=niceEuro(percentile(prices,0.25)/100);
+    if(prices.length>=MIN_PRICES)(airports[origin]??={})[category]=niceAmount(percentile(prices,0.25)/100);
   }
   const counts={nonstop:observed?.nonstop?.length||0,layover:observed?.layover?.length||0};
   const finish=(source,nonstop,layover,own)=>{
-    const amounts=alertAmounts(Math.min(nonstop,layover));
+    const amounts=alertAmounts(Math.min(nonstop,layover),rate);
     return {source,km:estimate?.km??null,counts,airports,values:{good_deal_nonstop_eur:nonstop,good_deal_layover_eur:layover,
       realert_improvement_eur:amounts.realert,drop_eur:amounts.drop,...(own?{origin_targets:own}:{})}};
   };
   if(!Object.keys(airports).length)
-    return estimate?finish('estimate',niceEuro(estimate.nonstop),niceEuro(estimate.layover),null):null;
-  const middle=category=>{const values=Object.values(airports).map(t=>t[category]).filter(v=>v!==undefined);return values.length?niceEuro(median(values)):null;};
+    return estimate?finish('estimate',niceAmount(estimate.nonstop),niceAmount(estimate.layover),null):null;
+  const middle=category=>{const values=Object.values(airports).map(t=>t[category]).filter(v=>v!==undefined);return values.length?niceAmount(median(values)):null;};
   const ratio=estimate?estimate.nonstop/estimate.layover:1;
   let nonstop=middle('nonstop'), layover=middle('layover');
-  layover??=niceEuro(nonstop/ratio);nonstop??=niceEuro(layover*ratio);
+  layover??=niceAmount(nonstop/ratio);nonstop??=niceAmount(layover*ratio);
   const own={};
   for(const origin of config.origins)for(const category of ['nonstop','layover']) {
     const value=airports[origin]?.[category], trip=category==='nonstop'?nonstop:layover;

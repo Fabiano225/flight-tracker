@@ -1,7 +1,6 @@
 """Build an allowlisted, credential-free Pages artifact from read-only live state."""
 import argparse
 from datetime import datetime, timedelta, timezone, date
-from decimal import Decimal
 import hashlib
 import html
 import json
@@ -15,7 +14,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tracker.config import Settings, INT_LIMITS, FLOAT_LIMITS, MAX_DESTINATIONS, MAX_DISPLAY_NAME, MAX_TRIPS, SHARED_FIELDS
+from tracker.config import Settings, CURRENCIES, COUNTRIES, money_text, INT_LIMITS, FLOAT_LIMITS, MAX_DESTINATIONS, MAX_DISPLAY_NAME, MAX_TRIPS, SHARED_FIELDS
 from tracker.places import AIRPORTS, airlines, places
 from tracker.alerts import search_link
 from tracker.provider import Quote
@@ -30,13 +29,6 @@ ASSETS = ('index.html', 'styles.css', 'app.js', 'model.mjs', 'favicon.svg', 'tri
 GENERATED = ('data.json', 'search-config.json', 'airports.json')
 MONTHS = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 RAW_PLACEHOLDERS = {'route_origins'}
-
-
-def euro_text(value):
-    amount = Decimal(str(value))
-    if amount == amount.to_integral_value():
-        return f'€{int(amount):,}'
-    return f'€{amount:,.2f}'
 
 
 def date_range(start, end):
@@ -80,9 +72,9 @@ def page_values(config):
         trip_kind=(f"Back from {names[config.return_from]['city']} ({config.return_from})" if config.return_from
                    else 'Round trip'),
         travel_class=CLASSES[config.travel_class],
-        budget=('Per airport' if config.origin_targets else euro_text(config.good_deal_nonstop_eur)
+        budget=('Per airport' if config.origin_targets else money_text(config.good_deal_nonstop_eur, config.currency)
                 if config.good_deal_nonstop_eur == config.good_deal_layover_eur else 'Separate targets'),
-        realert=euro_text(config.realert_improvement_eur), history_days=str(config.history_window_days),
+        realert=money_text(config.realert_improvement_eur, config.currency), history_days=str(config.history_window_days),
         duration_limit=(f'under {(minutes + 1) // 60} hours' if (minutes + 1) % 60 == 0
                         else f'up to {minutes // 60} h {minutes % 60:02d} min'),
         filter_summary=filter_summary(config))
@@ -121,6 +113,8 @@ def form_data(settings):
     return dict(version=2, repository=repository(), marker=MARKER, primary_trip=settings.primary_trip,
                 trips=[trip.form_dict() for trip in settings.trips], shared_fields=list(SHARED_FIELDS),
                 max_trips=MAX_TRIPS, max_destinations=MAX_DESTINATIONS, airlines=airlines(), labels=LABELS, travel_classes=CLASSES,
+                currencies={code: dict(name=name, symbol=symbol, rate=rate) for code, (name, symbol, rate) in CURRENCIES.items()},
+                countries=COUNTRIES,
                 limits=dict(int=INT_LIMITS, float=FLOAT_LIMITS, display_name=MAX_DISPLAY_NAME))
 
 
@@ -133,10 +127,10 @@ def instant(value):
 
 def public_config(config):
     values = {key: getattr(config, key) for key in (
-        'origins', 'destination', 'return_from', 'adults', 'departure_start', 'departure_end', 'min_trip_days',
+        'origins', 'destination', 'return_from', 'currency', 'country', 'adults', 'departure_start', 'departure_end', 'min_trip_days',
         'max_trip_days', 'latest_return', 'max_direction_minutes', 'flight_times', 'good_deal_nonstop_eur',
         'good_deal_layover_eur', 'origin_targets', 'history_window_days', 'realert_improvement_eur')}
-    return {**values, 'destinations': list(config.destinations)}
+    return {**values, 'destinations': list(config.destinations), 'currency_symbol': CURRENCIES[config.currency][1]}
 
 
 def export_data(db_path, config, now=None, variant=None):
@@ -215,7 +209,7 @@ def export_data(db_path, config, now=None, variant=None):
             item = {k: getattr(q, k) for k in ('origin', 'departure', 'return_date', 'category',
                     'price', 'outbound_minutes', 'inbound_minutes', 'outbound_stops', 'inbound_stops', 'airlines')}
             item.update(id=key, destination=config.destination, return_from=config.return_from, days=days, at=observed_at,
-                        link=search_link(q, config.destination, config.travel_class, config.adults, config.return_from))
+                        link=search_link(q, config))
             item['schedule'] = public_schedule(q)
             item['layovers'] = public_layovers(q)
             item['itinerary_id'] = q.itinerary_id if isinstance(q.itinerary_id,str) and re.fullmatch(r'[a-f0-9]{64}',q.itinerary_id) else None

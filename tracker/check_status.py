@@ -1,4 +1,5 @@
 """Short, honest check receipts, replying to an actual delivered price alert."""
+from .config import money
 from .provider import Quote
 from .store import stamp
 from .trends import load_watches, latest_alert
@@ -30,7 +31,8 @@ def queue_check_status(store, config, scope, run_id, verified, now, summary, dem
         targets.append(target)
         delta = current.price - prior['price']
         if delta:
-            changes.append(f"{label}: {current.price / 100:.2f} EUR ({delta / 100:+.2f} EUR since the alert)")
+            changes.append(f"{label}: {money(current.price, config.currency)} "
+                           f"({money(delta, config.currency, sign=True)} since the alert)")
     incomplete = summary['status'] != 'ok' or bool(missing) or not compared
     lines = ['DEMO - synthetic check status' if demo else f'{config.destination} check status', stamp(now)]
     if incomplete:

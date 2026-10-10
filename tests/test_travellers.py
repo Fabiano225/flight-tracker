@@ -52,15 +52,16 @@ class TravellerTests(unittest.TestCase):
         quote = Quote("FRA", "2026-10-15", "2026-10-29", "layover", 32000, 900, 950, 1, 1, "QR", "")
         with patch("tracker.fare_baggage.decode_booking_quotes", return_value=[]) as decode:
             search.get_booking_options = lambda *args, **kwargs: search.client.post("url", data="x")
-            booking_quotes(search, http, flights(), NS(passenger_info=NS(adults=2)), quote)
+            booking_quotes(search, http, flights(), NS(passenger_info=NS(adults=2)), quote,
+                           dict(currency="EUR", language="en", country="DE"))
         self.assertEqual(decode.call_args.args[3], 2)
 
     def test_links_messages_and_page_name_the_party(self):
         quote = Quote("FRA", "2026-10-15", "2026-10-29", "layover", 60000, 900, 950, 1, 1, "QR", "")
-        self.assertIn("one+adult", search_link(quote, "BKK"))
-        self.assertIn("2+adults", search_link(quote, "BKK", adults=2))
+        self.assertIn("one+adult", search_link(quote, Config()))
+        self.assertIn("2+adults", search_link(quote, TWO))
         history = {"previous": None, "low": None, "count": 0}
-        self.assertIn("2026-10-15 to 2026-10-29 | 600.00 EUR per person, 1200.00 EUR for 2", block(quote, history, None, TWO))
+        self.assertIn("2026-10-15 to 2026-10-29 | 600.00 EUR per person, 1,200.00 EUR for 2", block(quote, history, None, TWO))
         self.assertIn("2026-10-15 to 2026-10-29 | 600.00 EUR\n", block(quote, history, None, Config()))
         self.assertEqual(page_values(TWO)["travellers"], "2 adults")
         self.assertEqual(page_values(Config())["travellers"], "1 adult")

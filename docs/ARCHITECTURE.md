@@ -125,6 +125,13 @@ expire). `scripts/setup_check.py` (workflow **Check setup**) lists what is missi
 
 ## Search pipeline
 
+Each trip has a `currency` (`CURRENCIES` in `tracker/config.py`) and a `country`, the
+search's point of sale (`COUNTRIES`, `DE` unless set). Every request asks Google for
+prices in that currency as if searched from that country; responses in another
+currency are rejected, never converted. Messages show amounts as "24,320.00 THB", the
+website with the currency's symbol. The rough rates per euro in `CURRENCIES` only
+convert suggested price targets in the settings form.
+
 `tracker/planner.py` creates exact departure/return pairs; with the optional `latest_return` it
 leaves out every pair that would return later (`Config.fits` applies the same rule to
 watches, pending alerts, baggage checks and the dashboard). `tracker/provider.py`
@@ -170,7 +177,7 @@ with `allow_sending_without_reply` so deleted originals do not block delivery.
 
 The previous 30-day low is calculated from earlier observations only; the current
 run is excluded. History scopes include the settings that affect comparability,
-including airport, dates, cabin, currency, baggage filters and duration cap.
+including airport, dates, cabin, currency, search country, baggage filters and duration cap.
 
 ## Delivery guarantees
 
@@ -179,6 +186,14 @@ transport message ID afterwards. This gives at-least-once delivery: a network ti
 after the service accepts a message can result in a duplicate on retry. Failed sends
 remain pending. Pending messages expire after their configured TTL and are filtered
 when a date window changes.
+
+`tracker/notifications.py` picks a channel per message (`Router`): the channel of the
+trip whose run queued it, from `DISCORD_WEBHOOKS` or `TELEGRAM_CHAT_IDS` (JSON by trip
+ID), else the main channel; health messages always use the main channel. Channels are
+created on first use. A failing or missing channel keeps only its own messages
+pending; the others are delivered and the failure is raised afterwards. Receipts are
+per destination (each Telegram chat of a trip gets its own), so a check note replies to
+the alert in its own channel or copies that alert there first.
 
 Discord uses the [webhook API](https://docs.discord.com/developers/resources/webhook)
 with `wait=true` and checks the returned message ID before recording success.

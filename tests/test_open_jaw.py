@@ -69,7 +69,7 @@ class OpenJawTests(unittest.TestCase):
 
     def test_links_messages_and_dashboard_name_the_return_airport(self):
         quote = Quote("FRA", "2026-10-20", "2026-11-03", "nonstop", 70000, 675, 750, 0, 0, "TG", "")
-        self.assertIn("Multi-city+flights+FRA+to+BKK+2026-10-20%2C+HKT+to+FRA+2026-11-03", search_link(quote, "BKK", return_from="HKT"))
+        self.assertIn("Multi-city+flights+FRA+to+BKK+2026-10-20%2C+HKT+to+FRA+2026-11-03", search_link(quote, PHUKET_BACK))
         history = {"previous": None, "low": None, "count": 0}
         self.assertIn("FIRST PRICE | FRA-BKK, back HKT-FRA | NON-STOP", block(quote, history, None, PHUKET_BACK))
         self.assertEqual(page_values(PHUKET_BACK)["trip_kind"], "Back from Phuket (HKT)")

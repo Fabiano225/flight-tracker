@@ -14,7 +14,7 @@ from .service import scan_trips
 from .store import Store, utcnow
 from .telegram import Telegram
 from .discord import Discord
-from .notifications import configured_sender, deliver, message_labels, notifications_configured
+from .notifications import configured_router, deliver, message_labels, notifications_configured, trip_channels
 
 
 def plan_summary(config, today):
@@ -49,13 +49,26 @@ def main():
         print(json.dumps(next(iter(plans.values())) if len(trips) == 1 else plans, indent=2))
         return 0
     if args.command == "telegram-test":
-        Telegram().send("Flight tracker Telegram connection OK. Live deals require successful flight searches.")
-        print("Telegram test message delivered")
+        # The main chat, and every trip's own chat (TELEGRAM_CHAT_IDS).
+        chats = trip_channels("TELEGRAM_CHAT_IDS")
+        if os.environ.get("TELEGRAM_CHAT_ID", "").strip() or not chats:
+            Telegram().send("Flight tracker Telegram connection OK. Live deals require successful flight searches.")
+            print("Telegram test message delivered")
+        for trip, chat in chats.items():
+            Telegram(chat_id=chat).send(f"Flight tracker Telegram connection OK. This chat gets the messages of trip {trip}. "
+                                        "Live deals require successful flight searches.")
+            print(f"Telegram test message for trip {trip} delivered")
         return 0
     if args.command == "discord-test":
+        # The main channel, and every trip's own channel (DISCORD_WEBHOOKS).
         code, names = message_labels(settings)
-        Discord(code=code, names=names).send("Discord connected\nThe flight tracker will send price alerts and check status to this channel.\nThis is a connection test, not a flight offer.")
-        print("Discord test message delivered")
+        router, hooks = configured_router(settings), trip_channels("DISCORD_WEBHOOKS")
+        if os.environ.get("DISCORD_WEBHOOK_URL", "").strip() or not hooks:
+            Discord(code=code, names=names).send("Discord connected\nThe flight tracker will send price alerts and check status to this channel.\nThis is a connection test, not a flight offer.")
+            print("Discord test message delivered")
+        for trip in hooks:
+            router.channel(trip).send(f"Discord connected\nThe flight tracker will send the price alerts and check status of trip {trip} to this channel.\nThis is a connection test, not a flight offer.")
+            print(f"Discord test message for trip {trip} delivered")
         return 0
     demo = args.command == "demo"
     directory = args.state_dir or ("demo-state" if demo else "state")
@@ -85,7 +98,11 @@ def main():
                 print("::notice::No Discord or Telegram set up, so price alerts are not sent. "
                       "See 'Get notifications' in README.md.")
                 return 0
-            print(f"Delivered {deliver(store, settings, now, configured_sender(settings))} messages")
+            known = {trip.id for trip in settings.trips}
+            for name in ("DISCORD_WEBHOOKS", "TELEGRAM_CHAT_IDS"):
+                for trip in sorted(set(trip_channels(name)) - known):
+                    print(f"::warning::{name} names the trip {trip}, which is not searched; its channel gets nothing.")
+            print(f"Delivered {deliver(store, settings, now, configured_router(settings))} messages")
         elif args.command == "report":
             print(report(store))
         elif args.command == "export":

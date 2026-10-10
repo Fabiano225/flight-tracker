@@ -1,4 +1,4 @@
-import {airportInfo, searchAirports, searchAirlines, validateTrips, changedFields, settingsJson, settingsChanges, issueUrl, issueBody, MAX_URL, scopeFields, priceFields, suggestPrices, observedPrices, timeWindows, restartsHistory, destinationList} from './search-model.mjs';
+import {airportInfo, searchAirports, searchAirlines, validateTrips, changedFields, settingsJson, settingsChanges, issueUrl, issueBody, MAX_URL, scopeFields, priceFields, suggestPrices, observedPrices, timeWindows, restartsHistory, destinationList, amountText, convertAmount, tripIds} from './search-model.mjs';
 
 const $ = id => document.getElementById(id);
 const form = $('settings');
@@ -18,7 +18,9 @@ let meta, table, numberFields, fieldOrder, trips=[], active=0, primaryKey, nextK
 let published=new Map();
 // Settings a price suggestion can fill in (plus the airport targets).
 const suggestedFields=['good_deal_nonstop_eur','good_deal_layover_eur','realert_improvement_eur','drop_eur'];
-const euroText=value=>`€${value.toLocaleString('en-GB')}`;
+// Amounts of the trip shown, in its currency.
+const priceText=value=>amountText(value,trips[active].config.currency,meta);
+const symbolOf=currency=>(meta.currencies[currency]?.symbol||currency).trim();
 
 function cityOf(code) {return airportInfo(table,code)?.city || code;}
 function routeCodes() {return [...new Set([...state.origins,...state.destination,...state.return_from].filter(Boolean))];}
@@ -58,7 +60,8 @@ function fill(config) {
     airlines_exclude:[...config.airlines_exclude],names:{...config.display_names},
     targets:Object.fromEntries(Object.entries(config.origin_targets||{}).map(([code,own])=>
       [code,Object.fromEntries(Object.entries(own).map(([k,v])=>[k,String(v)]))]))};
-  for(const name of [...numberFields,'departure_start','departure_end','travel_class'])field(name).value=config[name];
+  for(const name of [...numberFields,'departure_start','departure_end','travel_class','currency','country'])field(name).value=config[name];
+  showCurrency(config.currency);$('currency-converted').hidden=true;
   field('max_stops').value=config.max_stops===null?'':String(config.max_stops);
   field('duration_hours').value=Math.floor(config.max_direction_minutes/60);
   field('duration_minutes').value=config.max_direction_minutes%60;
@@ -76,6 +79,29 @@ function fill(config) {
   renderChips();renderNames();
 }
 
+// Amount labels name the trip's currency.
+function showCurrency(currency) {
+  for(const label of form.querySelectorAll('[data-currency]'))label.textContent=symbolOf(currency);
+}
+
+// Another currency: turn the trip's amounts roughly into it, so the alerts keep a sensible
+// scale, and say so. Runs before the form stores the new currency.
+function convertPrices() {
+  const from=trips[active].config.currency, to=field('currency').value, rates=meta.currencies;
+  if(from===to || !rates[from] || !rates[to])return;
+  for(const key of priceFields) {
+    const value=numberValue(field(key).value);
+    if(Number.isFinite(value) && value>0)field(key).value=convertAmount(value,from,to,rates);
+  }
+  for(const own of Object.values(state.targets))for(const [category,text] of Object.entries(own)) {
+    const value=numberValue(text);
+    if(Number.isFinite(value) && value>0)own[category]=String(convertAmount(value,from,to,rates));
+  }
+  showCurrency(to);renderTargets();
+  const note=$('currency-converted');note.hidden=false;
+  note.textContent=`Price targets converted roughly from ${from} to ${to} (1 EUR ≈ ${rates[to].rate/rates.EUR.rate} ${to}). Please check them; after the first searches the suggestion uses real prices.`;
+}
+
 function showTripEnd() {
   const byDate=field('trip_end').value==='date';
   $('max-days-field').hidden=byDate;$('latest-return-field').hidden=!byDate;
@@ -85,7 +111,7 @@ function collect() {
   const config={...trips[active].config,origins:[...state.origins],destination:state.destination[0]||'',more_destinations:state.destination.slice(1),
     return_from:state.return_from[0]||null,
     airlines:[...state.airlines],airlines_exclude:[...state.airlines_exclude]};
-  for(const name of ['departure_start','departure_end','travel_class'])config[name]=field(name).value;
+  for(const name of ['departure_start','departure_end','travel_class','currency','country'])config[name]=field(name).value;
   for(const name of numberFields)config[name]=numberValue(field(name).value);
   config.latest_return=null;
   if(field('trip_end').value==='date') {
@@ -166,11 +192,12 @@ function renderTargets() {
   for(const code of state.origins) {
     const row=node('div',undefined,'target-row');
     row.append(node('strong',`${code} · ${cityOf(code)}`));
-    for(const [category,label] of [['nonstop','Non-stop (€)'],['layover','With stops (€)']]) {
-      const field=node('label',label,'field'), input=node('input');
+    const symbol=symbolOf(field('currency').value);
+    for(const [category,label] of [['nonstop','Non-stop'],['layover','With stops']]) {
+      const field=node('label',`${label} (${symbol})`,'field'), input=node('input');
       input.type='number';input.inputMode='decimal';input.step='0.01';input.min='0.01';
       input.value=state.targets[code]?.[category]??'';input.dataset.category=category;
-      input.setAttribute('aria-label',`${label.replace(' (€)','')} price target from ${cityOf(code)} (${code})`);
+      input.setAttribute('aria-label',`${label} price target from ${cityOf(code)} (${code})`);
       input.setAttribute('aria-describedby','origin_targets-error');
       input.addEventListener('input',()=>{(state.targets[code]??={})[category]=input.value;});
       field.append(input);row.append(field);
@@ -200,6 +227,8 @@ function renderTrips() {
   $('trip-tools').hidden=trips.length<2;
   $('add-trip').disabled=trips.length>=meta.max_trips;
   $('add-trip').textContent=trips.length>=meta.max_trips?`${meta.max_trips} trips at most`:'+ Add trip';
+  // The id names the trip in ?trip= links and in DISCORD_WEBHOOKS / TELEGRAM_CHAT_IDS (its own message channel).
+  $('trip-id').textContent=tripIds(trips)[active];$('trip-id-new').hidden=Boolean(trips[active].id);
 }
 
 function switchTrip(index) {
@@ -277,25 +306,25 @@ function combo(kind) {
 function suggestionFor(trip) {
   const saved=meta.trips.find(config=>config.id===trip.id), data=trip.id?published.get(trip.id):null;
   const comparable=saved && data && !changedFields(saved,trip.config).some(key=>[...scopeFields,'origins'].includes(key));
-  return suggestPrices(trip.config,table,comparable?observedPrices(data):null);
+  return suggestPrices(trip.config,table,comparable?observedPrices(data):null,meta.currencies[trip.config.currency]?.rate||1);
 }
 
 function renderSuggestion(trip, suggestion) {
   const box=$('price-suggestion');box.hidden=!suggestion;
   if(!suggestion)return;
   const v=suggestion.values, days=trip.config.history_window_days, words={nonstop:'non-stop',layover:'with stops'};
-  const amounts=`new alert from a change of ${euroText(v.realert_improvement_eur)} · strong deal at least ${euroText(v.drop_eur)} below the low`;
+  const amounts=`new alert from a change of ${priceText(v.realert_improvement_eur)} · strong deal at least ${priceText(v.drop_eur)} below the low`;
   let text;
   if(suggestion.source==='prices') {
     const perAirport=['layover','nonstop'].map(category=>{
-      const list=Object.entries(suggestion.airports).filter(([,own])=>category in own).map(([code,own])=>`${code} ${euroText(own[category])}`);
+      const list=Object.entries(suggestion.airports).filter(([,own])=>category in own).map(([code,own])=>`${code} ${priceText(own[category])}`);
       return list.length?`${words[category]}: ${list.join(' · ')}`:'';
     }).filter(Boolean).join('; ');
     text=`From ${suggestion.counts.nonstop+suggestion.counts.layover} checked prices of the last ${days} days, the price a quarter of them reached per airport – ${perAirport}. `+
-      `Suggested: trip targets non-stop ${euroText(v.good_deal_nonstop_eur)}, with stops ${euroText(v.good_deal_layover_eur)}`+
+      `Suggested: trip targets non-stop ${priceText(v.good_deal_nonstop_eur)}, with stops ${priceText(v.good_deal_layover_eur)}`+
       (Object.keys(v.origin_targets).length?`, own targets where an airport differs (${Object.keys(v.origin_targets).join(', ')})`:'')+`; ${amounts}.`;
   } else {
-    text=`Rough guide for about ${suggestion.km.toLocaleString('en-GB')} km per direction: non-stop ${euroText(v.good_deal_nonstop_eur)} · with stops ${euroText(v.good_deal_layover_eur)} · ${amounts}. `+
+    text=`Rough guide for about ${suggestion.km.toLocaleString('en-GB')} km per direction: non-stop ${priceText(v.good_deal_nonstop_eur)} · with stops ${priceText(v.good_deal_layover_eur)} · ${amounts}. `+
       'It cannot know price differences between airports or seasons; after the first searches this suggestion uses real prices per airport.';
   }
   const same=suggestedFields.every(key=>trip.config[key]===v[key])
@@ -353,7 +382,7 @@ function update() {
   const saved=new Map(meta.trips.map(config=>[config.id,config]));
   const restarted=trips.filter(trip=>trip.id && saved.has(trip.id) && restartsHistory(saved.get(trip.id),trip.config));
   if(restarted.length)
-    messages.append(node('p',`Settings that define comparable prices change${several||meta.trips.length>1?` for ${restarted.map(tripLabel).join(', ')}`:''} (destination, travellers, cabin, bags, separate tickets, travel time limit, flight times, airlines or stops): price history and alerts start over for ${restarted.length===1?(several?'this trip':'this search'):'these trips'}. The old history stays stored.`,'message info'));
+    messages.append(node('p',`Settings that define comparable prices change${several||meta.trips.length>1?` for ${restarted.map(tripLabel).join(', ')}`:''} (destination, return airport, currency, search country, travellers, cabin, bags, separate tickets, travel time limit, flight times, airlines or stops): price history and alerts start over for ${restarted.length===1?(several?'this trip':'this search'):'these trips'}. The old history stays stored.`,'message info'));
   const moved=trips.some(trip=>trip.id && saved.has(trip.id) && changedFields(saved.get(trip.id),trip.config).some(key=>routeFields.includes(key)));
   if(moved || meta.trips.some(config=>!trips.some(trip=>trip.id===config.id)))
     messages.append(node('p','Favorites outside the new search are removed from the website automatically.','message info'));
@@ -452,6 +481,11 @@ async function load() {
     for(const select of form.querySelectorAll('.time-range select'))
       select.replaceChildren(...Array.from({length:24},(_,i)=>hour(select.dataset.end==='from'?i:i+1)));
     field('travel_class').replaceChildren(...Object.entries(meta.travel_classes).map(([value,label])=>{const o=node('option',label);o.value=value;return o;}));
+    const option=(value,label)=>{const o=node('option',label);o.value=value;return o;};
+    field('currency').replaceChildren(...Object.entries(meta.currencies).sort(([,a],[,b])=>a.name.localeCompare(b.name,'en'))
+      .map(([code,{name}])=>option(code,`${name} (${code})`)));
+    field('country').replaceChildren(...Object.entries(meta.countries).sort(([,a],[,b])=>a.localeCompare(b,'en')).map(([code,name])=>option(code,name)));
+    field('currency').addEventListener('input',convertPrices);
     field('departure_start').min=field('departure_end').min=berlinToday();
     for(const kind of Object.keys(pickers))combo(kind);
     start();showCurrent();form.hidden=false;
