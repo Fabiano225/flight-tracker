@@ -2,6 +2,7 @@
 from dataclasses import dataclass, asdict
 from datetime import date, datetime, timedelta
 from copy import deepcopy
+from functools import cache
 from urllib.parse import parse_qs, urlsplit, urlencode
 import json
 import hashlib
@@ -227,16 +228,39 @@ class PrefetchDates:
         return rows
 
 
+def outbound_order(flight):
+    """Cheapest first; at the same price the shorter journey, then fewer stops.
+    Flights without a usable price go last."""
+    known = isinstance(flight.price, (int, float)) and flight.price > 0
+    return not known, flight.price if known else 0, flight.duration or 0, flight.stops or 0
+
+
+@cache
+def flight_search():
+    """fli's itinerary search, expanding the quickest of equally priced outbound flights.
+
+    Only the first few outbound flights get their return flights searched, and
+    Google lists flights of the same price in no useful order: a 7-hour layover
+    could crowd out the same fare with a 2-hour one.
+    """
+    from fli.search import SearchFlights
+
+    class QuickestFirst(SearchFlights):
+        def _expand_multi_leg(self, flights, filters, **options):
+            return super()._expand_multi_leg(sorted(flights, key=outbound_order), filters, **options)
+
+    return QuickestFirst
+
+
 class FreeProvider:
     CACHE_MAX_AGE_SECONDS = 3600
 
     def __init__(self, config, cache_path=None, http=None):
-        from fli.search import SearchFlights
         self.config = config
         # Trips of one run share a client, its request budget and its pacing.
         self.owns_http = http is None
         self.http = http or GuardedClient(config)
-        self.dates, self.flights = PrefetchDates(self.http), SearchFlights()
+        self.dates, self.flights = PrefetchDates(self.http), flight_search()()
         self.flights.client = self.http
         # Itinerary searches of this run, reused by the later baggage step so
         # it does not repeat identical requests. Local file only; never published.
@@ -253,8 +277,7 @@ class FreeProvider:
             return self.flights
         flights = getattr(self.local, "flights", None)
         if flights is None:
-            from fli.search import SearchFlights
-            flights = self.local.flights = SearchFlights()
+            flights = self.local.flights = flight_search()()
             flights.client = self.http
         return flights
 
@@ -408,7 +431,7 @@ class FreeProvider:
             # Inspect one cheapest return per outbound first, rather than using
             # the entire small detail budget on near-identical return options.
             selected, departures = [], set()
-            ordered = sorted(candidates, key=lambda x: x[0].price)
+            ordered = sorted(candidates, key=lambda x: rank(x[0]))
             for candidate in ordered:
                 departure_id = itinerary_id((candidate[1][0],))
                 if departure_id not in departures:
@@ -478,6 +501,12 @@ def layovers(pair):
         return None
 
 
+def rank(quote):
+    """Cheapest first; at the same price the shorter journey, then fewer stops."""
+    return (quote.price, quote.outbound_minutes + quote.inbound_minutes,
+            quote.outbound_stops + quote.inbound_stops)
+
+
 def normalize_pairs(pairs, origin, departure, return_date, profile, config, make_link):
     best = {}
     for pair in pairs:
@@ -520,7 +549,7 @@ def normalize_pairs(pairs, origin, departure, return_date, profile, config, make
         quote = Quote(origin, departure, return_date, category, price, outbound.duration, inbound.duration,
                       outbound.stops, inbound.stops, airlines, make_link(pair), itinerary_id(pair),
                       schedule=times, layovers=layovers(pair))
-        if category not in best or price < best[category].price:
+        if category not in best or rank(quote) < rank(best[category]):
             best[category] = quote
     return list(best.values())
 

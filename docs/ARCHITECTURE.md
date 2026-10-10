@@ -136,7 +136,11 @@ or above 21 hours.
 
 Calendar rows are estimates. Only verified `Quote` objects enter the notification
 path. A verified quote is classified as `nonstop` only when both directions have
-zero stops; otherwise it is `layover`.
+zero stops; otherwise it is `layover`. Each category keeps its cheapest itinerary; at the same
+price the shorter journey wins, then fewer stops. Equally priced outbound flights also
+have their return flights searched shortest first, because only the first
+`outbound_candidates` are expanded and Google lists flights of the same price in no
+useful order.
 
 ## History and alert policy
 

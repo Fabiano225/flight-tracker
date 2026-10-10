@@ -113,6 +113,14 @@ class QuoteTests(unittest.TestCase):
         quotes = self.normalize([pair(price=700),pair(price=600),pair(in_stops=1,price=550)])
         self.assertEqual({q.category:q.price for q in quotes},{"nonstop":60000,"layover":55000})
 
+    def test_same_price_prefers_the_shorter_journey(self):
+        # The same fare with 7 h 15 or 2 h 05 at the connection: the shorter journey is kept.
+        long, short = pair(1245, 960, 1, 1), pair(935, 960, 1, 1)
+        self.assertEqual(self.normalize([long, short])[0].outbound_minutes, 935)
+        # At the same price and duration, fewer stops win; a cheaper fare always wins.
+        self.assertEqual(self.normalize([pair(1245, 960, 1, 1), pair(1245, 960, 0, 1)])[0].outbound_stops, 0)
+        self.assertEqual(self.normalize([short, pair(1245, 960, 1, 1, price=590)])[0].price, 59000)
+
     def test_search_filters_are_rechecked_on_every_itinerary(self):
         def flown_by(*codes, **kw):
             p = pair(**kw)

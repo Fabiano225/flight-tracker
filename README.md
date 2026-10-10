@@ -19,10 +19,10 @@ jaw (back from another airport).
 
 ## What you get
 
-- **A dashboard** with the cheapest checked flights: departure and arrival times,
-  connections and waiting times, a 7-day trend per flight, the cheapest price per
-  airport, a price calendar, a price-history chart and filters for everything that
-  matters.
+- **A dashboard** with the cheapest checked flights (at the same price, the one with
+  the shorter journey): departure and arrival times, connections and waiting times,
+  a 7-day trend per flight, the cheapest price per airport, a price calendar, a
+  price-history chart and filters for everything that matters.
 - **Price alerts** when a fare drops, rises, reaches your price target or hits a new
   low, with flight times and connections, plus a short "no change" note after searches
   without news.

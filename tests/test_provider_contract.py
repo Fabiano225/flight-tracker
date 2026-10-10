@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 from tracker.config import Config
 from tracker.network import ServiceError, BudgetError, TransientSourceError
 from tracker.planner import Batch
-from tracker.provider import FreeProvider, GuardedClient
+from tracker.provider import FreeProvider, GuardedClient, flight_search
 import json
 from urllib.parse import parse_qs, urlsplit
 
@@ -310,6 +310,21 @@ class PrefetchDateTests(unittest.TestCase):
         self.assertTrue(quotes)
         self.assertIn("curr=EUR",quotes[0].link)
         provider.close()
+
+
+class OutboundOrderTests(unittest.TestCase):
+    def test_equally_priced_outbound_flights_are_expanded_quickest_first(self):
+        from fli.search import SearchFlights
+        provider = FreeProvider(Config())
+        self.addCleanup(provider.close)
+        flights = [NS(price=616, duration=1245, stops=1), NS(price=None, duration=600, stops=0),
+                   NS(price=590, duration=1300, stops=1), NS(price=616, duration=935, stops=1)]
+        with patch.object(SearchFlights, "_expand_multi_leg", return_value=[]) as expand:
+            provider.flights._expand_multi_leg(flights, "filters", top_n=3)
+        self.assertEqual([(f.price, f.duration) for f in expand.call_args.args[0]],
+                         [(590, 1300), (616, 935), (616, 1245), (None, 600)])
+        self.assertEqual(expand.call_args.kwargs, {"top_n": 3})
+        self.assertIsInstance(provider.flights, flight_search())
 
 
 class SearchCacheTests(unittest.TestCase):
