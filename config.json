@@ -18,7 +18,7 @@
       "adults": 1,
       "travel_class": "economy",
       "max_direction_minutes": 1259,
-      "hide_separate_tickets": true,
+      "hide_separate_tickets": false,
       "carry_on_bags": 0,
       "checked_bags": 0,
       "max_stops": 1,
