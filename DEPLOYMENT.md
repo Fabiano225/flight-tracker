@@ -30,7 +30,10 @@ as a fallback and starts **Track flights** when the last saved search is at leas
 6 h 30 min old. For searches at fixed times, let an external timer start that workflow
 four times a day; it then starts a search unless the last one is less than 2 hours old,
 so the fixed times hold even after a search started by hand or by the settings form.
-Both paths share the same check, so a search is never started twice.
+Both paths share the same check, so a search is never started twice. "The last search"
+is that of the trip searched longest ago (from `latest.json` on `tracker-state`): a
+search of only some trips, by hand or after a settings change, never holds back the
+others.
 
 The steps below use [cron-job.org](https://cron-job.org) (free). Any service or computer
 that can send an HTTPS request on a schedule works the same way.
@@ -294,9 +297,12 @@ of a trip is searched on its own), and a trip whose departure window has
 ended must be given new dates or removed. The form sends all trips in one issue; an
 issue with a single trip's settings (as older versions of the form sent) replaces only
 the primary trip. It replies with the changes,
-closes the issue and dispatches **Track flights**, which publishes the dashboard with
-the first prices when it ends. While searches are paused (`TRACKER_ENABLED=false`) it
-dispatches only **Publish dashboard**, so the website still shows the new settings. Rejected
+closes the issue and dispatches **Track flights** for the trips whose own settings
+changed (input `trips`), which publishes the dashboard with the first prices when it
+ends; the other trips keep their prices until the next regular search. While searches
+are paused (`TRACKER_ENABLED=false`), or when no trip's own settings changed (e.g. only
+the shared request budget or the trip shown first), it dispatches only **Publish
+dashboard**, so the website still shows the new settings. Rejected
 settings are answered and closed as not planned; the running search is unchanged.
 Settings issues from anyone else are closed as not planned by a separate job that has
 only `issues: write` and never reads their content.
@@ -323,6 +329,12 @@ Partial bag observations are checkpointed separately and never enqueue notificat
 messages or modify the base quote/history tables. A failed baggage step does not
 turn the base notification run into a failure; inspect the step and per-profile
 website status for baggage coverage.
+
+To search only some trips, dispatch **Track flights** with their trip IDs in **Only
+these trips** (`trips`, e.g. `ber` or `main,ber`; empty means all). Only those trips are
+searched and their baggage checked; the others keep their prices, pending messages and
+history, and `latest.json` / `report.md` still list every trip with its latest search.
+An unknown ID fails the run.
 
 For a website-only refresh, manually dispatch **Track flights** with
 `baggage_only` enabled. This restores the existing state and refreshes baggage

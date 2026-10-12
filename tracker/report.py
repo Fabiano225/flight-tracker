@@ -9,8 +9,13 @@ CSV_KEYS = ["origin", "departure", "return_date", "category", "price", "currency
             "outbound_stops", "inbound_stops", "airlines", "link"]
 
 
-def latest_runs(store):
-    """Runs of the latest scan: one per trip, all started at the same time."""
+def latest_runs(store, searches=None):
+    """With `searches`: each one's latest run, in their order, so a scan of only some
+    trips still reports every trip. Otherwise the runs of the latest scan."""
+    if searches is not None:
+        runs = (store.db.execute("SELECT * FROM runs WHERE scope=? ORDER BY started DESC,rowid DESC LIMIT 1",
+                                 (search.scope(store.get_meta("mode") or "live"),)).fetchone() for search in searches)
+        return list({run["id"]: run for run in runs if run}.values())
     row = store.db.execute("SELECT started FROM runs ORDER BY started DESC,rowid DESC LIMIT 1").fetchone()
     if not row:
         return []
@@ -45,8 +50,9 @@ def section(summary, quotes, level):
     return lines
 
 
-def report(store):
-    runs = latest_runs(store)
+def report(store, searches=None):
+    """report.md, latest.json and latest.csv: every search's latest run (see latest_runs)."""
+    runs = latest_runs(store, searches)
     if not runs:
         return "No runs recorded."
     documents = []

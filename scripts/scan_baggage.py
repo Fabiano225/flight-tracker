@@ -15,8 +15,10 @@ if __name__ == '__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('--config',default='config.json')
     parser.add_argument('--state-dir',default='state')
+    parser.add_argument('--trips',default='',help='only these trip IDs (e.g. ber or main,ber); empty for all')
     args=parser.parse_args()
-    trips=Settings.load(args.config).searches()
+    settings=Settings.load(args.config)
+    trips=settings.searches(settings.chosen(args.trips))
     # All trips share one bounded client: 360 requests and 10 minutes per run.
     http=GuardedClient(replace(trips[0],max_http_attempts_per_run=360,max_run_seconds=600))
     results={}

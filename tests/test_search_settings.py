@@ -205,48 +205,59 @@ class BranchTests(unittest.TestCase):
         self.assertEqual(self.config.read_text(encoding='utf-8'), self.original)
 
     def test_apply_stores_settings_on_branch_and_use_loads_them(self):
-        outcome, reply = settings.apply(body(self.values), self.config, TODAY, '7')
+        outcome, reply, searched = settings.apply(body(self.values), self.config, TODAY, '7')
         self.assertEqual(outcome, 'applied')
         self.assertIn('| Destination | BKK | HND |', reply)
         self.assertIn('price history and alerts start over', reply)
         self.assertIn('A search has started', reply)
+        self.assertEqual(searched, ('main',))
         # main's config.json is not touched by apply.
         self.assertEqual(self.config.read_text(encoding='utf-8'), self.original)
         settings.use(self.config)
         self.assertEqual(Config.load(self.config).destination, 'HND')
         self.assertEqual(settings.apply(body(self.values), self.config, TODAY)[0], 'unchanged')
         later = {**self.values, 'good_deal_layover_eur': 700}
-        outcome, reply = settings.apply(body(later), self.config, TODAY, paused=True)
+        outcome, reply, searched = settings.apply(body(later), self.config, TODAY, paused=True)
         self.assertEqual(outcome, 'applied')
         self.assertIn('Searches are paused', reply)
         self.assertNotIn('A search has started', reply)
+        self.assertEqual(searched, ())
         log = subprocess.run(['git', '--git-dir=../remote.git', 'log', '--format=%s', 'search-config'],
                              capture_output=True, text=True, check=True)
         self.assertEqual(log.stdout.splitlines(), ['Search settings: DUS, FRA, AMS → HND',
                                                    'Search settings from issue #7: DUS, FRA, AMS → HND'])
 
     def test_trips_are_stored_and_a_single_trip_form_edits_the_primary_trip(self):
-        outcome, reply = settings.apply(body(trips_values()), self.config, TODAY, '8')
+        outcome, reply, searched = settings.apply(body(trips_values()), self.config, TODAY, '8')
         self.assertEqual(outcome, 'applied')
         self.assertIn('✅ **New searches applied:** DUS, FRA, AMS → BKK · FRA → AMS', reply)
         self.assertIn('| Trips | — | added: FRA → AMS, 2026-10-20 to 2026-10-23, 3–4 days |', reply)
         self.assertIn('All 2 trips are searched in every run', reply)
         self.assertNotIn('start over', reply)  # Bangkok keeps its history.
+        # Only the new trip is searched now; Bangkok keeps its prices until the next regular search.
+        self.assertEqual(searched, ('ams',))
+        self.assertIn('A search for AMS has started', reply)
         settings.use(self.config)
         stored = Settings.load(self.config)
         self.assertEqual([t.id for t in stored.trips], ['main', 'ams'])
         self.assertEqual(stored.primary.scope(), Config.load(ROOT / 'config.json').scope())
         # The current single-trip form sends one trip: it replaces the primary trip only.
-        outcome, reply = settings.apply(body({**json.loads(self.original), 'good_deal_layover_eur': 600}), self.config, TODAY)
+        outcome, reply, searched = settings.apply(body({**json.loads(self.original), 'good_deal_layover_eur': 600}), self.config, TODAY)
         self.assertEqual(outcome, 'applied')
         self.assertIn('| BKK · Price target, with stops | €650 | €600 |', reply)
+        self.assertEqual(searched, ('main',))
         settings.use(self.config)
         stored = Settings.load(self.config)
         self.assertEqual(stored.trip('main').good_deal_layover_eur, 600)
         self.assertEqual(stored.trip('ams').destination, 'AMS')
         # The trip shown first can be changed later.
-        outcome, reply = settings.apply(body(trips_values(primary_trip='ams')), self.config, TODAY)
+        values = trips_values(primary_trip='ams')
+        values['trips'][0]['good_deal_layover_eur'] = 600
+        outcome, reply, searched = settings.apply(body(values), self.config, TODAY)
         self.assertIn('| Shown first on the website | BKK | AMS |', reply)
+        # Only the trip shown first changed: no search, the website is just published.
+        self.assertEqual(searched, ())
+        self.assertIn("No trip's own settings changed, so no search starts", reply)
         settings.use(self.config)
         self.assertEqual(Settings.load(self.config).primary.destination, 'AMS')
 
@@ -254,7 +265,7 @@ class BranchTests(unittest.TestCase):
         values = trips_values()
         values['trips'] = values['trips'][:1]
         values['trips'][0]['good_deal_layover_eur'] = 600
-        outcome, reply = settings.apply(body(values), self.config, TODAY)
+        outcome, reply, searched = settings.apply(body(values), self.config, TODAY)
         self.assertEqual(outcome, 'applied')
         self.assertIn('| Price target, with stops | €650 | €600 |', reply)
         settings.use(self.config)
@@ -262,9 +273,10 @@ class BranchTests(unittest.TestCase):
         self.assertEqual(stored, {**json.loads(self.original), 'good_deal_layover_eur': 600})
 
     def test_rejected_settings_store_nothing(self):
-        outcome, reply = settings.apply(body({**self.values, 'origins': ['XQZ']}), self.config, TODAY)
+        outcome, reply, searched = settings.apply(body({**self.values, 'origins': ['XQZ']}), self.config, TODAY)
         self.assertEqual(outcome, 'rejected')
         self.assertIn('current search keeps running unchanged', reply)
+        self.assertEqual(searched, ())
         self.assertEqual(settings.stored(), (None, None))
 
     def test_invalid_stored_settings_fail_closed(self):

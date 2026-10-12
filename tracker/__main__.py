@@ -36,6 +36,7 @@ def main():
     parser.add_argument("--as-of", help="YYYY-MM-DD; only offline plan/demo")
     parser.add_argument("--demo-discount", type=int, default=0)
     parser.add_argument("--output", default="history.csv")
+    parser.add_argument("--trips", default="", help="scan/demo: only these trip IDs (e.g. ber or main,ber); empty for all")
     args = parser.parse_args()
     settings = Settings.load(args.config)
     # Each destination of a trip is searched on its own, with its own history.
@@ -74,16 +75,20 @@ def main():
     directory = args.state_dir or ("demo-state" if demo else "state")
     with Store(directory, "demo" if demo else "live") as store:
         if args.command in {"scan", "demo"}:
+            only = settings.chosen(args.trips)
+            if only:
+                print(f"::notice::Searching only {', '.join(only)}; the other trips keep their last prices.")
+            chosen = settings.searches(only)
             # One paced client for all trips: they share the run's request and time budget.
-            http = None if demo else GuardedClient(trips[0])
+            http = None if demo else GuardedClient(chosen[0])
             providers = (lambda trip: DemoProvider(trip, args.demo_discount)) if demo else (
                 lambda trip: FreeProvider(trip, cache_path=cache_file(directory, trip), http=http))
             try:
-                summaries = scan_trips(trips, store, providers, now, demo)
+                summaries = scan_trips(chosen, store, providers, now, demo, trips)
             finally:
                 if http:
                     http.close()
-            text = report(store)
+            text = report(store, trips)
             shown = [{k: v for k, v in summary.items() if k != "config"} for summary in summaries]
             print(json.dumps(shown[0] if len(shown) == 1 else shown, indent=2))
             if os.environ.get("GITHUB_STEP_SUMMARY"):
@@ -104,7 +109,7 @@ def main():
                     print(f"::warning::{name} names the trip {trip}, which is not searched; its channel gets nothing.")
             print(f"Delivered {deliver(store, settings, now, configured_router(settings))} messages")
         elif args.command == "report":
-            print(report(store))
+            print(report(store, trips))
         elif args.command == "export":
             export_history(store, args.output)
             print(f"History exported to {Path(args.output).resolve()}")

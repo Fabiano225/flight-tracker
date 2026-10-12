@@ -176,6 +176,16 @@ def restarts(old, new):
     return same_place(old).scope() != same_place(new).scope()
 
 
+def changed_trips(current, new):
+    """IDs of the trips to search after a change, in search order: new trips and trips
+    whose own settings changed. Shared request settings, the trip shown first and removed
+    trips need no new search."""
+    before = {trip.id: trip for trip in trips_of(current)}
+    own = [f.name for f in fields(Config) if f.name not in SHARED_FIELDS]
+    return tuple(trip.id for trip in ordered(new) if trip.id not in before
+                 or any(getattr(trip, name) != getattr(before[trip.id], name) for name in own))
+
+
 def trip_name(trip, trips):
     """A trip's name in replies: its destination, with the id if two trips share it."""
     same = sum(other.destination == trip.destination for other in trips) > 1
@@ -306,8 +316,8 @@ def save(text, parent, message):
 
 
 def apply(body, path, today, issue=None, paused=False):
-    """Return (outcome, reply markdown). Outcomes: applied, unchanged, rejected.
-    `paused`: searches are switched off (TRACKER_ENABLED=false), so none starts."""
+    """Return (outcome, reply markdown, IDs of the trips to search now). Outcomes: applied,
+    unchanged, rejected. `paused`: searches are switched off (TRACKER_ENABLED=false), so none starts."""
     parent, text = stored()
     current = Settings.from_dict(json.loads(text)) if parent else Settings.load(path)
     try:
@@ -319,10 +329,10 @@ def apply(body, path, today, issue=None, paused=False):
     except (ValueError, TypeError) as exc:
         reason = exc if isinstance(exc, Rejected) else f"Invalid setting: {exc}"
         return "rejected", (f"❌ **Not applied:** {reason}\n\n"
-                            "The current search keeps running unchanged. Please correct it in the form and send it again.")
+                            "The current search keeps running unchanged. Please correct it in the form and send it again."), ()
     diff = changes(current, new)
     if not diff:
-        return "unchanged", "ℹ️ **No change:** These settings already match the current search."
+        return "unchanged", "ℹ️ **No change:** These settings already match the current search.", ()
     several = len(new.trips) > 1
     commit = save(serialize(new), parent, f"Search settings{f' from issue #{issue}' if issue else ''}: {routes(new)}\n")
     lines = [("✅ **New searches applied:** " if several else "✅ **New search applied:** ") + routes(new), "",
@@ -344,16 +354,27 @@ def apply(body, path, today, issue=None, paused=False):
                   f"{new.trips[0].max_http_attempts_per_run} requests. Messages go to the same channel unless a "
                   "trip has its own (`DISCORD_WEBHOOKS` or `TELEGRAM_CHAT_IDS`, by trip ID: "
                   + ", ".join(f"`{trip.id}`" for trip in new.trips) + "); each names its destination.", ""]
+    searched = () if paused else changed_trips(current, new)
     if paused:
         lines += ["⏸️ Searches are paused (repository variable `TRACKER_ENABLED` is `false`): the website shows "
                   "the new settings in about 2 minutes, but no prices are searched until you turn searches back on.", ""]
+    elif not searched:
+        lines += ["No trip's own settings changed, so no search starts; the website shows the new settings in "
+                  "about 2 minutes.", ""]
+    elif several and len(searched) < len(new.trips):
+        # Only the changed trips are searched now; the others keep their prices until the next regular search.
+        requests = sum(estimate["trips"][trip]["requests"] for trip in searched)
+        names = ", ".join(trip_name(trip, new.trips) for trip in ordered(new) if trip.id in searched)
+        lines += [f"A search for {names} has started (about {requests} requests); the other trips keep their prices "
+                  "until the next regular search. The website shows the new search with first prices once it has "
+                  "finished, usually after 5–15 minutes.", ""]
     else:
         lines += [f"A search has started (about {estimate['requests']} requests). The website shows the new "
                   f"{'searches' if several else 'search'} with first prices once it has finished, usually after "
                   "5–15 minutes.", ""]
     lines.append(f"Stored on the `search-config` branch (commit {commit[:7]}). `config.json` on main stays "
                  "unchanged and applies again only if you delete that branch.")
-    return "applied", "\n".join(lines)
+    return "applied", "\n".join(lines), searched
 
 
 def main():
@@ -365,14 +386,14 @@ def main():
     if args.command == "use":
         use(args.config)
         return
-    outcome, reply = apply(os.environ.get("ISSUE_BODY", ""), args.config, datetime.now(timezone.utc).date(),
-                           os.environ.get("ISSUE_NUMBER"),
-                           os.environ.get("SEARCHES_PAUSED") == "true")
+    outcome, reply, searched = apply(os.environ.get("ISSUE_BODY", ""), args.config, datetime.now(timezone.utc).date(),
+                                     os.environ.get("ISSUE_NUMBER"),
+                                     os.environ.get("SEARCHES_PAUSED") == "true")
     if args.reply:
         Path(args.reply).write_text(reply + "\n", encoding="utf-8")
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-            f.write(f"outcome={outcome}\n")
+            f.write(f"outcome={outcome}\ntrips={','.join(searched)}\n")
     print(f"Search settings: {outcome}")
 
 

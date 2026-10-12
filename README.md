@@ -144,8 +144,9 @@ searched by city, airport name or code (German names such as "München" work too
   destinations share one budget, so very wide date ranges or too many destinations are
   rejected before anything is sent.
 - **Applying:** the form opens a prefilled GitHub issue. Once you create it, a workflow
-  checks the settings, saves them, replies in the issue and starts a new search. When
-  that search has finished, the website shows the new settings with their first
+  checks the settings, saves them, replies in the issue and starts a new search of the
+  trips you changed; the other trips keep their prices until the next regular search.
+  When that search has finished, the website shows the new settings with their first
   prices, usually after 5–15 minutes.
 
 Changing a destination, the return airport, the currency, the search country,
@@ -229,6 +230,10 @@ the website address and the settings form adjust to your copy automatically.
 
 Good to know:
 
+- To search only one trip now, run **Actions → Track flights → Run workflow** and
+  enter its trip ID (shown on **Change search**, e.g. `ber`; several with commas) under
+  **Only these trips**. Empty searches all trips. The regular searches still cover
+  every trip.
 - Searches then run by themselves about every 6 hours. To pause them, add the
   repository variable `TRACKER_ENABLED` with the value `false`
   (**Settings → Secrets and variables → Actions → Variables**).

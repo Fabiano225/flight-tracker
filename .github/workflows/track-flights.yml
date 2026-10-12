@@ -1,9 +1,15 @@
 name: Track flights
-# Started by the Search schedule workflow (about every 6 hours), by the settings form,
-# or by hand; it has no schedule of its own, so a late GitHub run cannot double a search.
+# Started by the Search schedule workflow (about every 6 hours, all trips), by the
+# settings form (only the trips that changed) or by hand; it has no schedule of its own,
+# so a late GitHub run cannot double a search.
+run-name: ${{ inputs.trips != '' && format('Track flights ({0})', inputs.trips) || 'Track flights' }}
 on:
   workflow_dispatch:
     inputs:
+      trips:
+        description: 'Only these trips: trip IDs as shown on "Change search", e.g. ber or main,ber. Empty: all trips'
+        type: string
+        default: ''
       baggage_only:
         description: 'Only refresh website baggage comparisons; no notifications'
         type: boolean
@@ -42,7 +48,9 @@ jobs:
         id: scan
         if: inputs.baggage_only != true
         continue-on-error: true
-        run: python -m tracker scan
+        env:
+          TRIPS: ${{ inputs.trips }}
+        run: python -m tracker scan --trips "$TRIPS"
       - name: Checkpoint history and pending alerts BEFORE delivery
         id: checkpoint
         if: always() && steps.restore.outcome == 'success' && steps.scan.outcome != 'skipped'
@@ -69,7 +77,9 @@ jobs:
         if: always() && ((steps.receipts.outcome == 'success' && steps.scan.outcome == 'success') || (inputs.baggage_only == true && steps.restore.outcome == 'success'))
         continue-on-error: true
         timeout-minutes: 12
-        run: python scripts/scan_baggage.py
+        env:
+          TRIPS: ${{ inputs.trips }}
+        run: python scripts/scan_baggage.py --trips "$TRIPS"
       - name: Persist website baggage observations
         if: always() && steps.baggage.outcome != 'skipped' && steps.restore.outcome == 'success' && (steps.receipts.outcome == 'success' || inputs.baggage_only == true)
         run: python scripts/state_git.py save
