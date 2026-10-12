@@ -36,18 +36,19 @@ jobs:
           # Same test as the job condition in track-flights.yml.
           SEARCHES_PAUSED: ${{ vars.TRACKER_ENABLED == 'false' }}
         run: python scripts/search_settings.py apply --reply "$RUNNER_TEMP/reply.md"
-      # The search publishes the dashboard with its prices when it ends. Only while
-      # searches are paused is the dashboard published right away.
+      # Only the trips whose own settings changed are searched; the search publishes the
+      # dashboard with its prices when it ends. While searches are paused, or when no trip
+      # needs a search (e.g. only the trip shown first changed), it is published right away.
       - name: Start a search
         if: steps.apply.outputs.outcome == 'applied'
         env:
           GH_TOKEN: ${{ github.token }}
-          SEARCHES_PAUSED: ${{ vars.TRACKER_ENABLED == 'false' }}
+          TRIPS: ${{ steps.apply.outputs.trips }}
         run: |
-          if [ "$SEARCHES_PAUSED" = "true" ]; then
+          if [ -z "$TRIPS" ]; then
             gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
           else
-            gh workflow run track-flights.yml --repo "$GITHUB_REPOSITORY" --ref main
+            gh workflow run track-flights.yml --repo "$GITHUB_REPOSITORY" --ref main -f trips="$TRIPS"
           fi
       - name: Reply on the issue
         if: always()

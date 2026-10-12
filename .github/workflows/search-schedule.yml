@@ -6,7 +6,9 @@ name: Search schedule
 #   fixed times hold even after a search started by hand or by the settings form;
 # - an hourly check is the fallback; it searches when the last search is at least
 #   6 h 30 min old, so it steps in only when the external timer did not.
-# A search that is queued or running, or saved recently, is never started twice.
+# A search that is queued or running, or saved recently, is never started twice. "The
+# last search" is that of the trip searched longest ago, so a search of only some trips
+# (by hand or after a settings change) does not hold back the others.
 on:
   schedule:
     - cron: '41 * * * *'
@@ -34,14 +36,16 @@ jobs:
               exit 0
             fi
           done
-          # Every search saves the price history on the tracker-state branch.
-          if last=$(gh api "repos/$GITHUB_REPOSITORY/branches/tracker-state" --jq .commit.commit.committer.date 2>"$RUNNER_TEMP/error"); then
-            age=$(( ( $(date -u +%s) - $(date -u -d "$last" +%s) ) / 60 ))
+          # Every search saves latest.json on the tracker-state branch: each trip's latest
+          # search and when it started.
+          if last=$(gh api "repos/$GITHUB_REPOSITORY/contents/latest.json?ref=tracker-state" \
+                -H "Accept: application/vnd.github.raw" 2>"$RUNNER_TEMP/error" | jq -r '[(.trips // [.])[] | .started] | min // empty'); then
+            age=$(( ( $(date -u +%s) - $(date -u -d "${last:-@0}" +%s) ) / 60 ))
             if [ "$age" -lt "$MIN_AGE" ]; then
-              echo "::notice::The last search was saved $age minutes ago (a new one starts from $MIN_AGE); nothing to start."
+              echo "::notice::Every trip was searched within the last $age minutes (a new search starts from $MIN_AGE); nothing to start."
               exit 0
             fi
-            echo "::notice::The last search was saved $age minutes ago. Starting a search."
+            echo "::notice::A trip was last searched $age minutes ago. Starting a search."
           elif grep -q "HTTP 404" "$RUNNER_TEMP/error"; then
             echo "::notice::No search has been saved yet. Starting the first one."
           else

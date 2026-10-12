@@ -58,14 +58,16 @@ def quiet_route(store, config, scope, origin, profile, now):
         return False
 
 
-def scan_trips(trips, store, providers, now, demo=False):
+def scan_trips(trips, store, providers, now, demo=False, everything=None):
     """Search every trip in turn. `providers(trip)` returns the trip's provider;
-    live providers share one paced client and thereby one request budget."""
-    summaries = [scan_trip(config, store, providers(config), now, demo, trips) for config in trips]
+    live providers share one paced client and thereby one request budget.
+    `everything`: all searches, when only some of them run now."""
+    summaries = [scan_trip(config, store, providers(config), now, demo, everything or trips) for config in trips]
     update_health(store, trips, summaries, now)
     try:
-        # The longest comparison period decides what every trip may still read.
-        pruned = store.prune(now, max(config.history_window_days for config in trips))
+        # The longest comparison period of all trips, searched now or not, decides
+        # what every trip may still read.
+        pruned = store.prune(now, max(config.history_window_days for config in everything or trips))
     except sqlite3.Error as exc:
         # Cleanup is housekeeping; a failure must not lose this run's results.
         pruned = None
@@ -102,7 +104,7 @@ def update_health(store, trips, summaries, now):
 
 
 def scan_trip(config, store, provider, now, demo=False, trips=None):
-    """Search one trip. `trips` are all trips of this run; alerts of others expire."""
+    """Search one trip. `trips` are all current trips, searched now or not; alerts of others expire."""
     mode = "demo" if demo else "live"
     scope = config.scope(mode)
     run_id = uuid.uuid4().hex

@@ -75,6 +75,10 @@ Expiry is trip-aware: a scan or delivery expires only alerts whose scope is not 
 the active trips, check statuses are replaced per trip (matched by their run's scope),
 and pending digests are validated against their own trip's window. Health messages are
 aggregated per run, and pruning runs once with the longest comparison period.
+`tracker scan --trips ber` (workflow input `trips`) searches only the named trips; expiry,
+window notices and pruning still use every trip (`scan_trips(..., everything)`), so the
+others keep their pending messages and history. `report` lists every search's latest
+run, and **Search schedule** starts a search when the trip searched longest ago is due.
 
 The dashboard's `data.json` (version 2) lists the trips primary first; each carries its
 configuration (`destinations` lists all of them), page texts, offers, histories,

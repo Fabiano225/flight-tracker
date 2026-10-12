@@ -369,9 +369,19 @@ class Settings:
         """Search order: the primary trip first, then the others as listed."""
         return (self.primary, *(trip for trip in self.trips if trip.id != self.primary_trip))
 
-    def searches(self):
-        """Every trip's single-destination searches, in search order."""
-        return tuple(search for trip in self.ordered() for search in trip.searches())
+    def searches(self, only=()):
+        """Every trip's single-destination searches, in search order; with `only`
+        (trip IDs), just those trips' searches."""
+        return tuple(search for trip in self.ordered() if not only or trip.id in only for search in trip.searches())
+
+    def chosen(self, text):
+        """Trip IDs from a list such as "ber" or "main, ber"; empty for every trip.
+        An unknown ID fails rather than silently searching nothing."""
+        ids = tuple(dict.fromkeys(part.strip() for part in (text or "").split(",") if part.strip()))
+        unknown = [trip for trip in ids if trip not in {t.id for t in self.trips}]
+        if unknown:
+            raise ValueError(f"Unknown trip ID {', '.join(unknown)}; the trips are {', '.join(t.id for t in self.trips)}")
+        return ids
 
     @classmethod
     def load(cls, path):
