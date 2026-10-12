@@ -9,11 +9,10 @@
         "AMS"
       ],
       "destination": "BKK",
-      "departure_start": "2026-10-20",
-      "departure_end": "2026-10-23",
-      "min_trip_days": 10,
-      "max_trip_days": 14,
-      "latest_return": "2026-11-03",
+      "departure_start": "2026-11-05",
+      "departure_end": "2026-11-24",
+      "min_trip_days": 16,
+      "max_trip_days": 19,
       "currency": "EUR",
       "adults": 1,
       "travel_class": "economy",
@@ -22,10 +21,19 @@
       "carry_on_bags": 0,
       "checked_bags": 0,
       "max_stops": 1,
-      "good_deal_nonstop_eur": 650,
-      "good_deal_layover_eur": 650,
+      "good_deal_nonstop_eur": 740,
+      "good_deal_layover_eur": 660,
+      "origin_targets": {
+        "FRA": {
+          "nonstop": 660
+        },
+        "AMS": {
+          "nonstop": 810,
+          "layover": 620
+        }
+      },
       "drop_percent": 10,
-      "drop_eur": 50,
+      "drop_eur": 55,
       "history_window_days": 30,
       "realert_improvement_eur": 25,
       "max_deals_per_run": 6,
