@@ -223,7 +223,15 @@ The source adapter has request, time and retry budgets. Request starts are paced
 `max_parallel_requests` requests (fli's return-leg expansion) are in flight. After a
 network error, HTTP 5xx or RPC 13 the gap doubles (up to 5 s); each successful
 response halves it again, down to the configured interval.
-RPC 13 retries wait 3 s, then 6 s. The scan writes its itinerary searches and their
+RPC 13 retries wait 3 s, then 6 s. A date-search batch keeps the dates that answered;
+the others stay unknown (`provider.missed`). `scan_trip` leaves out a departure airport
+after three failed batches or flight checks in a row (`AIRPORT_FAILURES`) and pauses
+`AIRPORT_PAUSE_SECONDS` before the next request; only a `BudgetError` (budget, 401/403/429,
+RPC 7/8/16) stops the run. `incomplete(summary)` marks a real gap (no prices, no checked
+flight, or more than a quarter and more than one date or check missing); only that fails
+the run, sends the daily health message and counts toward `incomplete_in_row`, which the
+search schedule uses for up to two catch-up searches of the trip.
+The scan writes its itinerary searches and their
 Google session IDs to the local, unpublished `state/search-cache-<trip>-<destination>.json`; the baggage step
 reuses them for the same run (at most one hour old) instead of repeating the searches,
 and searches live again when a cached search yields no usable booking offers. Up to

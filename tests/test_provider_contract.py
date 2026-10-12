@@ -213,13 +213,31 @@ class PrefetchDateTests(unittest.TestCase):
         provider.http.sleep.assert_called_once_with(30)
         self.assertEqual(provider.dates.recovered_dates, 1)
 
-    def test_failed_recheck_is_not_an_empty_calendar_or_success(self):
+    def test_failed_recheck_stays_unknown_and_keeps_the_other_dates(self):
         error = TransientSourceError("RPC 13")
-        provider, batch = self.recovery_provider([[], error, [], error])
-        with self.assertRaisesRegex(TransientSourceError, "persisted after deferred recheck"):
-            provider.fetch(batch)
+        offer = [NS(price=650, currency="EUR")]
+        provider, batch = self.recovery_provider([offer, error, offer, error])
+        result = provider.fetch(batch)
+        self.assertEqual(list(result.values()), [65000, None, 65000])
+        # The date without an answer is reported, never taken for "no flights".
+        self.assertEqual(provider.missed, [batch.pairs()[1][0]])
         self.assertEqual(provider.dates.shopping._fetch_flights.call_count, 4)
         self.assertEqual(provider.dates.recovered_dates, 0)
+
+    def test_errors_later_in_a_batch_end_it_early_without_losing_its_answers(self):
+        error = TransientSourceError("RPC 13")
+        offer = [NS(price=650, currency="EUR")]
+        provider = FreeProvider(Config())
+        self.addCleanup(provider.close)
+        provider.http.sleep = Mock()
+        start = date.today() + timedelta(days=30)
+        batch = Batch("FRA", "any", start, start + timedelta(days=5), 15)
+        # Day 1 answers; days 2-4 fail in a row, so days 5-6 are not asked; three rechecks fail too.
+        provider.dates.shopping._fetch_flights = Mock(side_effect=[offer, error, error, error, error, error, error])
+        result = provider.fetch(batch)
+        self.assertEqual(list(result.values()), [65000] + [None] * 5)
+        self.assertEqual(provider.missed, [dep for dep, _ in batch.pairs()[1:]])
+        self.assertEqual(provider.dates.shopping._fetch_flights.call_count, 7)
 
     def test_widespread_internal_errors_stop_without_deferred_pass(self):
         provider, batch = self.recovery_provider([TransientSourceError("RPC 13")] * 3)

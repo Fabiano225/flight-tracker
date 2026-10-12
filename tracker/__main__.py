@@ -96,7 +96,13 @@ def main():
                     f.write(text)
             if demo:
                 print("DEMO ONLY - no network or notification messages. Outbox contains synthetic alerts.")
-            return 1 if any(summary["status"] == "partial" for summary in summaries) else 0
+            # Only incomplete searches fail the run; single gaps are shown as warnings.
+            for summary in summaries:
+                if summary["status"] == "partial" and not summary.get("incomplete"):
+                    print(f"::warning::{summary['trip']} to {summary['config']['destination']}: "
+                          f"{len(summary['errors'])} single gap(s), the search is otherwise complete. "
+                          f"First: {summary['errors'][0]}")
+            return 1 if any(summary.get("incomplete") for summary in summaries) else 0
         if args.command == "notify":
             if not notifications_configured():
                 # A new copy works without Discord or Telegram; the dashboard still updates.

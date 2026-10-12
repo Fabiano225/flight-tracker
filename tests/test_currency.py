@@ -59,7 +59,7 @@ class CurrencyTests(unittest.TestCase):
         provider.verify("FRA", start.isoformat(), (start + timedelta(days=14)).isoformat(), "any")
         self.assertEqual({k: provider.flights.search.call_args.kwargs[k] for k in ("currency", "country", "language")},
                          {"currency": "THB", "country": "TH", "language": "en"})
-        provider.dates = Mock(search=Mock(return_value=[]))
+        provider.dates = Mock(search=Mock(return_value=[]), missed=[])
         provider.fetch(Batch("FRA", "any", start, start, 14))
         self.assertEqual(provider.dates.search.call_args.kwargs, {"currency": "THB", "country": "TH", "language": "en"})
 
