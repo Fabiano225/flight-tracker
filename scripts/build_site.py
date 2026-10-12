@@ -127,7 +127,7 @@ def instant(value):
 
 def public_config(config):
     values = {key: getattr(config, key) for key in (
-        'origins', 'destination', 'return_from', 'currency', 'country', 'adults', 'departure_start', 'departure_end', 'min_trip_days',
+        'origins', 'destination', 'return_from', 'currency', 'country', 'adults', 'travel_class', 'departure_start', 'departure_end', 'min_trip_days',
         'max_trip_days', 'latest_return', 'max_direction_minutes', 'flight_times', 'good_deal_nonstop_eur',
         'good_deal_layover_eur', 'origin_targets', 'history_window_days', 'realert_improvement_eur')}
     return {**values, 'destinations': list(config.destinations), 'currency_symbol': CURRENCIES[config.currency][1]}

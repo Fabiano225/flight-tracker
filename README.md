@@ -66,11 +66,14 @@ jaw (back from another airport).
   click one to see only that airport.
 - **Filters:** departure airport, destination (for trips with several), connection
   type, outbound day, trip length, departure and arrival time, and airlines (show only
-  or hide selected airlines).
+  or hide selected airlines). The outbound list has every day of the window; days
+  marked *calendar only* have no checked offer, because each search checks only the
+  cheapest date combinations.
 - **Price calendar:** the cheapest price the date search found for every outbound day
   and trip length, coloured in five steps from cheaper to pricier. These prices are
-  indicative because the return flight is not chosen yet; days with a checked offer
-  can be clicked.
+  indicative because the return flight is not chosen yet. A price with a dot has a
+  checked offer and shows it in the list; any other price opens that date combination
+  on Google Flights.
 - **Price history:** pick a flight to see every checked price, your price target and
   the lowest price of the comparison period.
 - **Baggage:** choose *Base price*, *1 cabin bag*, *1 checked bag* or both. Baggage views

@@ -290,13 +290,18 @@ td small.party-price{margin-top:2px}
 .calendar-table thead th{text-align:center}.calendar-table tbody th{text-align:right;padding-right:10px}
 .calendar-table td{padding:0;border:0}
 .calendar-cell{display:block;min-width:56px;padding:8px 6px;border:0;border-radius:4px;text-align:center;font:inherit;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
-button.calendar-cell{cursor:pointer;width:100%}button.calendar-cell:hover{filter:brightness(1.06);box-shadow:inset 0 0 0 2px #ffffff99}
+button.calendar-cell,a.calendar-cell{cursor:pointer;width:100%;text-decoration:none}
+button.calendar-cell:hover,a.calendar-cell:hover{filter:brightness(1.06);box-shadow:inset 0 0 0 2px #ffffff99}
+/* A dot marks prices with a checked offer in the list; the other prices are links. */
+button.calendar-cell{position:relative}button.calendar-cell::after{content:"";position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:currentColor}
+.calendar-table tr.is-selected-day th{color:var(--ink);font-weight:750}
 .calendar-cell.is-selected{box-shadow:inset 0 0 0 2px var(--ink)}
 .heat-0{background:#3b7034;color:#fff}.heat-1{background:#72a656;color:#1d2b22}.heat-2{background:#8fbf71;color:#1d2b22}
 .heat-3{background:#b6d49a;color:#1d2b22}.heat-4{background:#dfead0;color:#1d2b22}.heat-none{background:none;color:var(--muted)}
 .calendar-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;font-size:10px;color:var(--muted)}
 .legend-steps{display:inline-flex;gap:2px}.legend-steps i{display:block;width:22px;height:10px;border-radius:3px}
 #calendar-range{margin-left:6px}
+.calendar-hint{margin-left:auto;display:inline-flex;align-items:center;gap:5px}.legend-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ink)}
 .week-trend{font-weight:600}
 :where([data-theme="dark"]) .heat-0{background:#a0cf89;color:#0f1a16}:where([data-theme="dark"]) .heat-1{background:#5f9c58;color:#0f1a16}
 :where([data-theme="dark"]) .heat-2{background:#3a7440;color:#fff}:where([data-theme="dark"]) .heat-3{background:#2c5a38;color:#e3ebe4}

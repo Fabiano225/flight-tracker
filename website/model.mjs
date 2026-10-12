@@ -234,3 +234,27 @@ export function weekTrend(offer, history) {
 export function cheapestPerOrigin(offers, origins) {
   return origins.map(origin=>({origin,offer:offers.filter(q=>q.origin===origin).sort((a,b)=>a.price-b.price)[0]||null}));
 }
+// Outbound days for the filter: every day of the travel window still ahead, plus any
+// day with a checked offer. `checked` is false for days only the date search covers:
+// each search checks just the cheapest date combinations.
+export function departureChoices(config, offers, today='') {
+  const checked=new Set(offers.map(q=>q.departure)), days=new Set(checked), iso=/^\d{4}-\d{2}-\d{2}$/;
+  if(iso.test(config.departure_start||'') && iso.test(config.departure_end||'')) {
+    let at=Date.parse(config.departure_start+'T12:00:00Z');
+    for(let n=0;n<400 && at<=Date.parse(config.departure_end+'T12:00:00Z');n++,at+=864e5) {
+      const value=new Date(at).toISOString().slice(0,10);
+      if(value>today)days.add(value);
+    }
+  }
+  return [...days].sort().map(value=>({value,checked:checked.has(value)}));
+}
+// Google Flights search for one date combination, built like the links in messages
+// (search_query in tracker/alerts.py): open-jaw trips as multi-city, in the trip's
+// currency and search country.
+export function flightSearchLink(origin, destination, departure, returnDate, config={}) {
+  const adults=config.adults||1, who=adults===1?'one adult':`${adults} adults`, cabin=config.travel_class||'economy';
+  const q=config.return_from
+    ?`Multi-city flights ${origin} to ${destination} ${departure}, ${config.return_from} to ${origin} ${returnDate} ${cabin} ${who}`
+    :`Round trip flights ${origin} to ${destination} ${departure} return ${returnDate} ${cabin} ${who}`;
+  return 'https://www.google.com/travel/flights?'+new URLSearchParams({q,curr:config.currency||'EUR',hl:'en',gl:config.country||'DE'});
+}

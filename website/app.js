@@ -1,4 +1,4 @@
-import {targetFor, filteredOffers, comparison, priceStatus, money, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref, flightLegs, calendarGrid, priceStep, weekTrend, cheapestPerOrigin} from './model.mjs';
+import {targetFor, filteredOffers, comparison, priceStatus, money, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref, flightLegs, calendarGrid, priceStep, weekTrend, cheapestPerOrigin, departureChoices, flightSearchLink} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const day = s => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'Europe/Berlin'}).format(new Date(s+'T12:00:00Z'));
@@ -105,7 +105,9 @@ function activateBaggage() {
   $('baggage-note').textContent=profile==='base'
     ?'Base price without an extra baggage requirement. Bags may already be included.'
     :`Only offers whose booking details list ${baggageLabels[profile].toLowerCase()} as included for the whole trip. Price and history belong to this baggage choice.`;
-  fillSelect('departure',[...new Set(data.offers.map(q=>q.departure))].sort(),day);
+  // Every day of the travel window; days without a checked offer are only in the price calendar.
+  const choices=departureChoices(rootData.config,data.offers,berlinToday()), checkedDays=new Set(choices.filter(c=>c.checked).map(c=>c.value));
+  fillSelect('departure',choices.map(c=>c.value),v=>checkedDays.has(v)?day(v):`${day(v)} · calendar only`);
   showStatus();renderSummary();renderOffers();
 }
 
@@ -213,7 +215,8 @@ function renderCalendar(filters) {
   $('calendar-note').textContent=rootData.calendar?.at?`Date search · ${when(rootData.calendar.at)} · Berlin time`:'No date search yet';
   if(empty)return;
   $('calendar-range').textContent=`${wholeCash(grid.min)} – ${wholeCash(grid.max)} per person`;
-  // Dates with a checked offer for the other filters lead to it in the table.
+  // Dates with a checked offer for the other filters lead to it in the table; the other
+  // prices open that date combination on Google Flights.
   const checked=new Set(filteredOffers(data.offers,{...filters,departure:'',days:''}).map(q=>`${q.departure}|${q.days}`));
   table.append(node('caption','Cheapest date-search price per person by outbound day and trip length','sr-only'));
   const head=node('tr'),corner=node('th','Outbound','calendar-corner');corner.scope='col';head.append(corner);
@@ -222,13 +225,15 @@ function renderCalendar(filters) {
   const body=node('tbody');
   for(const departure of grid.departures) {
     const row=node('tr'),label=node('th',weekday(departure));label.scope='row';row.append(label);
+    if(filters.departure===departure)row.className='is-selected-day';
     for(const days of grid.lengths) {
       const cell=grid.cells.get(`${departure}|${days}`), td=node('td');
       if(!cell || cell.price===null){td.append(node('span','—','calendar-cell heat-none'));td.title='No price found';row.append(td);continue;}
       const step=priceStep(cell.price,grid.min,grid.max), key=`${departure}|${days}`;
       const text=`${weekday(departure)} → ${weekday(plusDays(departure,days))} · ${days} days · ${cell.origin}${several?` → ${cell.destination}`:''} · about ${wholeCash(cell.price)} per person`;
-      const mark=node(checked.has(key)?'button':'span',wholeCash(cell.price),`calendar-cell heat-${step}`);
-      mark.title=text+(checked.has(key)?' · show the checked offer':'');
+      const url=checked.has(key)?null:safeFlightLink(flightSearchLink(cell.origin,cell.destination,departure,plusDays(departure,days),rootData.config));
+      const mark=node(checked.has(key)?'button':url?'a':'span',wholeCash(cell.price),`calendar-cell heat-${step}`);
+      mark.title=text+(checked.has(key)?' · show the checked offer':url?' · not checked yet: open on Google Flights':'');
       if(filters.departure===departure && Number(filters.days)===days)mark.classList.add('is-selected');
       if(checked.has(key)) {
         mark.type='button';mark.setAttribute('aria-label',mark.title);
@@ -236,6 +241,8 @@ function renderCalendar(filters) {
           $('departure').value=departure;$('days').value=String(days);renderOffers();
           $('offers').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
         });
+      } else if(url) {
+        mark.href=url;mark.target='_blank';mark.rel='noopener noreferrer';mark.setAttribute('aria-label',mark.title);
       }
       td.append(mark);row.append(td);
     }
@@ -254,6 +261,7 @@ function renderOffers() {
   $('empty').hidden=offers.length>0;
   $('empty').textContent=data.offers.length?'No offers for this selection. Try another filter.':($('baggage').value==='base'?'No checked offers in the current search window yet. The search status is shown above.':'Baggage price unavailable: no checked offer lists the selected bags as included yet. That does not mean such fares do not exist.');
   if((filters.departs||filters.arrives) && data.offers.length)$('empty').textContent='No offers in these flight times. The filter applies to both flights in local time; offers checked before times were recorded have none and are hidden.';
+  if(filters.departure && data.offers.length && !data.offers.some(q=>q.departure===filters.departure))$('empty').textContent=`No checked offer departs on ${day(filters.departure)}. Each search checks only the cheapest date combinations; the price calendar below has the date-search price of every day. Click a price there to open it on Google Flights.`;
   if(filters.favorites)$('empty').textContent=favorites.size?'No available favorites for these filters and this baggage choice. Your saved selection is kept; missing offers are not current prices.':'No favorites yet. Turn off “Favorites only” and save offers with the star.';
   const select=$('history-select');select.replaceChildren();
   const several=(data.config.destinations||[]).length>1;

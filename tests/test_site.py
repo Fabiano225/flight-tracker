@@ -5,7 +5,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.build_site import export_data, build, ASSETS, GENERATED, render_page, date_range
+from scripts.build_site import export_data, build, ASSETS, GENERATED, render_page, date_range, public_config
+from tracker.alerts import search_query
 from tracker.config import Config, Settings, money_text
 from tracker.provider import Quote
 from tracker.store import Store, stamp
@@ -188,6 +189,19 @@ class SiteTests(unittest.TestCase):
         self.assertEqual(money_text(24500,'THB'),'฿24,500')
         self.assertEqual(money_text(95.5,'CHF'),'CHF 95.50')
         self.assertEqual(money_text(98000,'JPY'),'¥98,000')
+
+
+    def test_calendar_links_in_the_browser_match_message_links(self):
+        # The price calendar builds these links itself (flightSearchLink in website/model.mjs);
+        # tests/site_model.test.mjs expects the same two links.
+        self.assertEqual(search_query('AMS','BKK','2026-11-06','2026-11-23'),
+            'https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-11-06+return+2026-11-23+economy+one+adult&curr=EUR&hl=en&gl=DE')
+        self.assertEqual(search_query('FRA','HKT','2026-11-06','2026-11-23','business',2,'BKK','THB','TH'),
+            'https://www.google.com/travel/flights?q=Multi-city+flights+FRA+to+HKT+2026-11-06%2C+BKK+to+FRA+2026-11-23+business+2+adults&curr=THB&hl=en&gl=TH')
+        # Everything the browser needs for them is exported.
+        public=public_config(replace(self.config,travel_class='business',adults=2))
+        self.assertEqual({key:public[key] for key in ('travel_class','adults','return_from','currency','country')},
+                         {'travel_class':'business','adults':2,'return_from':None,'currency':'EUR','country':'DE'})
 
 
 if __name__=='__main__':unittest.main()

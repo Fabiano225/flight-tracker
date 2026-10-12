@@ -90,8 +90,11 @@ their waiting minutes, both taken from the checked itinerary; they are `null` fo
 stored before they were recorded or when the source omits them. `calendar` has the
 latest date search per destination (`[origin, destination, departure, days, profile,
 price]`, price per person or `null`), which the price calendar shows as a grid in five
-price bands; the 7-day trend per offer and the cheapest offer per airport are computed
-in the browser from the exported offers and histories. `index.html` is
+price bands. A price without a checked offer links to Google Flights; the browser builds
+that link like `search_query` in `tracker/alerts.py` from the exported configuration
+(currency, country, travellers, `travel_class`, `return_from`). The 7-day trend per
+offer and the cheapest offer per airport are computed in the browser from the exported
+offers and histories. `index.html` is
 prerendered for the primary trip; `app.js` replaces the texts marked `data-page` when
 another trip is chosen, and `trip.js` hides them before the first paint while a
 `?trip=` link loads. `search-config.json` (version 2) gives the form every trip, the

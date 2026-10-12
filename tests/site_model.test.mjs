@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,priceStatus,money,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs,timesFit,parseFavorite,belongsToTrip,calendarGrid,priceStep,weekTrend,cheapestPerOrigin} from '../website/model.mjs';
+import {filteredOffers,comparison,priceStatus,money,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs,timesFit,parseFavorite,belongsToTrip,calendarGrid,priceStep,weekTrend,cheapestPerOrigin,departureChoices,flightSearchLink} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -270,4 +270,26 @@ test('7-day trend compares with the earliest check within the week',()=>{
 test('cheapest offer per departure airport, also for airports without one',()=>{
   const offers=[{...offer,origin:'AMS',price:52000},{...offer,origin:'AMS',price:50000},{...offer,origin:'FRA',price:61000}];
   assert.deepEqual(cheapestPerOrigin(offers,['DUS','FRA','AMS']).map(x=>[x.origin,x.offer?.price??null]),[['DUS',null],['FRA',61000],['AMS',50000]]);
+});
+test('outbound filter lists every day ahead in the window, marking days without a checked offer',()=>{
+  const window={departure_start:'2026-11-04',departure_end:'2026-11-08'};
+  const offers=[{...offer,departure:'2026-11-07'},{...offer,departure:'2026-11-07'},{...offer,departure:'2026-11-04'}];
+  // Days up to today drop out unless an offer departs then; nothing is left out between.
+  assert.deepEqual(departureChoices(window,offers,'2026-11-05'),[
+    {value:'2026-11-04',checked:true},{value:'2026-11-06',checked:false},{value:'2026-11-07',checked:true},{value:'2026-11-08',checked:false}]);
+  assert.deepEqual(departureChoices({...window,departure_end:'2026-11-04'},[],'').map(c=>c.value),['2026-11-04']);
+  assert.deepEqual(departureChoices({},offers,'').map(c=>c.value),['2026-11-04','2026-11-07']);
+  // Months and years roll over.
+  assert.deepEqual(departureChoices({departure_start:'2026-12-30',departure_end:'2027-01-02'},[],'').map(c=>c.value),
+    ['2026-12-30','2026-12-31','2027-01-01','2027-01-02']);
+});
+test('calendar links match the Google Flights links in messages',()=>{
+  // Expected values are the output of search_query in tracker/alerts.py.
+  assert.equal(flightSearchLink('AMS','BKK','2026-11-06','2026-11-23',{currency:'EUR',country:'DE',adults:1,travel_class:'economy'}),
+    'https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-11-06+return+2026-11-23+economy+one+adult&curr=EUR&hl=en&gl=DE');
+  assert.equal(flightSearchLink('FRA','HKT','2026-11-06','2026-11-23',{currency:'THB',country:'TH',adults:2,travel_class:'business',return_from:'BKK'}),
+    'https://www.google.com/travel/flights?q=Multi-city+flights+FRA+to+HKT+2026-11-06%2C+BKK+to+FRA+2026-11-23+business+2+adults&curr=THB&hl=en&gl=TH');
+  assert.equal(flightSearchLink('AMS','BKK','2026-11-06','2026-11-23'),
+    'https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-11-06+return+2026-11-23+economy+one+adult&curr=EUR&hl=en&gl=DE');
+  assert.ok(safeFlightLink(flightSearchLink('AMS','BKK','2026-11-06','2026-11-23')));
 });
