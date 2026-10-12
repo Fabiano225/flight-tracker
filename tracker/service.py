@@ -16,6 +16,10 @@ from .trends import load_watches, watch_searches, queue_trends
 # A route (airport + nonstop/any profile) whose complete date search found no
 # price at all is searched again only about once a day, until it has prices.
 EMPTY_ROUTE_RECHECK = timedelta(hours=23)
+# An airport whose searches fail this many times in a row is left out for the rest of
+# the run; the other airports continue after a short pause.
+AIRPORT_FAILURES = 3
+AIRPORT_PAUSE_SECONDS = 60
 
 
 def route_key(scope, origin, profile):
@@ -80,10 +84,26 @@ def scan_trips(trips, store, providers, now, demo=False, everything=None):
     return summaries
 
 
+def incomplete(summary):
+    """Whether a search missed a real part of its prices: none at all, no checked flight,
+    or more than a quarter (and more than one) of its date searches or flight checks.
+    Single gaps are not; they stay visible in the run's errors."""
+    if not summary["calendar_queries_planned"]:
+        return False
+    big = lambda missing, total: missing >= 2 and missing * 4 > total
+    checks = summary.get("verification_planned", 0)
+    return (not summary["calendar_prices"]
+            or (checks > 0 and not summary["verified_quotes"])
+            or big(summary["calendar_slots"] - summary.get("calendar_answered", summary["calendar_slots"]),
+                   summary["calendar_slots"])
+            or big(checks - summary["verification_searches"] + summary.get("verification_failed", 0), checks))
+
+
 def update_health(store, trips, summaries, now):
-    """One health message per run for all trips; the flight source is shared."""
+    """One health message per run for all trips; the flight source is shared. Only
+    incomplete searches count; single gaps send no message."""
     several = len(summaries) > 1
-    partial = [(config, summary) for config, summary in zip(trips, summaries) if summary["status"] == "partial"]
+    partial = [(config, summary) for config, summary in zip(trips, summaries) if summary.get("incomplete")]
     if partial:
         last = store.get_meta("health_alert_at")
         if last is None or last < stamp(now - timedelta(hours=24)):
@@ -95,12 +115,28 @@ def update_health(store, trips, summaries, now):
             store.set_meta("health_alert_at", stamp(now))
         store.set_meta("unhealthy", "yes")
     else:
-        ok = [summary for summary in summaries if summary["status"] == "ok"]
+        ok = [summary for summary in summaries if summary["status"] != "expired"]
         if ok and store.get_meta("unhealthy") == "yes":
             store.enqueue(ok[0]["run_id"], "health", now,
                           "Flight tracker recovered: calendar searches and itinerary checks succeeded.")
             store.set_meta("unhealthy", "no")
     store.db.commit()
+
+
+class Pause:
+    """A pause before the next request once an airport has been left out, so a struggling
+    source gets a moment; none when nothing follows. Demo providers do not wait."""
+    def __init__(self, provider):
+        self.sleep = getattr(provider.http, "sleep", None)
+        self.due = False
+
+    def request(self):
+        self.due = True
+
+    def before_next(self):
+        if self.due and self.sleep:
+            self.sleep(AIRPORT_PAUSE_SECONDS)
+        self.due = False
 
 
 def scan_trip(config, store, provider, now, demo=False, trips=None):
@@ -114,7 +150,8 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
         "status": "running", "calendar_queries_planned": len(batches), "calendar_queries_ok": 0,
         "calendar_queries_skipped": len(planned) - len(batches),
         "calendar_slots": sum(len(b.pairs()) for b in batches), "calendar_prices": 0,
-        "calendar_unknown": 0, "verification_searches": 0, "verified_quotes": 0,
+        "calendar_unknown": 0, "calendar_answered": 0, "verification_planned": 0, "verification_searches": 0,
+        "verification_failed": 0, "verified_quotes": 0,
         "queued_deals": 0, "http_attempts": 0, "errors": [], "config": config.public_dict()}
     used_before = provider.http.used
     db = store.db
@@ -125,7 +162,9 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
     store.expire_check_status(scope)
     db.commit()
     candidates = []
-    consecutive_errors = 0
+    # Failures in a row per departure airport; a flaky airport must not stop the others.
+    failures, stopped = {}, set()
+    pause = Pause(provider)
     route_total, route_ok, route_prices = {}, {}, {}
     for batch in batches:
         route = (batch.origin, batch.profile)
@@ -134,18 +173,33 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
         route_prices.setdefault(route, 0)
     try:
         for batch in batches:
+            if batch.origin in stopped:
+                continue
+            pause.before_next()
             try:
                 rows = provider.fetch(batch)
                 summary["calendar_queries_ok"] += 1
-                route_ok[(batch.origin, batch.profile)] += 1
-                consecutive_errors = 0
+                failures[batch.origin] = 0
             except ServiceError as exc:
                 summary["errors"].append(f"{batch.origin}/{batch.profile}/{batch.duration}d: {exc}")
-                consecutive_errors += 1
-                if isinstance(exc, BudgetError) or consecutive_errors >= 3:
-                    summary["errors"].append("Circuit breaker: stopped after repeated errors or exhausted budget")
+                if isinstance(exc, BudgetError):
+                    summary["errors"].append("Circuit breaker: stopped after a source block or exhausted budget")
                     break
+                failures[batch.origin] = failures.get(batch.origin, 0) + 1
+                if failures[batch.origin] >= AIRPORT_FAILURES:
+                    stopped.add(batch.origin)
+                    summary["errors"].append(f"{batch.origin}: date searches stopped after repeated errors; "
+                                             "the other airports continue")
+                    pause.request()
                 continue
+            missed = set(getattr(provider, "missed", ()))
+            if missed:
+                summary["errors"].append(f"{batch.origin}/{batch.profile}/{batch.duration}d: "
+                                         f"{len(missed)} of {len(rows)} dates got no answer")
+            else:
+                # Only a batch where every date answered may help mark a route as empty.
+                route_ok[(batch.origin, batch.profile)] += 1
+            summary["calendar_answered"] += len(rows) - len(missed)
             for (dep, ret), price in rows.items():
                 db.execute("INSERT INTO calendar VALUES(?,?,?,?,?,?,?,?)",
                            (run_id, scope, stamp(now), batch.origin, dep, ret, batch.profile, price))
@@ -182,17 +236,26 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
             if item not in selected:
                 selected.append(item)
         verified = {}
-        verification_errors = 0
+        summary["verification_planned"] = len(selected)
+        failures = {}
         for origin, dep, ret, profile in selected:
+            if failures.get(origin, 0) >= AIRPORT_FAILURES:
+                continue
+            pause.before_next()
             summary["verification_searches"] += 1
             try:
                 quotes = provider.verify(origin, dep, ret, profile)
-                verification_errors = 0
+                failures[origin] = 0
             except ServiceError as exc:
                 summary["errors"].append(f"Verify {origin}/{dep}/{ret}/{profile}: {exc}")
-                verification_errors += 1
-                if isinstance(exc, BudgetError) or verification_errors >= 3:
+                summary["verification_failed"] += 1
+                if isinstance(exc, BudgetError):
                     break
+                failures[origin] = failures.get(origin, 0) + 1
+                if failures[origin] >= AIRPORT_FAILURES:
+                    summary["errors"].append(f"{origin}: flight checks stopped after repeated errors; "
+                                             "the other airports continue")
+                    pause.request()
                 continue
             for quote in quotes:
                 key = (quote.origin, quote.departure, quote.return_date, quote.category)
@@ -214,6 +277,13 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
         if batches and summary["calendar_prices"] and not verified:
             summary["errors"].append("No shortlisted itinerary passed round-trip, duration and currency checks")
         summary["status"] = "expired" if not planned else "partial" if summary["errors"] else "ok"
+        summary["incomplete"] = summary["status"] == "partial" and incomplete(summary)
+        # Incomplete searches of this destination in a row; the search schedule repeats such a
+        # trip sooner, but at most twice before its next regular search.
+        before = db.execute("SELECT summary FROM runs WHERE scope=? AND id<>? ORDER BY started DESC, rowid DESC LIMIT 1",
+                            (scope, run_id)).fetchone()
+        previous = json.loads(before[0]).get("incomplete_in_row", 0) if before else 0
+        summary["incomplete_in_row"] = previous + 1 if summary["incomplete"] else 0
         summary['queued_check_status'] = int(queue_check_status(
             store, config, scope, run_id, verified, now, summary, demo))
         if summary["status"] == "expired" and not demo:

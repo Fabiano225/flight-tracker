@@ -178,14 +178,16 @@ class PrefetchDates:
         self.shopping = SearchFlights()
         self.shopping.client = client
         self.recovered_dates = 0
+        # Departure days of the last batch that got no answer; they stay unknown.
+        self.missed = []
 
     def search(self, filters, **locale):
         from fli.models import FlightSearchFilters, SortBy
         from fli.search.dates import DatePrice
         current = date.fromisoformat(filters.from_date)
         end = date.fromisoformat(filters.to_date)
-        rows = []
-        pending = []
+        rows, pending, self.missed = [], [], []
+        answered = streak = 0
 
         def fetch_day(day):
             returning = day + timedelta(days=filters.duration)
@@ -207,24 +209,36 @@ class PrefetchDates:
         while current <= end:
             try:
                 fetch_day(current)
+                answered += 1
+                streak = 0
             except TransientSourceError as exc:
-                # Keep successful dates in memory. Only isolated INTERNAL errors
-                # qualify; denials, malformed data and budget errors propagate.
+                # Only INTERNAL errors qualify; denials, malformed data and budget
+                # errors propagate. Three in a row at the start stop the batch; later
+                # they end it early, and the dates that answered still count.
                 pending.append(current)
-                if len(pending) >= 3:
-                    raise TransientSourceError("Multiple date searches returned RPC 13; stopping this batch") from exc
+                streak += 1
+                if streak >= 3:
+                    if not answered:
+                        raise TransientSourceError("Multiple date searches returned RPC 13; stopping this batch") from exc
+                    while current < end:
+                        current += timedelta(days=1)
+                        self.missed.append(current)
+                    break
             current += timedelta(days=1)
 
         if pending:
-            # One deferred pass, at most two dates per batch. All requests still
-            # use the same run deadline, request cap and paced transport.
+            # One deferred pass over at most three dates; the rest stay unknown. All
+            # requests still use the same run deadline, request cap and paced transport.
             self.shopping.client.sleep(30)
-            for day in pending:
+            for day in pending[:3]:
                 try:
                     fetch_day(day)
-                except TransientSourceError as exc:
-                    raise TransientSourceError(f"{day.isoformat()}: RPC 13 persisted after deferred recheck") from exc
+                except TransientSourceError:
+                    self.missed.append(day)
+                    continue
                 self.recovered_dates += 1
+            self.missed.extend(pending[3:])
+        self.missed.sort()
         return rows
 
 
@@ -261,6 +275,8 @@ class FreeProvider:
         self.owns_http = http is None
         self.http = http or GuardedClient(config)
         self.dates, self.flights = PrefetchDates(self.http), flight_search()()
+        # Departure dates of the last date-search batch that got no answer.
+        self.missed = []
         self.flights.client = self.http
         # Itinerary searches of this run, reused by the later baggage step so
         # it does not repeat identical requests. Local file only; never published.
@@ -364,6 +380,8 @@ class FreeProvider:
             raise ServiceError("Calendar parser failed; source format may have changed") from None
         if rows is None:
             raise ServiceError("Calendar response contained no decodable date array")
+        # Dates without an answer stay unknown (None), like dates without flights.
+        self.missed = [day.isoformat() for day in getattr(self.dates, "missed", ())]
         result = {p: None for p in pairs}
         for row in rows:
             if len(row.date) != 2:

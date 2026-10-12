@@ -33,7 +33,8 @@ so the fixed times hold even after a search started by hand or by the settings f
 Both paths share the same check, so a search is never started twice. "The last search"
 is that of the trip searched longest ago (from `latest.json` on `tracker-state`): a
 search of only some trips, by hand or after a settings change, never holds back the
-others.
+others. When a trip's latest search was incomplete (see below), the same check searches
+just that trip again an hour later, at most twice in a row.
 
 The steps below use [cron-job.org](https://cron-job.org) (free). Any service or computer
 that can send an HTTPS request on a schedule works the same way.
@@ -182,18 +183,27 @@ Treat RPC errors, consent pages and rate limits as source-health events, not as 
 flights”. Completed batches remain in SQLite. Wait for a later scheduled run rather
 than deleting state or starting several concurrent scans.
 
-An isolated Google RPC 13 (internal source error) gets the normal short retries,
-then one deferred recheck after the other dates in that batch and a 30-second
-pause. Only failed dates are repeated, at most two per batch; successful dates
-are retained in memory. Three such date failures stop that batch. The existing
-run-wide request/time limits still apply. Access/rate denials, parser errors and
-budget exhaustion do not qualify for this deferred pass. An unresolved date
-still leaves the batch incomplete and the workflow red; no error is treated as
-an empty flight result. The run summary counts dates recovered by this recheck.
+Google answers some requests with RPC 13 (an internal source error), at times about
+half of them for a route. Each such request gets the normal short retries; a date
+that still fails gets one deferred recheck after the other dates of its batch and a
+30-second pause (at most three dates per batch). A date without an answer stays
+unknown; the other dates of the batch still count. Three failures in a row at the start
+of a batch stop that batch, later they end it early. A departure airport whose date
+searches or flight checks fail three times in a row is left out for the rest of the
+run, and after a 60-second pause the other airports continue; only access/rate
+denials and budget exhaustion stop the whole run. No error is treated as an empty
+flight result. The run summary counts recovered dates and dates without an answer.
+
+A search is **incomplete** when it got no prices or no checked flight, or when more
+than a quarter (and more than one) of its date searches or flight checks failed. Only
+then does the run turn red, does a "needs attention" message go out (at most once a
+day) and does **Search schedule** search that trip again on its own an hour later, at
+most twice in a row before its next regular search. Single gaps leave the run green
+with a warning annotation; the dashboard still says the search was partly incomplete.
 
 The final **Surface partial scans or failed deliveries** step deliberately exits
-with code 1 when the scan or delivery was incomplete. Its generic message is not
-the underlying cause: inspect the scan summary and the earlier scan/delivery
+with code 1 when a search was incomplete or the delivery failed. Its generic message is
+not the underlying cause: inspect the scan summary and the earlier scan/delivery
 step. A red scan can still contain valid quotes and successful notification delivery.
 
 ### State restore or push failure

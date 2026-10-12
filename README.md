@@ -264,8 +264,10 @@ More on operation and troubleshooting: [DEPLOYMENT.md](DEPLOYMENT.md).
 - GitHub can start scheduled runs late or skip them. The hourly check starts a search
   when none was saved for 6 h 30 min, so without an external timer searches run about
   every 7 hours at drifting times.
-- Google may limit or change its search; the tracker then reports an incomplete search
-  instead of guessing. Open-jaw (multi-city) searches are the most likely to fail (see
+- Google may limit or change its search, and at times answers many requests with an
+  internal error. The tracker keeps every answer it gets, leaves out an airport that
+  keeps failing for the rest of the run and searches an incomplete trip again an hour
+  later (at most twice); it reports gaps instead of guessing. Open-jaw (multi-city) searches are the most likely to fail (see
   the note under Search settings).
 - Only a shortlist of flights is checked in detail, so a cheaper itinerary can be
   missed. Calendar prices are indicative and can differ from checked prices.

@@ -9,6 +9,8 @@ name: Search schedule
 # A search that is queued or running, or saved recently, is never started twice. "The
 # last search" is that of the trip searched longest ago, so a search of only some trips
 # (by hand or after a settings change) does not hold back the others.
+# Catch-up: a trip whose latest search was incomplete (the source failed for a real part
+# of it) is searched again on its own an hour later, at most twice in a row.
 on:
   schedule:
     - cron: '41 * * * *'
@@ -37,11 +39,22 @@ jobs:
             fi
           done
           # Every search saves latest.json on the tracker-state branch: each trip's latest
-          # search and when it started.
-          if last=$(gh api "repos/$GITHUB_REPOSITORY/contents/latest.json?ref=tracker-state" \
-                -H "Accept: application/vnd.github.raw" 2>"$RUNNER_TEMP/error" | jq -r '[(.trips // [.])[] | .started] | min // empty'); then
+          # search, when it started and whether it was incomplete.
+          if state=$(gh api "repos/$GITHUB_REPOSITORY/contents/latest.json?ref=tracker-state" \
+                -H "Accept: application/vnd.github.raw" 2>"$RUNNER_TEMP/error"); then
+            last=$(jq -r '[(.trips // [.])[] | .started] | min // empty' <<<"$state")
             age=$(( ( $(date -u +%s) - $(date -u -d "${last:-@0}" +%s) ) / 60 ))
             if [ "$age" -lt "$MIN_AGE" ]; then
+              # Trips whose incomplete search is at least an hour old, at most twice in a row.
+              retry=$(jq -r --argjson now "$(date -u +%s)" '[(.trips // [.])[]
+                | select(.incomplete == true and (.incomplete_in_row // 1) <= 2
+                         and $now - (.started | sub("\\+00:00$"; "Z") | fromdateiso8601) >= 3600)
+                | .trip] | unique | join(",")' <<<"$state")
+              if [ -n "$retry" ]; then
+                echo "::notice::The latest search of $retry was incomplete. Searching it again."
+                gh workflow run track-flights.yml --repo "$GITHUB_REPOSITORY" --ref main -f trips="$retry"
+                exit 0
+              fi
               echo "::notice::Every trip was searched within the last $age minutes (a new search starts from $MIN_AGE); nothing to start."
               exit 0
             fi
