@@ -43,16 +43,16 @@ The any-stops grid is not a layover-only grid. Actual itinerary stop counts dete
 
 ## BER flight tracker
 
-**LIVE** · 2026-10-16T04:05:43+00:00 · **ok**
+**LIVE** · 2026-10-16T06:20:55+00:00 · **partial**
 
 One adult, economy, THB round-trip prices per person. Searched as from Thailand. Departure dates: 2026-12-23 to 2026-12-24.
 Trips last 13–14 days, returning by 2027-01-06. Direction duration limit: 1259 minutes including layovers.
 
 - Date-search batches: 2/2 (+2 skipped: routes without prices, rechecked daily)
-- Dates recovered by deferred recheck: 1
+- Dates recovered by deferred recheck: 0
 - Date-grid price points: 3/3 (nonstop and any-stops profiles)
-- Itinerary searches: 3; accepted quotes: 3
-- HTTP attempts: 25; queued price-alert items: 0
+- Itinerary searches: 3; accepted quotes: 2
+- HTTP attempts: 18; queued price-alert items: 0
 
 Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.
 The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.
@@ -61,11 +61,13 @@ The any-stops grid is not a layover-only grid. Actual itinerary stop counts dete
 |---|---|---|---|---:|---|---|---|
 | BKK | 2026-12-23 | 2027-01-05 | layover | 24420.00 | 15h30 / 15h15 | 1/1 | DE, EY |
 | BKK | 2026-12-23 | 2027-01-06 | layover | 24420.00 | 15h30 / 15h15 | 1/1 | DE, EY |
-| BKK | 2026-12-24 | 2027-01-06 | layover | 24420.00 | 15h30 / 15h15 | 1/1 | DE, EY |
+
+### Attention
+- Verify BKK/2026-12-24/2027-01-06/any: Google Flights RPC 13; no price data received after retries
 
 ## DUS flight tracker
 
-**LIVE** · 2026-10-16T04:05:43+00:00 · **ok**
+**LIVE** · 2026-10-16T06:20:55+00:00 · **ok**
 
 One adult, economy, THB round-trip prices per person. Searched as from Thailand. Departure dates: 2026-12-23 to 2026-12-24.
 Trips last 13–14 days, returning by 2027-01-06. Direction duration limit: 1259 minutes including layovers.
@@ -74,20 +76,20 @@ Trips last 13–14 days, returning by 2027-01-06. Direction duration limit: 1259
 - Dates recovered by deferred recheck: 0
 - Date-grid price points: 3/3 (nonstop and any-stops profiles)
 - Itinerary searches: 3; accepted quotes: 3
-- HTTP attempts: 15; queued price-alert items: 0
+- HTTP attempts: 13; queued price-alert items: 0
 
 Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.
 The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.
 
 | Origin | Departure | Return | Type | THB | Out / back | Stops | Airlines |
 |---|---|---|---|---:|---|---|---|
-| BKK | 2026-12-23 | 2027-01-06 | layover | 24370.00 | 17h45 / 14h10 | 1/1 | G9 |
-| BKK | 2026-12-23 | 2027-01-05 | layover | 24960.00 | 17h45 / 14h50 | 1/1 | G9 |
+| BKK | 2026-12-23 | 2027-01-06 | layover | 24362.00 | 17h45 / 14h10 | 1/1 | G9 |
+| BKK | 2026-12-23 | 2027-01-05 | layover | 24952.00 | 17h45 / 14h50 | 1/1 | G9 |
 | BKK | 2026-12-24 | 2027-01-06 | layover | 35675.00 | 20h25 / 20h30 | 1/1 | OS |
 
 ## FRA flight tracker
 
-**LIVE** · 2026-10-16T04:05:43+00:00 · **partial**
+**LIVE** · 2026-10-16T06:20:55+00:00 · **ok**
 
 One adult, economy, THB round-trip prices per person. Searched as from Thailand. Departure dates: 2026-12-23 to 2026-12-24.
 Trips last 13–14 days, returning by 2027-01-06. Direction duration limit: 1259 minutes including layovers.
@@ -95,26 +97,24 @@ Trips last 13–14 days, returning by 2027-01-06. Direction duration limit: 1259
 - Date-search batches: 4/4 (+0 skipped: routes without prices, rechecked daily)
 - Dates recovered by deferred recheck: 0
 - Date-grid price points: 6/6 (nonstop and any-stops profiles)
-- Itinerary searches: 6; accepted quotes: 4
-- HTTP attempts: 43; queued price-alert items: 0
+- Itinerary searches: 6; accepted quotes: 6
+- HTTP attempts: 32; queued price-alert items: 1
 
 Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.
 The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.
 
 | Origin | Departure | Return | Type | THB | Out / back | Stops | Airlines |
 |---|---|---|---|---:|---|---|---|
+| BKK | 2026-12-24 | 2027-01-06 | layover | 25172.00 | 17h55 / 15h10 | 1/1 | G9 |
 | BKK | 2026-12-23 | 2027-01-05 | layover | 27485.00 | 17h40 / 15h30 | 1/1 | EK |
-| BKK | 2026-12-24 | 2027-01-06 | nonstop | 30078.00 | 12h50 / 11h05 | 0/0 | DE |
-| BKK | 2026-12-23 | 2027-01-05 | nonstop | 33833.00 | 12h50 / 11h05 | 0/0 | DE |
-| BKK | 2026-12-23 | 2027-01-06 | nonstop | 33838.00 | 12h50 / 11h05 | 0/0 | DE |
-
-### Attention
-- Verify BKK/2026-12-24/2027-01-06/any: Google Flights RPC 13; no price data received after retries
-- Verify BKK/2026-12-23/2027-01-06/any: Google Flights RPC 13; no price data received after retries
+| BKK | 2026-12-23 | 2027-01-06 | layover | 27485.00 | 17h40 / 14h55 | 1/1 | EK |
+| BKK | 2026-12-24 | 2027-01-06 | nonstop | 30062.00 | 12h50 / 11h05 | 0/0 | DE |
+| BKK | 2026-12-23 | 2027-01-06 | nonstop | 33820.00 | 12h50 / 11h05 | 0/0 | DE |
+| BKK | 2026-12-23 | 2027-01-05 | nonstop | 33821.00 | 12h50 / 11h05 | 0/0 | DE |
 
 ## AMS flight tracker
 
-**LIVE** · 2026-10-16T04:05:43+00:00 · **ok**
+**LIVE** · 2026-10-16T06:20:55+00:00 · **ok**
 
 One adult, economy, THB round-trip prices per person. Searched as from Thailand. Departure dates: 2026-12-23 to 2026-12-24.
 Trips last 13–14 days, returning by 2027-01-06. Direction duration limit: 1259 minutes including layovers.
