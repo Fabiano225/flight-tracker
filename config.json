@@ -1,83 +1,42 @@
 {
-  "primary_trip": "main",
-  "trips": [
-    {
-      "id": "main",
-      "origins": [
-        "DUS",
-        "FRA",
-        "AMS"
-      ],
-      "destination": "BKK",
-      "departure_start": "2026-11-05",
-      "departure_end": "2026-11-08",
-      "min_trip_days": 16,
-      "max_trip_days": 19,
-      "latest_return": "2026-11-24",
-      "currency": "EUR",
-      "adults": 1,
-      "travel_class": "economy",
-      "max_direction_minutes": 1259,
-      "hide_separate_tickets": false,
-      "carry_on_bags": 0,
-      "checked_bags": 0,
-      "max_stops": 1,
-      "good_deal_nonstop_eur": 740,
-      "good_deal_layover_eur": 660,
-      "origin_targets": {
-        "FRA": {
-          "nonstop": 660
-        },
-        "AMS": {
-          "nonstop": 810,
-          "layover": 620
-        }
-      },
-      "drop_percent": 10,
-      "drop_eur": 55,
-      "history_window_days": 30,
-      "realert_improvement_eur": 25,
-      "max_deals_per_run": 6,
-      "max_verifications_per_run": 18,
-      "outbound_candidates": 3
-    },
-    {
-      "id": "ber",
-      "origins": [
-        "BKK"
-      ],
-      "destination": "BER",
-      "more_destinations": [
-        "DUS",
-        "FRA",
-        "AMS"
-      ],
-      "departure_start": "2026-12-23",
-      "departure_end": "2026-12-24",
-      "min_trip_days": 13,
-      "max_trip_days": 14,
-      "latest_return": "2027-01-06",
-      "currency": "THB",
-      "country": "TH",
-      "adults": 1,
-      "travel_class": "economy",
-      "max_direction_minutes": 1259,
-      "hide_separate_tickets": true,
-      "carry_on_bags": 0,
-      "checked_bags": 0,
-      "max_stops": 1,
-      "good_deal_nonstop_eur": 27500,
-      "good_deal_layover_eur": 24000,
-      "drop_percent": 10,
-      "drop_eur": 1900,
-      "history_window_days": 30,
-      "realert_improvement_eur": 950,
-      "max_deals_per_run": 6,
-      "max_verifications_per_run": 18,
-      "outbound_candidates": 3
-    }
+  "origins": [
+    "DUS",
+    "FRA",
+    "AMS"
   ],
+  "destination": "BKK",
+  "departure_start": "2026-11-05",
+  "departure_end": "2026-11-08",
+  "min_trip_days": 16,
+  "max_trip_days": 19,
+  "latest_return": "2026-11-24",
+  "currency": "EUR",
+  "adults": 1,
+  "travel_class": "economy",
+  "max_direction_minutes": 1259,
+  "hide_separate_tickets": false,
+  "carry_on_bags": 0,
+  "checked_bags": 0,
+  "max_stops": 1,
+  "good_deal_nonstop_eur": 740,
+  "good_deal_layover_eur": 660,
+  "origin_targets": {
+    "FRA": {
+      "nonstop": 660
+    },
+    "AMS": {
+      "nonstop": 810,
+      "layover": 620
+    }
+  },
+  "drop_percent": 10,
+  "drop_eur": 55,
+  "history_window_days": 30,
+  "realert_improvement_eur": 25,
+  "max_deals_per_run": 6,
   "pending_ttl_hours": 12,
+  "max_verifications_per_run": 18,
+  "outbound_candidates": 3,
   "max_http_attempts_per_run": 1600,
   "max_run_seconds": 2400,
   "http_timeout_seconds": 60,
