@@ -1,6 +1,6 @@
 # BKK flight tracker
 
-**LIVE** · 2026-10-23T10:05:45+00:00 · **ok**
+**LIVE** · 2026-10-23T16:05:43+00:00 · **ok**
 
 One adult, economy, EUR round-trip prices per person. Departure dates: 2026-11-05 to 2026-11-08.
 Trips last 16–19 days, returning by 2026-11-24. Direction duration limit: 1259 minutes including layovers.
@@ -8,8 +8,8 @@ Trips last 16–19 days, returning by 2026-11-24. Direction duration limit: 1259
 - Date-search batches: 20/20 (+4 skipped: routes without prices, rechecked daily)
 - Dates recovered by deferred recheck: 0
 - Date-grid price points: 50/50 (nonstop and any-stops profiles)
-- Itinerary searches: 18; accepted quotes: 19
-- HTTP attempts: 123; queued price-alert items: 2
+- Itinerary searches: 18; accepted quotes: 20
+- HTTP attempts: 122; queued price-alert items: 0
 
 Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.
 The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.
@@ -29,9 +29,10 @@ The any-stops grid is not a layover-only grid. Actual itinerary stop counts dete
 | AMS | 2026-11-08 | 2026-11-24 | layover | 794.00 | 15h15 / 15h35 | 1/1 | WY |
 | FRA | 2026-11-05 | 2026-11-24 | nonstop | 810.00 | 11h05 / 12h50 | 0/0 | DE |
 | FRA | 2026-11-06 | 2026-11-24 | nonstop | 810.00 | 11h05 / 12h50 | 0/0 | DE |
-| FRA | 2026-11-08 | 2026-11-24 | nonstop | 810.00 | 11h05 / 12h50 | 0/0 | DE |
 | DUS | 2026-11-08 | 2026-11-24 | layover | 811.00 | 15h20 / 15h30 | 1/1 | EK |
+| FRA | 2026-11-05 | 2026-11-23 | nonstop | 850.00 | 11h05 / 12h50 | 0/0 | DE |
 | AMS | 2026-11-07 | 2026-11-24 | nonstop | 869.00 | 12h15 / 13h30 | 0/0 | BR |
-| AMS | 2026-11-05 | 2026-11-23 | nonstop | 879.00 | 11h10 / 12h25 | 0/0 | KL |
 | AMS | 2026-11-05 | 2026-11-21 | nonstop | 887.00 | 11h10 / 12h25 | 0/0 | KL |
+| AMS | 2026-11-05 | 2026-11-23 | nonstop | 889.00 | 11h05 / 12h40 | 0/0 | TG |
 | AMS | 2026-11-05 | 2026-11-24 | nonstop | 889.00 | 11h05 / 12h40 | 0/0 | TG |
+| AMS | 2026-11-05 | 2026-11-22 | nonstop | 898.00 | 11h10 / 12h25 | 0/0 | KL |

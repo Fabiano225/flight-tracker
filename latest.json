@@ -1,6 +1,6 @@
 {
-  "run_id": "92d2d98ad6e54630941db8015ad7da91",
-  "started": "2026-10-23T10:05:45+00:00",
+  "run_id": "4564385222264b7bbff428b359c04e64",
+  "started": "2026-10-23T16:05:43+00:00",
   "mode": "live",
   "trip": "main",
   "status": "ok",
@@ -14,9 +14,9 @@
   "verification_planned": 18,
   "verification_searches": 18,
   "verification_failed": 0,
-  "verified_quotes": 19,
-  "queued_deals": 2,
-  "http_attempts": 123,
+  "verified_quotes": 20,
+  "queued_deals": 0,
+  "http_attempts": 122,
   "errors": [],
   "config": {
     "origins": [
@@ -74,9 +74,9 @@
   },
   "incomplete": false,
   "incomplete_in_row": 0,
-  "queued_check_status": 0,
+  "queued_check_status": 1,
   "calendar_dates_recovered": 0,
-  "pruned_rows": 576,
+  "pruned_rows": 581,
   "quotes": [
     {
       "origin": "FRA",
@@ -509,31 +509,6 @@
       ]
     },
     {
-      "origin": "FRA",
-      "departure": "2026-11-08",
-      "return_date": "2026-11-24",
-      "category": "nonstop",
-      "price": 81000,
-      "outbound_minutes": 665,
-      "inbound_minutes": 770,
-      "outbound_stops": 0,
-      "inbound_stops": 0,
-      "airlines": "DE",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-11-08+return+2026-11-24+economy+one+adult&curr=EUR&hl=en&gl=DE",
-      "itinerary_id": "45ba86621a5fdb62a94eca7cb8b91074ad4099caf73fcf98c15261c2617afe0e",
-      "baggage": null,
-      "schedule": [
-        "2026-11-08T21:15",
-        "2026-11-09T14:20",
-        "2026-11-24T11:35",
-        "2026-11-24T18:25"
-      ],
-      "layovers": [
-        [],
-        []
-      ]
-    },
-    {
       "origin": "DUS",
       "departure": "2026-11-08",
       "return_date": "2026-11-24",
@@ -569,6 +544,31 @@
       ]
     },
     {
+      "origin": "FRA",
+      "departure": "2026-11-05",
+      "return_date": "2026-11-23",
+      "category": "nonstop",
+      "price": 85000,
+      "outbound_minutes": 665,
+      "inbound_minutes": 770,
+      "outbound_stops": 0,
+      "inbound_stops": 0,
+      "airlines": "DE",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+BKK+2026-11-05+return+2026-11-23+economy+one+adult&curr=EUR&hl=en&gl=DE",
+      "itinerary_id": "985badace13dc050b26ff2737ac03be3dcd010c91068b73d02679435a01199e9",
+      "baggage": null,
+      "schedule": [
+        "2026-11-05T21:15",
+        "2026-11-06T14:20",
+        "2026-11-23T11:35",
+        "2026-11-23T18:25"
+      ],
+      "layovers": [
+        [],
+        []
+      ]
+    },
+    {
       "origin": "AMS",
       "departure": "2026-11-07",
       "return_date": "2026-11-24",
@@ -587,31 +587,6 @@
         "2026-11-08T15:35",
         "2026-11-24T11:30",
         "2026-11-24T19:00"
-      ],
-      "layovers": [
-        [],
-        []
-      ]
-    },
-    {
-      "origin": "AMS",
-      "departure": "2026-11-05",
-      "return_date": "2026-11-23",
-      "category": "nonstop",
-      "price": 87900,
-      "outbound_minutes": 670,
-      "inbound_minutes": 745,
-      "outbound_stops": 0,
-      "inbound_stops": 0,
-      "airlines": "KL",
-      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-11-05+return+2026-11-23+economy+one+adult&curr=EUR&hl=en&gl=DE",
-      "itinerary_id": "6c35ee6c93cbedfa510aa4bd853ce88c1160328e56c226e4a49f7a2d0464ab9b",
-      "baggage": null,
-      "schedule": [
-        "2026-11-05T16:55",
-        "2026-11-06T10:05",
-        "2026-11-23T12:05",
-        "2026-11-23T18:30"
       ],
       "layovers": [
         [],
@@ -646,6 +621,31 @@
     {
       "origin": "AMS",
       "departure": "2026-11-05",
+      "return_date": "2026-11-23",
+      "category": "nonstop",
+      "price": 88900,
+      "outbound_minutes": 665,
+      "inbound_minutes": 760,
+      "outbound_stops": 0,
+      "inbound_stops": 0,
+      "airlines": "TG",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-11-05+return+2026-11-23+economy+one+adult&curr=EUR&hl=en&gl=DE",
+      "itinerary_id": "878165409ef92f5ea7dcbfef5b057eb79c255f6743d6ce784a2f7c58edf43c24",
+      "baggage": null,
+      "schedule": [
+        "2026-11-05T14:20",
+        "2026-11-06T07:25",
+        "2026-11-23T05:40",
+        "2026-11-23T12:20"
+      ],
+      "layovers": [
+        [],
+        []
+      ]
+    },
+    {
+      "origin": "AMS",
+      "departure": "2026-11-05",
       "return_date": "2026-11-24",
       "category": "nonstop",
       "price": 88900,
@@ -662,6 +662,31 @@
         "2026-11-06T07:25",
         "2026-11-24T05:40",
         "2026-11-24T12:20"
+      ],
+      "layovers": [
+        [],
+        []
+      ]
+    },
+    {
+      "origin": "AMS",
+      "departure": "2026-11-05",
+      "return_date": "2026-11-22",
+      "category": "nonstop",
+      "price": 89800,
+      "outbound_minutes": 670,
+      "inbound_minutes": 745,
+      "outbound_stops": 0,
+      "inbound_stops": 0,
+      "airlines": "KL",
+      "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-11-05+return+2026-11-22+economy+one+adult&curr=EUR&hl=en&gl=DE",
+      "itinerary_id": "4f40aa5430b85b6ff5ddb1e8aa63a3c5bc38b9219bc53dc2b06a9b5b4f6efbd7",
+      "baggage": null,
+      "schedule": [
+        "2026-11-05T16:55",
+        "2026-11-06T10:05",
+        "2026-11-22T12:05",
+        "2026-11-22T18:30"
       ],
       "layovers": [
         [],
