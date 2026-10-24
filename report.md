@@ -1,6 +1,6 @@
 # BKK flight tracker
 
-**LIVE** · 2026-10-24T10:05:39+00:00 · **ok**
+**LIVE** · 2026-10-24T16:05:42+00:00 · **ok**
 
 One adult, economy, EUR round-trip prices per person. Departure dates: 2026-11-05 to 2026-11-08.
 Trips last 16–19 days, returning by 2026-11-24. Direction duration limit: 1259 minutes including layovers.
@@ -19,16 +19,16 @@ The any-stops grid is not a layover-only grid. Actual itinerary stop counts dete
 | DUS | 2026-11-07 | 2026-11-23 | layover | 675.00 | 18h30 / 16h40 | 1/1 | DE, EY, RJ |
 | DUS | 2026-11-07 | 2026-11-24 | layover | 675.00 | 18h30 / 16h40 | 1/1 | DE, EY, RJ |
 | FRA | 2026-11-07 | 2026-11-23 | layover | 680.00 | 18h40 / 15h45 | 1/1 | EY, RJ |
+| FRA | 2026-11-08 | 2026-11-24 | layover | 680.00 | 16h35 / 17h00 | 1/1 | GF |
 | FRA | 2026-11-05 | 2026-11-23 | layover | 686.00 | 16h35 / 17h00 | 1/1 | GF |
 | FRA | 2026-11-05 | 2026-11-24 | layover | 686.00 | 16h35 / 17h00 | 1/1 | GF |
-| FRA | 2026-11-08 | 2026-11-24 | layover | 704.00 | 15h20 / 17h20 | 1/1 | QR |
 | AMS | 2026-11-05 | 2026-11-24 | layover | 748.00 | 11h05 / 16h00 | 0/1 | EY, TG |
+| DUS | 2026-11-05 | 2026-11-24 | layover | 777.00 | 16h25 / 15h30 | 1/1 | EK |
 | DUS | 2026-11-08 | 2026-11-24 | layover | 778.00 | 15h20 / 15h35 | 1/1 | EK |
 | AMS | 2026-11-07 | 2026-11-24 | layover | 794.00 | 15h15 / 15h35 | 1/1 | WY |
 | AMS | 2026-11-08 | 2026-11-24 | layover | 794.00 | 15h15 / 15h35 | 1/1 | WY |
 | FRA | 2026-11-05 | 2026-11-24 | nonstop | 810.00 | 11h05 / 12h50 | 0/0 | DE |
 | FRA | 2026-11-06 | 2026-11-24 | nonstop | 810.00 | 11h05 / 12h50 | 0/0 | DE |
-| DUS | 2026-11-05 | 2026-11-24 | layover | 811.00 | 15h20 / 15h30 | 1/1 | EK |
 | AMS | 2026-11-05 | 2026-11-23 | layover | 825.00 | 14h55 / 16h45 | 1/1 | EK |
 | FRA | 2026-11-05 | 2026-11-23 | nonstop | 850.00 | 11h05 / 12h50 | 0/0 | DE |
 | AMS | 2026-11-07 | 2026-11-24 | nonstop | 869.00 | 12h15 / 13h30 | 0/0 | BR |
