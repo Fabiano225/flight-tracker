@@ -292,9 +292,11 @@ class PrefetchDateTests(unittest.TestCase):
         config = replace(Config(), max_stops=1, airlines=("QR", "4U"), airlines_exclude=("SU",))
         provider = FreeProvider(config)
         self.addCleanup(provider.close)
-        params = provider.common("FRA", "2026-10-20", "2026-11-03", "any")
+        # Google's library refuses travel dates in the past: dates ahead of today.
+        out, back = ((date.today() + timedelta(days=d)).isoformat() for d in (30, 44))
+        params = provider.common("FRA", out, back, "any")
         self.assertEqual(params["stops"].name, "ONE_STOP_OR_FEWER")
-        self.assertEqual(provider.common("FRA", "2026-10-20", "2026-11-03", "nonstop")["stops"].name, "NON_STOP")
+        self.assertEqual(provider.common("FRA", out, back, "nonstop")["stops"].name, "NON_STOP")
         self.assertEqual([a.name for a in params["airlines"]], ["QR", "_4U"])
         self.assertEqual([a.name for a in params["airlines_exclude"]], ["SU"])
         # The per-day calendar requests are rebuilt from the date filters; the filters must survive.
@@ -310,8 +312,8 @@ class PrefetchDateTests(unittest.TestCase):
                          ("ONE_STOP_OR_FEWER", ["QR", "_4U"], ["SU"]))
         unfiltered = FreeProvider(Config())
         self.addCleanup(unfiltered.close)
-        self.assertEqual((unfiltered.common("FRA", "2026-10-20", "2026-11-03", "any")["stops"].name,
-                          unfiltered.common("FRA", "2026-10-20", "2026-11-03", "any")["airlines"]), ("ANY", None))
+        self.assertEqual((unfiltered.common("FRA", out, back, "any")["stops"].name,
+                          unfiltered.common("FRA", out, back, "any")["airlines"]), ("ANY", None))
 
     def test_pinned_library_verification_has_working_research_link(self):
         # Regression: build_flight_booking_url exists on unreleased fli main,
