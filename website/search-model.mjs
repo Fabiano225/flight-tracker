@@ -61,6 +61,7 @@ const addDays=(value,days)=>new Date(Date.parse(value+'T00:00:00Z')+days*dayMs).
 
 // Mirrors tracker/planner.py: request_estimate.
 export function requestEstimate(config, today) {
+  if(config.booked)return {calendar:0,verification:0,requests:0,seconds:0,days:0};  // Not searched.
   const start=[config.departure_start,addDays(today,1)].sort().at(-1);
   const count=(from,to)=>Math.max(0,Math.round((Date.parse(to)-Date.parse(from))/dayMs)+1);
   const profiles=config.max_stops===0?1:2;
@@ -108,7 +109,8 @@ export function tripErrors(config, meta, table, today) {
     const span=(Date.parse(config.departure_end)-Date.parse(config.departure_start))/dayMs;
     if(span<0)error('departure_end','Cannot be before the earliest departure.');
     else if(span>365)error('departure_end','The departure window can cover at most 366 days.');
-    else if(config.departure_end<=today)error('departure_end','Must be after today, otherwise there is nothing to search.');
+    // A booked trip is not searched, so its dates may lie in the past.
+    else if(config.departure_end<=today && !config.booked)error('departure_end','Must be after today, otherwise there is nothing to search.');
   }
   for(const [field,[low,high]] of Object.entries(ints)) {
     const value=config[field];
@@ -200,6 +202,7 @@ export function shownValue(key, value, meta, currency='EUR') {
   if(key==='country')return meta.countries?.[value]||String(value);
   if(key==='flight_times')return timeWindows.filter(name=>value[name]).map(name=>`${timeWords[name]} ${clock(value[name][0])}–${clock(value[name][1])}`).join('; ')||'any time';
   if(key==='latest_return')return value||'none';
+  if(key==='booked')return value?`yes, on ${value}`:'no, searching';
   if(key==='origins')return value.join(', ');
   if(key==='more_destinations')return value.join(', ')||'none';
   if(key==='return_from')return value||'the destination';
@@ -249,7 +252,7 @@ export function tripSummary(config) {
 }
 
 // Optional settings at these values are left out of the issue (as in config.json).
-const optional={more_destinations:[],return_from:null,country:'DE',latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],flight_times:{},origin_targets:{},display_names:{}};
+const optional={more_destinations:[],return_from:null,country:'DE',latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],flight_times:{},origin_targets:{},display_names:{},booked:null};
 
 // The issue's settings block: every trip in config.json field order, shared request settings once.
 export function settingsJson(meta, trips, primary) {

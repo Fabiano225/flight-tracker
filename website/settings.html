@@ -39,6 +39,8 @@
           <label class="field">Shown first on the website<select id="primary-trip"></select></label>
           <button type="button" id="remove-trip" class="reset remove-trip">Remove this trip</button>
         </div>
+        <label class="check booked-check"><input type="checkbox" name="booked" id="booked"> Flight booked: stop searching this trip <small>No more searches or price alerts for it; its prices stay on the website. Untick to search again.</small></label>
+        <p id="booked-note" class="message booked-note" role="status" hidden></p>
         <p id="trip-note" class="footnote" aria-live="polite">Every trip has its own airports, dates, filters, price targets, alerts and price history. All trips are searched in every run and share its request budget.</p>
         <p class="footnote">Trip ID <code id="trip-id"></code><span id="trip-id-new" hidden> (once applied)</span>: the trip’s <code>?trip=</code> links use it, and it can give the trip its own Discord channel or Telegram chat (<a href="{{repo_url}}#a-trips-own-message-channel" target="_blank" rel="noopener noreferrer">how</a>).</p>
       </section>

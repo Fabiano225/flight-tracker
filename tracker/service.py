@@ -123,6 +123,23 @@ def queue_window_ended(store, config, run_id, now, trips=None):
     return True
 
 
+def queue_booked(store, config, run_id, now, trips=None):
+    """Say once per booking that a trip is no longer searched. A trip with several
+    destinations says it once, from its first destination's search."""
+    siblings = [trip.destination for trip in (trips or (config,)) if trip.id == config.id] or [config.destination]
+    if config.destination != siblings[0]:
+        return False
+    key = "booked:" + hashlib.sha256(json.dumps([config.id, siblings, list(config.origins), config.booked]).encode()).hexdigest()[:16]
+    if store.get_meta(key):
+        return False
+    to = f" to {', '.join(siblings)}" if len(siblings) > 1 else ""
+    store.enqueue(run_id, "notice", now, f"{config.destination} trip booked\n{stamp(now)}\n"
+                  f"The flight{to} was marked as booked on {config.booked}, so the tracker has stopped searching "
+                  f"this trip. Its stored prices stay on the dashboard.\nTo search again: {SETTINGS}")
+    store.set_meta(key, stamp(now))
+    return True
+
+
 def quiet_route(store, config, scope, origin, profile, now):
     value = store.get_meta(route_key(scope, origin, profile))
     try:
@@ -185,7 +202,7 @@ def update_health(store, trips, summaries, now):
             store.set_meta("health_alert_at", stamp(now))
         store.set_meta("unhealthy", "yes")
     else:
-        ok = [summary for summary in summaries if summary["status"] != "expired"]
+        ok = [summary for summary in summaries if summary["status"] not in ("expired", "booked")]
         if ok and store.get_meta("unhealthy") == "yes":
             store.enqueue(ok[0]["run_id"], "health", now,
                           "Flight tracker recovered: calendar searches and itinerary checks succeeded.")
@@ -214,7 +231,8 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
     mode = "demo" if demo else "live"
     scope = config.scope(mode)
     run_id = uuid.uuid4().hex
-    planned = plan(config, now.date())
+    # A booked trip is not searched any more.
+    planned = [] if config.booked else plan(config, now.date())
     batches = [b for b in planned if not quiet_route(store, config, scope, b.origin, b.profile, now)]
     # The last run's dates without an answer are asked first; the regular batches leave
     # them out. Dates without an answer now wait for the next run instead of being
@@ -232,6 +250,20 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
         "queued_deals": 0, "http_attempts": 0, "errors": [], "config": config.public_dict()}
     used_before = provider.http.used
     db = store.db
+    if config.booked:
+        try:
+            summary.update(status="booked", incomplete=False, incomplete_in_row=0)
+            db.execute("INSERT INTO runs VALUES(?,?,?,?,?)", (run_id, stamp(now), scope, "booked", json.dumps(summary)))
+            # Undelivered price messages of a booked trip are of no use any more.
+            db.execute("""UPDATE outbox SET status='expired' WHERE status='pending' AND kind IN ('trend','check_status')
+              AND run_id IN (SELECT id FROM runs WHERE scope=?)""", (scope,))
+            if not demo:
+                summary["queued_booked_notice"] = int(queue_booked(store, config, run_id, now, trips))
+                db.execute("UPDATE runs SET summary=? WHERE id=?", (json.dumps(summary), run_id))
+            db.commit()
+            return summary
+        finally:
+            provider.close()
     db.execute("INSERT INTO runs VALUES(?,?,?,?,?)", (run_id, stamp(now), scope, "running", json.dumps(summary)))
     trips = trips or (config,)
     store.expire(now, config.pending_ttl_hours, {trip.scope(mode) for trip in trips})

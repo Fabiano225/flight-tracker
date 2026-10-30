@@ -181,7 +181,8 @@ class SiteTests(unittest.TestCase):
         page=render_page(template,Config.load(Path(__file__).resolve().parents[1]/'config.json'))
         for text in ('<title>Bangkok in view · Flightwatch</title>','YOUR PRICE RADAR FOR <span data-page="region_upper">THAILAND</span>',
                      'flights from Düsseldorf, Frankfurt and Amsterdam,',
-                     '<span class="route-code">DUS</span><span class="route-code">FRA</span><span class="route-code">AMS</span>',
+                     # Three or more departure airports are shown by their number.
+                     '<span class="route-code" title="DUS, FRA, AMS" aria-label="3 airports: DUS, FRA, AMS">3 airports</span>',
                      '<span data-page="city">Bangkok</span><span class="ticket-place" data-page="ticket_place">THAILAND / BKK</span>',
                      '20–23 Oct 2026','14–21 days','<span data-page="travellers">1 adult</span> · <span data-page="travel_class">Economy</span> · <span data-page="trip_kind">Round trip</span><span data-page="filter_summary"></span></p>',
                      'less than <span data-page="realert">€25</span> above',
@@ -192,7 +193,7 @@ class SiteTests(unittest.TestCase):
             travel_class='business',max_direction_minutes=900,good_deal_layover_eur=900,realert_improvement_eur=12.5,
             max_stops=1,airlines=('NH','JL'),display_names={'HND':'Tokyo <Haneda> & "Co"'}))
         for text in ('Tokyo &lt;Haneda&gt; &amp; &quot;Co&quot; in view','>JAPAN</span>','JAPAN / HND',
-                     'flights from Munich,','7 days','Business</span> · <span data-page="trip_kind">Round trip</span><span data-page="filter_summary"> · max. 1 stop · only NH, JL</span></p>',
+                     'flights from Munich,','7 days','class="route-origins"><span class="route-code">MUC</span></span>','Business</span> · <span data-page="trip_kind">Round trip</span><span data-page="filter_summary"> · max. 1 stop · only NH, JL</span></p>',
                      'Separate targets','>€12.50</span> above','>up to 15 h 00 min</span> per direction'):
             self.assertIn(text,tokyo)
         self.assertNotIn('<Haneda>',tokyo)

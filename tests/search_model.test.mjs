@@ -8,7 +8,7 @@ const table=JSON.parse(readFileSync(new URL('../tracker/airports.json',import.me
 const airlines=JSON.parse(readFileSync(new URL('../tracker/airlines.json',import.meta.url),'utf8')).airlines;
 const file=JSON.parse(readFileSync(new URL('../config.json',import.meta.url),'utf8'));
 const shared=['pending_ttl_hours','max_http_attempts_per_run','max_run_seconds','http_timeout_seconds','http_attempts','request_interval_seconds','max_parallel_requests'];
-const main={...file,country:'DE',latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],origin_targets:{},display_names:{},id:'main'};
+const main={...file,country:'DE',latest_return:null,max_stops:null,airlines:[],airlines_exclude:[],origin_targets:{},display_names:{},booked:null,id:'main'};
 const meta={trips:[main],primary_trip:'main',shared_fields:shared,max_trips:5,max_destinations:5,airlines,
   marker:'<!-- flightwatch-search-settings -->',repository:'Fabiano225/flight-tracker',
   labels:{destination:'Destination',origins:'Departure airports',max_stops:'Max. stops per direction',max_http_attempts_per_run:'Request budget per run',
@@ -308,4 +308,15 @@ test('open jaw: a return airport is checked, named and starts a new history',()=
   assert.equal(shownValue('return_from',null,meta),'the destination');
   assert.ok(!('return_from' in settingsJson(meta,[{id:'main',config:main}],0).trips[0]));
   assert.equal(requestEstimate(config({return_from:'HKT'}),today).requests,requestEstimate(main,today).requests);
+});
+test('a booked trip is not searched: no estimate, past dates allowed, shown in words',()=>{
+  const booked=config({booked:'2026-10-01',departure_start:'2026-09-01',departure_end:'2026-09-05'});
+  assert.deepEqual(requestEstimate(booked,today),{calendar:0,verification:0,requests:0,seconds:0,days:0});
+  assert.equal(tripErrors(booked,meta,table,today).errors.departure_end,undefined);
+  assert.ok(tripErrors({...booked,booked:null},meta,table,today).errors.departure_end);
+  assert.equal(shownValue('booked','2026-10-01',meta),'yes, on 2026-10-01');
+  assert.equal(shownValue('booked',null,meta),'no, searching');
+  // Not booked is left out of the issue, like other optional settings.
+  assert.ok(!('booked' in settingsJson(meta,[{id:'main',config:main}],0).trips[0]));
+  assert.equal(settingsJson(meta,[{id:'main',config:{...main,booked:'2026-10-01'}}],0).trips[0].booked,'2026-10-01');
 });

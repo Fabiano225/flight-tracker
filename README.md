@@ -55,7 +55,12 @@ jaw (back from another airport).
 ## The dashboard
 
 - **Trips:** with several trips, a bar at the top switches between them. Each trip has
-  its own link, e.g. `…/flight-tracker/?trip=ams`.
+  its own link, e.g. `…/flight-tracker/?trip=ams`. Under the headline, up to two
+  departure airports are shown by code, more by their number ("3 airports").
+- **Flight booked:** the button on the trip card opens **Change search** with that
+  trip marked as booked. Once you apply it, the trip is no longer searched and gets no
+  more price alerts; you get one "Trip booked" message, and its last prices stay on the
+  website. Untick **Flight booked** there to search again.
 - **Offers:** each checked flight shows when the outbound and return flights leave and
   land (local time at each airport, *+1* means the next day), travel time and
   connections, e.g. "via DOH 1 h 55". Waits under 1 hour or of 6 hours and more are
@@ -113,6 +118,9 @@ treated as a price change.
 Open **Change search** on the dashboard to change what is tracked. Airports can be
 searched by city, airport name or code (German names such as "München" work too).
 
+- **Flight booked:** stops searching the trip shown (no requests, no price alerts) and
+  keeps its prices on the website; its dates may then lie in the past. Untick it to
+  search again.
 - **Several trips:** use **+ Add trip** for up to five trips, e.g. Bangkok in October
   and a weekend in Amsterdam. Each trip has its own price targets, alerts and history;
   choose which one the website shows first.

@@ -66,6 +66,7 @@ function fill(config) {
   field('duration_hours').value=Math.floor(config.max_direction_minutes/60);
   field('duration_minutes').value=config.max_direction_minutes%60;
   field('hide_separate_tickets').checked=config.hide_separate_tickets;
+  field('booked').checked=Boolean(config.booked);
   field('carry_on_bags').checked=config.carry_on_bags===1;
   field('checked_bags').checked=config.checked_bags===1;
   for(const box of form.querySelectorAll('.time-range')){
@@ -130,6 +131,8 @@ function collect() {
   const hours=numberValue(field('duration_hours').value), minutes=numberValue(field('duration_minutes').value);
   config.max_direction_minutes=Number.isInteger(hours) && Number.isInteger(minutes) && hours>=0 && minutes>=0 && minutes<60 ? hours*60+minutes : NaN;
   config.hide_separate_tickets=field('hide_separate_tickets').checked;
+  // Booked keeps the day it was marked; ticking it again marks today.
+  config.booked=field('booked').checked?(trips[active].config.booked||berlinToday()):null;
   config.carry_on_bags=field('carry_on_bags').checked?1:0;
   config.checked_bags=field('checked_bags').checked?1:0;
   // A window over the whole day (00:00–24:00) limits nothing and is left out.
@@ -212,7 +215,7 @@ function renderTrips() {
   const tabs=trips.map((trip,i)=>{
     const button=node('button',undefined,'trip-choice');button.type='button';
     const problems=lastResult && (Object.keys(lastResult.trips[i]||{}).length>0);
-    button.append(node('strong',tripLabel(trip)),node('small',[trip.config.destination?destinationList(trip.config):'—',trip.id?null:'new',trip.key===primaryKey&&trips.length>1?'shown first':null,problems?'needs a fix':null].filter(Boolean).join(' · ')));
+    button.append(node('strong',tripLabel(trip)),node('small',[trip.config.destination?destinationList(trip.config):'—',trip.id?null:'new',trip.key===primaryKey&&trips.length>1?'shown first':null,trip.config.booked?'booked':null,problems?'needs a fix':null].filter(Boolean).join(' · ')));
     button.setAttribute('aria-pressed',String(i===active));
     if(problems)button.classList.add('has-error');
     button.addEventListener('click',()=>switchTrip(i));
@@ -357,7 +360,8 @@ function update() {
   for(const select of form.querySelectorAll('.time-range select'))select.toggleAttribute('aria-invalid',Boolean(errors.flight_times));
   renderTrips();
   const e=result.estimate, budget=trips[0].config, several=trips.length>1;
-  $('estimate').textContent=e
+  const searched=configs().filter(config=>!config.booked).length;
+  $('estimate').textContent=e && !searched?`No searches: ${several?'every trip is':'the trip is'} marked as booked.`:e
     ?`About ${e.requests} requests per run${several?` for ${trips.length} trips (this trip about ${e.trips[active].requests})`:''} · budget ${budget.max_http_attempts_per_run} · about ${Math.max(1,Math.round(e.seconds/60))} min (limit ${Math.floor(budget.max_run_seconds/60)})`+
       (several?'':` · ${e.trips[0].days} departure day${e.trips[0].days===1?'':'s'} from tomorrow`)
     :'The estimate appears once every field of every trip is valid.';
@@ -407,6 +411,14 @@ function start() {
   const wanted=new URLSearchParams(location.search).get('trip');
   active=Math.max(0,trips.findIndex(trip=>trip.id===(wanted||meta.primary_trip)));
   fill(trips[active].config);update();
+  // settings.html?trip=…&booked=1 comes from the dashboard's "Flight booked" button.
+  const note=$('booked-note');note.hidden=true;
+  if(new URLSearchParams(location.search).get('booked')==='1' && !trips[active].config.booked) {
+    field('booked').checked=true;update();
+    note.hidden=false;
+    note.textContent=`${tripLabel(trips[active])} is marked as booked. Click “Apply on GitHub” below and create the issue on GitHub: the search of this trip then stops.`;
+    $('submit').scrollIntoView({block:'center'});
+  }
 }
 
 const edited=event=>{

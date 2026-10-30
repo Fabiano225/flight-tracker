@@ -111,6 +111,7 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 .time-range{display:flex;align-items:center;gap:6px}
 .settings-form .time-range select{flex:1;min-width:0;margin-top:0;min-height:36px;padding:7px 8px;font-size:12px}
 @media(max-width:480px){.time-grid{grid-template-columns:1fr}.time-grid>span:first-child,.time-head{display:none}.time-row{margin-top:6px}.time-range::before{content:attr(data-kind);flex:0 0 68px;font-size:11px;color:var(--muted)}}
+.booked-check{margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
 .check{display:grid;grid-template-columns:20px 1fr;column-gap:10px;align-items:start;font-size:12px;font-weight:600;cursor:pointer}
 .check input{grid-row:span 2;width:18px;height:18px;margin:0;accent-color:var(--green)}
 .check small{grid-column:2;font-size:10.5px;font-weight:400;color:var(--muted);margin-top:3px}
@@ -136,6 +137,7 @@ nav a[aria-current="page"]{color:#598268;text-decoration:underline;text-underlin
 .message.error{background:#f6d9d2;color:#7a2f22}
 .message.warn{background:#fff1d7;color:#73501c}
 .message.info{background:#ffffff14;color:var(--lime);border:1px solid #ffffff26}
+.message.booked-note{background:#eaf2dd;color:#2f5235;border:1px solid #c9dbb6}
 .settings-actions{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:20px}
 .primary-button{border:0;border-radius:9px;padding:13px 18px;background:var(--lime);color:var(--green);font-size:13px;font-weight:700}
 .primary-button:hover{background:#f0f6cf}
@@ -315,3 +317,9 @@ button.calendar-cell{position:relative}button.calendar-cell::after{content:"";po
   .calendar-table th,.calendar-table td{display:table-cell}}
 .label-note{font-weight:400;color:var(--muted);margin-left:6px;font-size:10px}
 [data-field="return_from"]{margin-top:18px}
+/* Booking: a link on the trip card stops the search through the settings form. */
+.booked-link{display:inline-block;margin-top:16px;padding:7px 12px;border:1px solid #9bb38e88;border-radius:999px;font-size:11px;font-weight:600;color:var(--lime)}
+.booked-link:hover{background:#ffffff14}
+.warning.booked{background:#eaf2dd;color:#2f5235;border-color:#c9dbb6}
+.route-line{white-space:nowrap}
+:where([data-theme="dark"]) .message.booked-note,:where([data-theme="dark"]) .warning.booked{background:#22392a;color:#cfe3c0;border-color:#3b5a43}

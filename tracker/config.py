@@ -96,7 +96,7 @@ SHARED_FIELDS = ("pending_ttl_hours", "max_http_attempts_per_run", "max_run_seco
                  "http_attempts", "request_interval_seconds", "max_parallel_requests")
 # Optional settings: config.json leaves them out while they have these values.
 OPTIONAL = {"more_destinations": (), "return_from": None, "country": "DE", "latest_return": None, "max_stops": None, "airlines": (), "airlines_exclude": (), "flight_times": {},
-            "origin_targets": {}, "display_names": {}, "id": MAIN_TRIP}
+            "origin_targets": {}, "display_names": {}, "booked": None, "id": MAIN_TRIP}
 TARGET_CATEGORIES = ("nonstop", "layover")
 # Local-time windows a search can limit, in the order of Quote.schedule.
 TIME_WINDOWS = ("outbound_departure", "outbound_arrival", "return_departure", "return_arrival")
@@ -155,6 +155,9 @@ class Config:
     max_parallel_requests: int = 3
     # Website and message labels only (airport code -> place name); never searched.
     display_names: dict = field(default_factory=dict)
+    # The day (YYYY-MM-DD) the flight of this trip was marked as booked; it is then no
+    # longer searched, and its stored prices stay on the website. None: searching.
+    booked: str | None = None
     # Trip identifier when several trips are searched (website links, settings).
     id: str = MAIN_TRIP
 
@@ -231,6 +234,11 @@ class Config:
                 raise ValueError(f"origin_targets for {code} must set nonstop and/or layover")
             for value in targets.values():
                 cents(value)
+        if self.booked is not None and (not isinstance(self.booked, str)
+                                        or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", self.booked)):
+            raise ValueError("booked must be a date (YYYY-MM-DD) or null")
+        if self.booked is not None:
+            date.fromisoformat(self.booked)
         if not isinstance(self.display_names, dict):
             raise ValueError("display_names must map airport codes to names")
         for code, name in self.display_names.items():

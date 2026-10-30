@@ -18,7 +18,11 @@ if __name__ == '__main__':
     parser.add_argument('--trips',default='',help='only these trip IDs (e.g. ber or main,ber); empty for all')
     args=parser.parse_args()
     settings=Settings.load(args.config)
-    trips=settings.searches(settings.chosen(args.trips))
+    # A booked trip is not searched any more, not even for baggage prices.
+    trips=[trip for trip in settings.searches(settings.chosen(args.trips)) if not trip.booked]
+    if not trips:
+        print(json.dumps({'status':'ok','note':'every chosen trip is booked; nothing to check'}))
+        sys.exit(0)
     # All trips share one bounded client: 360 requests and 10 minutes per run.
     http=GuardedClient(replace(trips[0],max_http_attempts_per_run=360,max_run_seconds=600))
     results={}

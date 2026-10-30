@@ -48,6 +48,14 @@ def joined(words):
     return words[0] if len(words) == 1 else ', '.join(words[:-1]) + ' & ' + words[-1]
 
 
+def route_origins(origins):
+    """The departure airports under the headline: up to two codes, else their number."""
+    if len(origins) <= 2:
+        return ''.join(f'<span class="route-code">{html.escape(code)}</span>' for code in origins)
+    codes = html.escape(', '.join(origins))
+    return f'<span class="route-code" title="{codes}" aria-label="{len(origins)} airports: {codes}">{len(origins)} airports</span>'
+
+
 def page_values(config):
     names = places(config)
     # A trip with several destinations names them all; the stamp shows the first.
@@ -66,7 +74,7 @@ def page_values(config):
         code=config.destination, route_codes=codes, city=city, region_upper=(country or city).upper(),
         ticket_place=f'{country.upper()} / {codes}' if country else codes,
         origin_cities=', '.join(cities[:-1]) + ' and ' + cities[-1] if len(cities) > 1 else cities[0],
-        route_origins=''.join(f'<span class="route-code">{html.escape(code)}</span>' for code in config.origins),
+        route_origins=route_origins(config.origins),
         trip_dates=date_range(config.departure_start, config.departure_end), trip_days=days,
         travellers='1 adult' if config.adults == 1 else f'{config.adults} adults',
         trip_kind=(f"Back from {names[config.return_from]['city']} ({config.return_from})" if config.return_from
@@ -127,7 +135,7 @@ def instant(value):
 
 def public_config(config):
     values = {key: getattr(config, key) for key in (
-        'origins', 'destination', 'return_from', 'currency', 'country', 'adults', 'travel_class', 'departure_start', 'departure_end', 'min_trip_days',
+        'origins', 'destination', 'return_from', 'currency', 'country', 'adults', 'travel_class', 'booked', 'departure_start', 'departure_end', 'min_trip_days',
         'max_trip_days', 'latest_return', 'max_direction_minutes', 'flight_times', 'good_deal_nonstop_eur',
         'good_deal_layover_eur', 'origin_targets', 'history_window_days', 'realert_improvement_eur')}
     return {**values, 'destinations': list(config.destinations), 'currency_symbol': CURRENCIES[config.currency][1]}
