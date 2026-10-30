@@ -1,4 +1,5 @@
-from datetime import timedelta
+from dataclasses import replace
+from datetime import date, timedelta
 import hashlib
 import json
 import sqlite3
@@ -7,7 +8,7 @@ import uuid
 from .alerts import is_drop, diverse_take
 from .config import MAIN_TRIP
 from .network import ServiceError, BudgetError
-from .planner import plan
+from .planner import plan, days
 from .store import stamp
 from .check_status import queue_check_status
 from .notifications import SETTINGS
@@ -20,6 +21,75 @@ EMPTY_ROUTE_RECHECK = timedelta(hours=23)
 # the run; the other airports continue after a short pause.
 AIRPORT_FAILURES = 3
 AIRPORT_PAUSE_SECONDS = 60
+
+
+def gaps_key(scope):
+    return f"calendar_gaps:{scope}"
+
+
+def load_gaps(store, config, scope):
+    """Date searches of the last run without an answer, as (origin, profile, days, departure);
+    none once the search window changed."""
+    try:
+        data = json.loads(store.get_meta(gaps_key(scope)) or "null")
+        if not data or data["window"] != search_window(config):
+            return set()
+        return {(origin, profile, int(length), dep) for origin, profile, length, dep in data["cells"]}
+    except (ValueError, TypeError, KeyError):
+        return set()
+
+
+def save_gaps(store, config, scope, gaps):
+    if gaps:
+        store.set_meta(gaps_key(scope), json.dumps({"window": search_window(config), "cells": sorted(gaps)}))
+    else:
+        store.db.execute("DELETE FROM meta WHERE key=?", (gaps_key(scope),))
+
+
+def split_gaps(batches, gaps):
+    """Catch-up batches with the last run's unanswered dates, to search first, and the
+    regular batches without those dates: every date is still asked once per run."""
+    wanted = {}
+    for origin, profile, length, dep in gaps:
+        wanted.setdefault((origin, profile, length), set()).add(date.fromisoformat(dep))
+    first, rest = [], []
+    for batch in batches:
+        dates = {d for d in wanted.get((batch.origin, batch.profile, batch.duration), ()) if batch.start <= d <= batch.end}
+        if not dates:
+            rest.append(batch)
+            continue
+        first.append(replace(batch, only=tuple(sorted(dates))))
+        remaining = tuple(d for d in days(batch.start, batch.end) if d not in dates)
+        if remaining:
+            rest.append(replace(batch, only=remaining))
+    return first, rest
+
+
+def cells(batch, departures=None):
+    """(origin, profile, days, departure) of a batch's dates, or of the given departures."""
+    return {(batch.origin, batch.profile, batch.duration, dep)
+            for dep in (departures if departures is not None else [dep for dep, _ in batch.pairs()])}
+
+
+def spread_checks(selected, ranked, limit):
+    """Fill the flight checks after the watched dates with the ranked candidates, at most
+    an even share per departure day first, so the checks cover more days; checks left
+    over then go to the next candidates in order, wherever they leave."""
+    selected = list(selected)
+    departures = {dep for _, dep, _, _ in ranked}
+    share = max(2, -(-limit // max(1, len(departures))))
+    per_day = {}
+    for _, dep, _, _ in selected:
+        per_day[dep] = per_day.get(dep, 0) + 1
+    for capped in (True, False):
+        for item in ranked:
+            if len(selected) >= limit:
+                return selected
+            if item in selected or (capped and per_day.get(item[1], 0) >= share):
+                continue
+            selected.append(item)
+            per_day[item[1]] = per_day.get(item[1], 0) + 1
+    return selected
 
 
 def route_key(scope, origin, profile):
@@ -146,6 +216,13 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
     run_id = uuid.uuid4().hex
     planned = plan(config, now.date())
     batches = [b for b in planned if not quiet_route(store, config, scope, b.origin, b.profile, now)]
+    # The last run's dates without an answer are asked first; the regular batches leave
+    # them out. Dates without an answer now wait for the next run instead of being
+    # asked again in this one.
+    catch_up, regular = split_gaps(batches, load_gaps(store, config, scope))
+    batches = catch_up + regular
+    catching = set(catch_up)
+    gaps = set()
     summary = {"run_id": run_id, "started": stamp(now), "mode": mode, "trip": config.id,
         "status": "running", "calendar_queries_planned": len(batches), "calendar_queries_ok": 0,
         "calendar_queries_skipped": len(planned) - len(batches),
@@ -171,9 +248,11 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
         route_total[route] = route_total.get(route, 0) + 1
         route_ok.setdefault(route, 0)
         route_prices.setdefault(route, 0)
+    recovered = 0
     try:
-        for batch in batches:
+        for index, batch in enumerate(batches):
             if batch.origin in stopped:
+                gaps |= cells(batch)
                 continue
             pause.before_next()
             try:
@@ -182,8 +261,11 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
                 failures[batch.origin] = 0
             except ServiceError as exc:
                 summary["errors"].append(f"{batch.origin}/{batch.profile}/{batch.duration}d: {exc}")
+                gaps |= cells(batch)
                 if isinstance(exc, BudgetError):
                     summary["errors"].append("Circuit breaker: stopped after a source block or exhausted budget")
+                    for later in batches[index + 1:]:
+                        gaps |= cells(later)
                     break
                 failures[batch.origin] = failures.get(batch.origin, 0) + 1
                 if failures[batch.origin] >= AIRPORT_FAILURES:
@@ -193,6 +275,9 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
                     pause.request()
                 continue
             missed = set(getattr(provider, "missed", ()))
+            gaps |= cells(batch, missed)
+            if batch in catching:
+                recovered += len(rows) - len(missed)
             if missed:
                 summary["errors"].append(f"{batch.origin}/{batch.profile}/{batch.duration}d: "
                                          f"{len(missed)} of {len(rows)} dates got no answer")
@@ -201,6 +286,10 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
                 route_ok[(batch.origin, batch.profile)] += 1
             summary["calendar_answered"] += len(rows) - len(missed)
             for (dep, ret), price in rows.items():
+                if dep in missed:
+                    # No answer: not stored, so the dashboard can show the last known price.
+                    summary["calendar_unknown"] += 1
+                    continue
                 db.execute("INSERT INTO calendar VALUES(?,?,?,?,?,?,?,?)",
                            (run_id, scope, stamp(now), batch.origin, dep, ret, batch.profile, price))
                 if price is not None:
@@ -223,18 +312,15 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
             elif route_ok[(origin, profile)] == total:
                 # Only a complete, error-free search may mark a route as empty.
                 store.set_meta(key, json.dumps({"at": stamp(now), "window": search_window(config)}))
+        save_gaps(store, config, scope, gaps)
         db.commit()
         candidates.sort()
         # Recheck stable watched dates first, including price rises. Fill the
         # remaining budget with cheap/drop candidates, not rotating unalerted dates.
         selected = watch_searches(load_watches(store, config, scope, now))[:config.max_verifications_per_run]
         ranked = diverse_take(candidates, len(candidates), lambda x: (x[2], x[5]))
-        for _, _, origin, dep, ret, profile in ranked:
-            item = (origin, dep, ret, profile)
-            if len(selected) >= config.max_verifications_per_run:
-                break
-            if item not in selected:
-                selected.append(item)
+        selected = spread_checks(selected, [(origin, dep, ret, profile) for _, _, origin, dep, ret, profile in ranked],
+                                 config.max_verifications_per_run)
         verified = {}
         summary["verification_planned"] = len(selected)
         failures = {}
@@ -289,7 +375,8 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
         if summary["status"] == "expired" and not demo:
             summary["queued_window_notice"] = int(queue_window_ended(store, config, run_id, now, trips))
         summary["http_attempts"] = provider.http.used - used_before
-        summary["calendar_dates_recovered"] = getattr(getattr(provider, "dates", None), "recovered_dates", 0)
+        # Dates the last run got no answer for, answered now by asking them first.
+        summary["calendar_dates_recovered"] = recovered
         db.execute("UPDATE runs SET status=?,summary=? WHERE id=?", (summary["status"], json.dumps(summary), run_id))
         db.commit()
         return summary

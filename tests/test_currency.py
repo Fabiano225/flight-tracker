@@ -61,7 +61,8 @@ class CurrencyTests(unittest.TestCase):
                          {"currency": "THB", "country": "TH", "language": "en"})
         provider.dates = Mock(search=Mock(return_value=[]), missed=[])
         provider.fetch(Batch("FRA", "any", start, start, 14))
-        self.assertEqual(provider.dates.search.call_args.kwargs, {"currency": "THB", "country": "TH", "language": "en"})
+        self.assertEqual({k: v for k, v in provider.dates.search.call_args.kwargs.items() if k != "days"},
+                         {"currency": "THB", "country": "TH", "language": "en"})
 
     def test_only_prices_in_the_trip_s_currency_count(self):
         normalize = lambda pair, config: normalize_pairs([pair], "FRA", "2026-10-15", "2026-10-29", "any", config, lambda _: "")

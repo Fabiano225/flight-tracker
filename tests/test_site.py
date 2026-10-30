@@ -107,6 +107,24 @@ class SiteTests(unittest.TestCase):
         # Only the latest search; unknown prices stay null; other airports and dates are left out.
         self.assertEqual(calendar['rows'],[['FRA','BKK','2026-10-15',14,'any',58000],['FRA','BKK','2026-10-15',15,'nonstop',None]])
 
+    def test_price_calendar_fills_unanswered_dates_from_an_earlier_search(self):
+        self.record('two days ago',NOW-timedelta(hours=60),65000)
+        self.record('old',NOW-timedelta(hours=6),65000)
+        self.record('new',NOW,60000)
+        rows=[('two days ago','FRA','2026-10-16','2026-10-30','any',30000),
+              ('old','FRA','2026-10-15','2026-10-29','any',55000),('old','FRA','2026-10-15','2026-10-30','any',54000),
+              ('old','FRA','2026-10-16','2026-10-30','any',None),
+              ('new','FRA','2026-10-15','2026-10-29','any',58000)]
+        for run,origin,dep,ret,profile,price in rows:
+            at={'two days ago':NOW-timedelta(hours=60),'old':NOW-timedelta(hours=6),'new':NOW}[run]
+            self.store.db.execute('INSERT INTO calendar VALUES(?,?,?,?,?,?,?,?)',(run,self.config.scope(),stamp(at),origin,dep,ret,profile,price))
+        self.store.db.commit()
+        calendar=self.data()['calendar']
+        # The latest search answered 15 Oct/14 days; 15 Oct/15 days got no answer and shows the earlier
+        # price with its time. 16 Oct had no price then, and the price of 60 hours ago is too old.
+        self.assertEqual(calendar['rows'],[['FRA','BKK','2026-10-15',14,'any',58000],
+            ['FRA','BKK','2026-10-15',15,'any',54000,(NOW-timedelta(hours=6)).isoformat(timespec='seconds')]])
+
     def test_build_only_publishes_allowlisted_assets(self):
         self.record('new',NOW,60000,quote=replace(self.q,departure='2026-10-21',return_date='2026-11-04'))
         output=self.root/'public'

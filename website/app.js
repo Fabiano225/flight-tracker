@@ -231,9 +231,10 @@ function renderCalendar(filters) {
       if(!cell || cell.price===null){td.append(node('span','—','calendar-cell heat-none'));td.title='No price found';row.append(td);continue;}
       const step=priceStep(cell.price,grid.min,grid.max), key=`${departure}|${days}`;
       const text=`${weekday(departure)} → ${weekday(plusDays(departure,days))} · ${days} days · ${cell.origin}${several?` → ${cell.destination}`:''} · about ${wholeCash(cell.price)} per person`;
+      const older=cell.at?` · price from the search of ${when(cell.at)}; the latest search got no answer`:'';
       const url=checked.has(key)?null:safeFlightLink(flightSearchLink(cell.origin,cell.destination,departure,plusDays(departure,days),rootData.config));
-      const mark=node(checked.has(key)?'button':url?'a':'span',wholeCash(cell.price),`calendar-cell heat-${step}`);
-      mark.title=text+(checked.has(key)?' · show the checked offer':url?' · not checked yet: open on Google Flights':'');
+      const mark=node(checked.has(key)?'button':url?'a':'span',wholeCash(cell.price),`calendar-cell heat-${step}${cell.at?' is-older':''}`);
+      mark.title=text+older+(checked.has(key)?' · show the checked offer':url?' · not checked yet: open on Google Flights':'');
       if(filters.departure===departure && Number(filters.days)===days)mark.classList.add('is-selected');
       if(checked.has(key)) {
         mark.type='button';mark.setAttribute('aria-label',mark.title);

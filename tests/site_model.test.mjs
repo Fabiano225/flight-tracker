@@ -251,7 +251,7 @@ test('price calendar: cheapest indicative price per departure day and trip lengt
   const grid=calendarGrid(calendar,{},'2026-10-06');
   assert.deepEqual(grid.departures,['2026-10-20','2026-10-21']);
   assert.deepEqual(grid.lengths,[14,15]);
-  assert.deepEqual(grid.cells.get('2026-10-20|14'),{departure:'2026-10-20',days:14,price:50000,origin:'AMS',destination:'HKT'});
+  assert.deepEqual(grid.cells.get('2026-10-20|14'),{departure:'2026-10-20',days:14,price:50000,origin:'AMS',destination:'HKT',at:null});
   assert.equal(grid.cells.get('2026-10-20|15').price,null);
   assert.deepEqual([grid.min,grid.max],[50000,70000]);
   assert.equal(calendarGrid(calendar,{origin:'FRA',destination:'BKK'},'2026-10-06').cells.get('2026-10-20|14').price,61000);
@@ -292,4 +292,17 @@ test('calendar links match the Google Flights links in messages',()=>{
   assert.equal(flightSearchLink('AMS','BKK','2026-11-06','2026-11-23'),
     'https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+BKK+2026-11-06+return+2026-11-23+economy+one+adult&curr=EUR&hl=en&gl=DE');
   assert.ok(safeFlightLink(flightSearchLink('AMS','BKK','2026-11-06','2026-11-23')));
+});
+test('price calendar: an earlier price fills only a date without a current one',()=>{
+  const at='2026-10-05T18:05:00+00:00';
+  const calendar={at:'2026-10-06T12:00:00+00:00',rows:[
+    ['FRA','BKK','2026-10-20',14,'any',61000],['AMS','BKK','2026-10-20',14,'any',40000,at],
+    ['AMS','BKK','2026-10-21',14,'any',52000,at],['FRA','BKK','2026-10-21',14,'any',null],
+    ['FRA','BKK','2026-10-22',14,'any',55000,at],['AMS','BKK','2026-10-22',14,'any',53000,at]]};
+  const grid=calendarGrid(calendar,{},'2026-10-06');
+  // A current price wins over a cheaper earlier one; without one the earlier price shows, marked.
+  assert.deepEqual([grid.cells.get('2026-10-20|14').price,grid.cells.get('2026-10-20|14').at],[61000,null]);
+  assert.deepEqual([grid.cells.get('2026-10-21|14').price,grid.cells.get('2026-10-21|14').at],[52000,at]);
+  assert.deepEqual([grid.cells.get('2026-10-22|14').price,grid.cells.get('2026-10-22|14').origin],[53000,'AMS']);
+  assert.equal(calendarGrid(calendar,{origin:'AMS'},'2026-10-06').cells.get('2026-10-20|14').price,40000);
 });

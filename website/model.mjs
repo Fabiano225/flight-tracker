@@ -204,14 +204,16 @@ export function flightLegs(offer) {
 // Price calendar: the cheapest indicative date-search price (the return flight not yet
 // chosen) per departure day and trip length, for the chosen airport, destination and
 // connection. "With stops" uses the any-stops search, which can include non-stop flights.
+// A row with a seventh element is an earlier search's price for a date the latest one
+// got no answer for (`at`: its time); it fills a cell only without a current price.
 export function calendarGrid(calendar, filters={}, today='') {
   const profile=filters.category==='nonstop'?'nonstop':'any', cells=new Map();
-  for(const [origin,destination,departure,days,kind,price] of calendar?.rows||[]) {
+  const rank=cell=>cell.price===null?2:cell.at?1:0;
+  for(const [origin,destination,departure,days,kind,price,at=null] of calendar?.rows||[]) {
     if(kind!==profile || departure<=today || (filters.origin && origin!==filters.origin)
       || (filters.destination && destination!==filters.destination))continue;
-    const key=`${departure}|${days}`, cell=cells.get(key);
-    if(!cell)cells.set(key,{departure,days,price,origin,destination});
-    else if(price!==null && (cell.price===null || price<cell.price))Object.assign(cell,{price,origin,destination});
+    const key=`${departure}|${days}`, cell=cells.get(key), next={departure,days,price,origin,destination,at};
+    if(!cell || rank(next)<rank(cell) || (rank(next)===rank(cell) && price!==null && price<cell.price))cells.set(key,next);
   }
   const values=[...cells.values()], prices=values.map(cell=>cell.price).filter(price=>price!==null);
   return {departures:[...new Set(values.map(cell=>cell.departure))].sort(),

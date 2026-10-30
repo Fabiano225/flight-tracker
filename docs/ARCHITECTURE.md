@@ -90,7 +90,9 @@ their waiting minutes, both taken from the checked itinerary; they are `null` fo
 stored before they were recorded or when the source omits them. `calendar` has the
 latest date search per destination (`[origin, destination, departure, days, profile,
 price]`, price per person or `null`), which the price calendar shows as a grid in five
-price bands. A price without a checked offer links to Google Flights; the browser builds
+price bands. A date the latest search got no answer for gets the last price of an earlier
+search within 48 hours, with that search's time as a seventh element; the grid shows it
+faded and only where no current price exists. A price without a checked offer links to Google Flights; the browser builds
 that link like `search_query` in `tracker/alerts.py` from the exported configuration
 (currency, country, travellers, `travel_class`, `return_from`). The 7-day trend per
 offer and the cheapest offer per airport are computed in the browser from the exported
@@ -160,7 +162,8 @@ useful order.
 
 The SQLite database stores:
 
-- `calendar`: date-grid observations, including unknown prices;
+- `calendar`: date-grid observations, including dates without flights (`null`); dates
+  without an answer are not stored, and `meta` lists them so the next run asks them first;
 - `quotes`: verified round trips and their details;
 - `runs`: configuration and health summaries;
 - `outbox`: pending/sent transport-neutral messages;
@@ -171,7 +174,9 @@ The SQLite database stores:
 
 `tracker/trends.py` keeps one stable watch per airport and actual flight category.
 It rechecks those dates first, then uses remaining verification capacity for new
-candidates. A new price alert requires a €25 movement from the previous alert or
+candidates, alternating between airports and stop profiles. Each departure day first
+gets at most an even share of the checks (at least two), so they cover more days;
+checks left over then go to the next candidates in order. A new price alert requires a €25 movement from the previous alert or
 a crossing of the configured budget. New dates are labelled alternatives and never
 masquerade as a drop for a different date pair.
 

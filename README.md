@@ -73,7 +73,8 @@ jaw (back from another airport).
   and trip length, coloured in five steps from cheaper to pricier. These prices are
   indicative because the return flight is not chosen yet. A price with a dot has a
   checked offer and shows it in the list; any other price opens that date combination
-  on Google Flights.
+  on Google Flights. A faded price comes from an earlier search (at most 48 hours old)
+  because Google did not answer for that date this time; the next search asks it first.
 - **Price history:** pick a flight to see every checked price, your price target and
   the lowest price of the comparison period.
 - **Baggage:** choose *Base price*, *1 cabin bag*, *1 checked bag* or both. Baggage views
@@ -195,7 +196,8 @@ If both are set up, Discord is used. The repository variable `NOTIFICATION_CHANN
 A trip can send its price alerts, check notes and "travel window ended" message to
 its own Discord channel or Telegram chat, for example a friend's who is tracking
 flights home. "Needs attention" messages about the tracker itself always go to the
-main channel above. Every trip has a **trip ID**, shown on **Change search** below the
+main channel above, and so does "Dashboard not updated" (sent once when the website
+can no longer be published, with a second message when it works again). Every trip has a **trip ID**, shown on **Change search** below the
 trips (the first trip is `main`).
 
 - **Discord:** create a webhook in the other channel (as above) and add the secret

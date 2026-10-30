@@ -204,8 +204,10 @@ class WatchVerificationTests(unittest.TestCase):
             provider.verify = verify
             scan(config, store, provider, NOW + timedelta(hours=6), True)
             self.assertEqual(len(calls), 6)
-            self.assertEqual({(v['origin'], v['departure'], v['return_date']) for v in watches.values()},
-                             {c[:3] for c in calls})
+            # The watched dates come first; the remaining checks go to other dates.
+            watched = {(v['origin'], v['departure'], v['return_date']) for v in watches.values()}
+            self.assertTrue(watched)
+            self.assertEqual({c[:3] for c in calls[:len(watched)]}, watched)
 
 
 if __name__ == '__main__':

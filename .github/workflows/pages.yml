@@ -83,3 +83,37 @@ jobs:
       - name: Deploy dashboard
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+  # One message to the main channel when publishing starts failing, and one when it
+  # works again; repeated failures stay quiet. Skipped and cancelled runs say nothing.
+  report:
+    needs: [build, deploy]
+    if: always() && (needs.build.result == 'failure' || needs.deploy.result == 'failure' || needs.deploy.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Tell the message channel about a change
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ (needs.build.result == 'failure' || needs.deploy.result == 'failure') && 'failure' || 'success' }}
+          DASHBOARD_URL: ${{ vars.DASHBOARD_URL }}
+          NOTIFICATION_CHANNEL: ${{ vars.NOTIFICATION_CHANNEL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          # The latest finished run before this one that succeeded or failed; empty if unknown.
+          previous=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow pages.yml --status completed --limit 20 \
+            --json databaseId,conclusion \
+            --jq "[.[] | select(.databaseId != $GITHUB_RUN_ID and (.conclusion == \"success\" or .conclusion == \"failure\"))][0].conclusion // \"\"" \
+            || true)
+          python scripts/publish_status.py --result "$RESULT" --previous "$previous"

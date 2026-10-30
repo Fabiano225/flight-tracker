@@ -177,16 +177,18 @@ class PrefetchDates:
         from fli.search import SearchFlights
         self.shopping = SearchFlights()
         self.shopping.client = client
-        self.recovered_dates = 0
-        # Departure days of the last batch that got no answer; they stay unknown.
+        # Departure days of the last batch that got no answer; they stay unknown for
+        # this run, and the next run asks them first.
         self.missed = []
 
-    def search(self, filters, **locale):
+    def search(self, filters, days=None, **locale):
+        """Prices for each departure day from from_date to to_date, or only for `days`."""
         from fli.models import FlightSearchFilters, SortBy
         from fli.search.dates import DatePrice
-        current = date.fromisoformat(filters.from_date)
-        end = date.fromisoformat(filters.to_date)
-        rows, pending, self.missed = [], [], []
+        start = date.fromisoformat(filters.from_date)
+        days = sorted(days) if days else [start + timedelta(days=n)
+                                          for n in range((date.fromisoformat(filters.to_date) - start).days + 1)]
+        rows, self.missed = [], []
         answered = streak = 0
 
         def fetch_day(day):
@@ -206,39 +208,23 @@ class PrefetchDates:
                 rows.append(DatePrice(date=(datetime.combine(day, datetime.min.time()),
                     datetime.combine(returning, datetime.min.time())), price=min(prices), currency=locale["currency"]))
 
-        while current <= end:
+        for n, day in enumerate(days):
             try:
-                fetch_day(current)
+                fetch_day(day)
                 answered += 1
                 streak = 0
             except TransientSourceError as exc:
                 # Only INTERNAL errors qualify; denials, malformed data and budget
-                # errors propagate. Three in a row at the start stop the batch; later
-                # they end it early, and the dates that answered still count.
-                pending.append(current)
+                # errors propagate. A date without an answer is not asked again in
+                # this run. Three in a row at the start stop the batch; later they
+                # end it early, and the dates that answered still count.
+                self.missed.append(day)
                 streak += 1
                 if streak >= 3:
                     if not answered:
                         raise TransientSourceError("Multiple date searches returned RPC 13; stopping this batch") from exc
-                    while current < end:
-                        current += timedelta(days=1)
-                        self.missed.append(current)
+                    self.missed.extend(days[n + 1:])
                     break
-            current += timedelta(days=1)
-
-        if pending:
-            # One deferred pass over at most three dates; the rest stay unknown. All
-            # requests still use the same run deadline, request cap and paced transport.
-            self.shopping.client.sleep(30)
-            for day in pending[:3]:
-                try:
-                    fetch_day(day)
-                except TransientSourceError:
-                    self.missed.append(day)
-                    continue
-                self.recovered_dates += 1
-            self.missed.extend(pending[3:])
-        self.missed.sort()
         return rows
 
 
@@ -371,9 +357,9 @@ class FreeProvider:
         from fli.models import DateSearchFilters
         pairs = batch.pairs()
         params = self.common(batch.origin, *pairs[0], batch.profile)
-        filters = DateSearchFilters(**params, from_date=batch.start.isoformat(), to_date=batch.end.isoformat(), duration=batch.duration)
+        filters = DateSearchFilters(**params, from_date=pairs[0][0], to_date=pairs[-1][0], duration=batch.duration)
         try:
-            rows = self.dates.search(filters, **self.locale())
+            rows = self.dates.search(filters, days=[date.fromisoformat(dep) for dep, _ in pairs], **self.locale())
         except ServiceError:
             raise
         except Exception:

@@ -185,14 +185,17 @@ than deleting state or starting several concurrent scans.
 
 Google answers some requests with RPC 13 (an internal source error), at times about
 half of them for a route. Each such request gets the normal short retries; a date
-that still fails gets one deferred recheck after the other dates of its batch and a
-30-second pause (at most three dates per batch). A date without an answer stays
-unknown; the other dates of the batch still count. Three failures in a row at the start
+that still fails is not asked again in the same run. It stays unknown, is not stored,
+and the next run asks it first (the regular batches then leave it out, so every date is
+still asked once per run). Meanwhile the dashboard's price calendar shows its price from
+an earlier search of the last 48 hours, faded. The other dates of the batch still count. Three failures in a row at the start
 of a batch stop that batch, later they end it early. A departure airport whose date
 searches or flight checks fail three times in a row is left out for the rest of the
 run, and after a 60-second pause the other airports continue; only access/rate
 denials and budget exhaustion stop the whole run. No error is treated as an empty
-flight result. The run summary counts recovered dates and dates without an answer.
+flight result. The run summary counts dates without an answer and the last run's
+unanswered dates answered now. Departure airports left out of a run are searched first
+in the next one, the same way.
 
 A search is **incomplete** when it got no prices or no checked flight, or when more
 than a quarter (and more than one) of its date searches or flight checks failed. Only
@@ -250,7 +253,11 @@ message IDs, channel/chat IDs or tokens. The UI does not call a private API, sto
 cookies or start additional flight searches. Its refresh button reloads the published
 snapshot; it does not trigger a new scan.
 
-If publication fails, inspect the `Publish dashboard` workflow. Existing data stays
+If publication fails, inspect the `Publish dashboard` workflow. Its last job sends one
+"Dashboard not updated" message to the main channel when publishing starts failing,
+and one "Dashboard updated again" message when it works again; repeated failures stay
+quiet. It compares with the previous finished run (`gh run list`, `actions: read`) and
+uses the same notification secrets as `Track flights`. Existing data stays
 online and becomes visibly stale after 12 hours without a fresh scan. A failed scan
 with no verified quotes can retain the last available offers, explicitly labelled
 with their original timestamp. Turning off tracking does not remove the dashboard.
