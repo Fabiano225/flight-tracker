@@ -15,9 +15,12 @@ class Batch:
     start: date
     end: date
     duration: int
+    # Only these departure days of start..end (dates); None: every day.
+    only: tuple | None = None
 
     def pairs(self):
-        return [(d.isoformat(), (d + timedelta(days=self.duration)).isoformat()) for d in days(self.start, self.end)]
+        return [(d.isoformat(), (d + timedelta(days=self.duration)).isoformat()) for d in days(self.start, self.end)
+                if self.only is None or d in self.only]
 
 
 def plan(config, today):

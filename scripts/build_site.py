@@ -230,24 +230,50 @@ def export_data(db_path, config, now=None, variant=None):
         db.close()
 
 
+# A date the latest search got no answer for shows its price from an earlier search
+# of at most this age, marked with that search's time.
+CALENDAR_FILL_HOURS = 48
+
+
 def calendar_rows(db, config, scope, now):
     """Date-search prices of the latest search with any, per departure and trip length.
-    Indicative: the return flight is not chosen yet. Unknown prices stay null."""
+    Indicative: the return flight is not chosen yet. Unknown prices stay null. Dates the
+    latest search got no answer for (not stored) get the last price of an earlier search
+    within CALENDAR_FILL_HOURS, with its time as a seventh element."""
     latest = db.execute("SELECT run_id, observed FROM calendar WHERE scope=? AND price IS NOT NULL "
                         "ORDER BY observed DESC, rowid DESC LIMIT 1", (scope,)).fetchone()
     if not latest or not now - timedelta(days=config.history_window_days) <= instant(latest['observed']) <= now:
         return dict(at=None, rows=[])
-    rows = []
+    def usable(row):
+        price = row['price']
+        return (row['origin'] in config.origins and row['profile'] in ('nonstop', 'any')
+                and config.fits(row['departure'], row['return_date'])
+                and (price is None or (type(price) is int and price > 0)))
+
+    def public(row, *at):
+        days = (date.fromisoformat(row['return_date']) - date.fromisoformat(row['departure'])).days
+        return [row['origin'], config.destination, row['departure'], days, row['profile'], row['price'], *at]
+
+    rows, seen = [], set()
     for row in db.execute("SELECT origin, departure, return_date, profile, price FROM calendar "
                           "WHERE run_id=? AND scope=? ORDER BY rowid", (latest['run_id'], scope)):
-        price = row['price']
-        if (row['origin'] not in config.origins or row['profile'] not in ('nonstop', 'any')
-                or not config.fits(row['departure'], row['return_date'])
-                or not (price is None or (type(price) is int and price > 0))):
-            continue
-        days = (date.fromisoformat(row['return_date']) - date.fromisoformat(row['departure'])).days
-        rows.append([row['origin'], config.destination, row['departure'], days, row['profile'], price])
-    return dict(at=instant(latest['observed']).isoformat(timespec='seconds'), rows=rows)
+        seen.add((row['origin'], row['departure'], row['return_date'], row['profile']))
+        if usable(row):
+            rows.append(public(row))
+    observed = instant(latest['observed'])
+    earlier = {}
+    for row in db.execute("SELECT origin, departure, return_date, profile, price, observed FROM calendar "
+                          "WHERE scope=? AND run_id<>? AND observed>=? AND observed<=? ORDER BY observed, rowid",
+                          (scope, latest['run_id'], (observed - timedelta(hours=CALENDAR_FILL_HOURS + 1)).isoformat(timespec='seconds'),
+                           latest['observed'])):
+        key = (row['origin'], row['departure'], row['return_date'], row['profile'])
+        at = instant(row['observed'])
+        if key not in seen and observed - timedelta(hours=CALENDAR_FILL_HOURS) <= at < observed:
+            earlier[key] = row  # The latest earlier observation wins.
+    for row in earlier.values():
+        if row['price'] is not None and usable(row):
+            rows.append(public(row, instant(row['observed']).isoformat(timespec='seconds')))
+    return dict(at=observed.isoformat(timespec='seconds'), rows=rows)
 
 
 def public_schedule(quote):

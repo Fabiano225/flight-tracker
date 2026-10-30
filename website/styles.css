@@ -294,6 +294,7 @@ button.calendar-cell,a.calendar-cell{cursor:pointer;width:100%;text-decoration:n
 button.calendar-cell:hover,a.calendar-cell:hover{filter:brightness(1.06);box-shadow:inset 0 0 0 2px #ffffff99}
 /* A dot marks prices with a checked offer in the list; the other prices are links. */
 button.calendar-cell{position:relative}button.calendar-cell::after{content:"";position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:currentColor}
+.calendar-cell.is-older{opacity:.55;outline:1px dashed currentColor;outline-offset:-3px}
 .calendar-table tr.is-selected-day th{color:var(--ink);font-weight:750}
 .calendar-cell.is-selected{box-shadow:inset 0 0 0 2px var(--ink)}
 .heat-0{background:#3b7034;color:#fff}.heat-1{background:#72a656;color:#1d2b22}.heat-2{background:#8fbf71;color:#1d2b22}
@@ -301,7 +302,7 @@ button.calendar-cell{position:relative}button.calendar-cell::after{content:"";po
 .calendar-legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;font-size:10px;color:var(--muted)}
 .legend-steps{display:inline-flex;gap:2px}.legend-steps i{display:block;width:22px;height:10px;border-radius:3px}
 #calendar-range{margin-left:6px}
-.calendar-hint{margin-left:auto;display:inline-flex;align-items:center;gap:5px}.legend-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ink)}
+.calendar-hint{margin-left:auto;display:inline-flex;align-items:center;gap:5px}.legend-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ink)}.legend-older{display:inline-block;width:14px;height:10px;border-radius:3px;background:#8fbf71;opacity:.55;outline:1px dashed var(--ink);outline-offset:-3px}
 .week-trend{font-weight:600}
 :where([data-theme="dark"]) .heat-0{background:#a0cf89;color:#0f1a16}:where([data-theme="dark"]) .heat-1{background:#5f9c58;color:#0f1a16}
 :where([data-theme="dark"]) .heat-2{background:#3a7440;color:#fff}:where([data-theme="dark"]) .heat-3{background:#2c5a38;color:#e3ebe4}

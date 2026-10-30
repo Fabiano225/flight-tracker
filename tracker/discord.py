@@ -45,6 +45,10 @@ def payload_for(text, reference_url=None, code=None, names=None):
         title, color = '✅ Discord connected', GREEN
     elif text.startswith('Flight tracker recovered'):
         title, color = '✅ Flight search recovered', GREEN
+    elif text.startswith('Dashboard publishing failed'):
+        title, color = '⚠️ Dashboard not updated', AMBER
+    elif text.startswith('Dashboard publishing recovered'):
+        title, color = '✅ Dashboard updated again', GREEN
     elif kind and kind.group(2) == 'search window ended':
         title = '🏁 ' + place + 'Search window ended'
         text = re.sub(r'Set up a new search: (https://\S+)', r'[Set up a new search →](\1)', text)

@@ -35,7 +35,7 @@ def section(summary, quotes, level):
         f"{', returning by ' + config['latest_return'] if config.get('latest_return') else ''}. Direction duration limit: {config['max_direction_minutes']} minutes including layovers.", "",
         f"- Date-search batches: {summary['calendar_queries_ok']}/{summary['calendar_queries_planned']}"
         f" (+{summary.get('calendar_queries_skipped', 0)} skipped: routes without prices, rechecked daily)",
-        f"- Dates recovered by deferred recheck: {summary.get('calendar_dates_recovered', 0)}",
+        f"- Unanswered dates of the last search answered now: {summary.get('calendar_dates_recovered', 0)}",
         f"- Date-grid price points: {summary['calendar_prices']}/{summary['calendar_slots']} (nonstop and any-stops profiles)",
         f"- Itinerary searches: {summary['verification_searches']}; accepted quotes: {summary['verified_quotes']}",
         f"- HTTP attempts: {summary['http_attempts']}; queued price-alert items: {summary['queued_deals']}", "",

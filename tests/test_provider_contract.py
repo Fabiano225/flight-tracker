@@ -201,28 +201,18 @@ class PrefetchDateTests(unittest.TestCase):
         start = date.today() + timedelta(days=30)
         return provider, Batch("FRA", "any", start, start + timedelta(days=2), 15)
 
-    def test_deferred_recovery_only_repeats_failed_date(self):
-        offer = [NS(price=650, currency="EUR")]
-        provider, batch = self.recovery_provider([offer, TransientSourceError("RPC 13"), offer, offer])
-        result = provider.fetch(batch)
-        self.assertEqual(list(result.values()), [65000] * 3)
-        dates = [call.args[0].flight_segments[0].travel_date
-                 for call in provider.dates.shopping._fetch_flights.call_args_list]
-        expected = [dep for dep, _ in batch.pairs()]
-        self.assertEqual(dates, expected + [expected[1]])
-        provider.http.sleep.assert_called_once_with(30)
-        self.assertEqual(provider.dates.recovered_dates, 1)
-
-    def test_failed_recheck_stays_unknown_and_keeps_the_other_dates(self):
+    def test_a_date_without_an_answer_is_not_asked_again_in_the_run(self):
         error = TransientSourceError("RPC 13")
         offer = [NS(price=650, currency="EUR")]
-        provider, batch = self.recovery_provider([offer, error, offer, error])
+        provider, batch = self.recovery_provider([offer, error, offer])
         result = provider.fetch(batch)
         self.assertEqual(list(result.values()), [65000, None, 65000])
-        # The date without an answer is reported, never taken for "no flights".
+        # The date without an answer is reported, never taken for "no flights"; the next run asks it first.
         self.assertEqual(provider.missed, [batch.pairs()[1][0]])
-        self.assertEqual(provider.dates.shopping._fetch_flights.call_count, 4)
-        self.assertEqual(provider.dates.recovered_dates, 0)
+        dates = [call.args[0].flight_segments[0].travel_date
+                 for call in provider.dates.shopping._fetch_flights.call_args_list]
+        self.assertEqual(dates, [dep for dep, _ in batch.pairs()])
+        provider.http.sleep.assert_not_called()
 
     def test_errors_later_in_a_batch_end_it_early_without_losing_its_answers(self):
         error = TransientSourceError("RPC 13")
@@ -232,12 +222,21 @@ class PrefetchDateTests(unittest.TestCase):
         provider.http.sleep = Mock()
         start = date.today() + timedelta(days=30)
         batch = Batch("FRA", "any", start, start + timedelta(days=5), 15)
-        # Day 1 answers; days 2-4 fail in a row, so days 5-6 are not asked; three rechecks fail too.
-        provider.dates.shopping._fetch_flights = Mock(side_effect=[offer, error, error, error, error, error, error])
+        # Day 1 answers; days 2-4 fail in a row, so days 5-6 are not asked.
+        provider.dates.shopping._fetch_flights = Mock(side_effect=[offer, error, error, error])
         result = provider.fetch(batch)
         self.assertEqual(list(result.values()), [65000] + [None] * 5)
         self.assertEqual(provider.missed, [dep for dep, _ in batch.pairs()[1:]])
-        self.assertEqual(provider.dates.shopping._fetch_flights.call_count, 7)
+        self.assertEqual(provider.dates.shopping._fetch_flights.call_count, 4)
+
+    def test_a_batch_of_chosen_days_asks_only_those(self):
+        offer = [NS(price=650, currency="EUR")]
+        provider, batch = self.recovery_provider([offer, offer])
+        chosen = replace(batch, only=(batch.start, batch.end))
+        self.assertEqual(list(provider.fetch(chosen)), [chosen.pairs()[0], chosen.pairs()[1]])
+        dates = [call.args[0].flight_segments[0].travel_date
+                 for call in provider.dates.shopping._fetch_flights.call_args_list]
+        self.assertEqual(dates, [batch.start.isoformat(), batch.end.isoformat()])
 
     def test_widespread_internal_errors_stop_without_deferred_pass(self):
         provider, batch = self.recovery_provider([TransientSourceError("RPC 13")] * 3)
@@ -254,16 +253,10 @@ class PrefetchDateTests(unittest.TestCase):
             self.assertEqual(provider.dates.shopping._fetch_flights.call_count, 2)
             provider.http.sleep.assert_not_called()
 
-    def test_recheck_still_respects_transport_budget(self):
-        provider, batch = self.recovery_provider([TransientSourceError("RPC 13"), [], [], BudgetError("budget")])
+    def test_transport_budget_still_stops_a_batch(self):
+        provider, batch = self.recovery_provider([TransientSourceError("RPC 13"), [], BudgetError("budget")])
         with self.assertRaises(BudgetError):
             provider.fetch(batch)
-        self.assertEqual(provider.dates.recovered_dates, 0)
-
-    def test_empty_recheck_stays_unknown_not_zero(self):
-        provider, batch = self.recovery_provider([TransientSourceError("RPC 13"), [], [], []])
-        self.assertEqual(list(provider.fetch(batch).values()), [None] * 3)
-        self.assertEqual(provider.dates.recovered_dates, 1)
 
     def test_each_date_pair_is_searched_and_empty_remains_unknown(self):
         provider = FreeProvider(Config())
