@@ -147,8 +147,8 @@ function fillSelect(id, values, label) {
   if([...select.options].some(o=>o.value===previous))select.value=previous;
 }
 function showStatus() {
-  const fresh=freshness(data), scan=data.scan;
-  const label=!scan?'No search data yet':scan.status==='expired'?'Travel window ended':fresh.stale?'Data not current':fresh.partial?'Search partly incomplete':'Latest search completed';
+  const fresh=freshness(data), scan=data.scan, booked=rootData.config.booked;
+  const label=booked?'Booked · search stopped':!scan?'No search data yet':scan.status==='expired'?'Travel window ended':fresh.stale?'Data not current':fresh.partial?'Search partly incomplete':'Latest search completed';
   $('status-label').replaceChildren(node('span','', 'dot'),node('span',label));
   $('last-check').textContent=scan?`Checked: ${when(scan.at)} · Berlin time`:'Waiting for the first search run';
   const messages=tripNotice?[tripNotice]:[];
@@ -163,8 +163,12 @@ function showStatus() {
   if(fresh.fallback)messages.push('Showing the last available prices because the newest search has no matching checked offers.');
   const expired=scan?.status==='expired';
   if(expired)messages.push('The configured departure window has ended. Only stored search prices are shown.');
+  // A booked trip is not searched any more: only that is worth saying.
+  if(booked)messages.splice(tripNotice?1:0,Infinity,`You marked this flight as booked on ${day(booked)} ${booked.slice(0,4)}. The tracker no longer searches this trip or sends price alerts for it; the prices shown are from its last search.`);
   $('warning').replaceChildren(messages.join(' '));
-  if(expired){const link=node('a','Set up a new search →','warning-link');link.href='./settings.html';$('warning').append(' ',link);}
+  $('warning').classList.toggle('booked',Boolean(booked));
+  if(booked){const link=node('a','Search again →','warning-link');link.href=tripHref(site,tripId,'./settings.html');$('warning').append(' ',link);}
+  else if(expired){const link=node('a','Set up a new search →','warning-link');link.href='./settings.html';$('warning').append(' ',link);}
   $('warning').hidden=!messages.length;
 }
 function renderSummary() {
@@ -344,7 +348,17 @@ function renderChart() {
 function applyPage(trip) {
   const page=trip.page;
   for(const element of document.querySelectorAll('[data-page]')){const value=page[element.dataset.page];if(typeof value==='string')element.textContent=value;}
-  $('route-origins').replaceChildren(...trip.config.origins.map(code=>node('span',code,'route-code')));
+  // Up to two departure airports by code, more by their number (as prerendered).
+  const origins=trip.config.origins;
+  if(origins.length<=2)$('route-origins').replaceChildren(...origins.map(code=>node('span',code,'route-code')));
+  else {
+    const chip=node('span',`${origins.length} airports`,'route-code');chip.title=origins.join(', ');
+    chip.setAttribute('aria-label',`${origins.length} airports: ${origins.join(', ')}`);$('route-origins').replaceChildren(chip);
+  }
+  // A booked trip is not searched any more; the button leads to the settings form.
+  $('booked-link').hidden=Boolean(trip.config.booked);
+  const booked=new URL(tripHref(site,trip.id,'./settings.html'),location.href);booked.searchParams.set('booked','1');
+  $('booked-link').href=booked.pathname.split('/').pop()+booked.search;
   document.title=`${page.city} in view · Flightwatch`;
   document.querySelector('meta[name="description"]')?.setAttribute('content',`Your price radar for ${page.city}: flights from ${page.origin_cities}, with price history and a transparent search status.`);
   $('settings-link').href=tripHref(site,trip.id,'./settings.html');

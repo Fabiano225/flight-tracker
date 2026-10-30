@@ -47,7 +47,7 @@ LABELS = {
     "http_timeout_seconds": "Timeout per request (seconds)", "http_attempts": "Attempts per request",
     "request_interval_seconds": "Gap between requests (seconds)", "max_parallel_requests": "Parallel requests",
     "airlines": "Only these airlines", "airlines_exclude": "Exclude these airlines",
-    "max_stops": "Max. stops per direction", "flight_times": "Flight times", "display_names": "Display names", "id": "Trip ID",
+    "max_stops": "Max. stops per direction", "flight_times": "Flight times", "display_names": "Display names", "booked": "Booked (search stopped)", "id": "Trip ID",
     "primary_trip": "Shown first on the website", "trips": "Trips",
 }
 # The settings of Config.scope, in words.
@@ -202,7 +202,7 @@ def check(settings, today):
         for code in (*trip.airlines, *trip.airlines_exclude):
             if not airline_supported(code):
                 raise Rejected(f"{label}The airline {code} is not supported by the flight search.")
-        if not plan(trip, today):
+        if not trip.booked and not plan(trip, today):
             raise Rejected(f"{label}The departure window has no day from tomorrow on, so there would be nothing to search."
                            + (" Choose new dates or remove this trip." if label else ""))
     # All trips of a run share one request and time budget.
@@ -238,6 +238,8 @@ def shown(name, value, currency="EUR"):
         return time_windows(value) or "any time"
     if name == "latest_return":
         return value or "none"
+    if name == "booked":
+        return f"yes, on {value}" if value else "no, searching"
     if name == "origins":
         return ", ".join(value)
     if name == "more_destinations":

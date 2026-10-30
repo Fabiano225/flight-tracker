@@ -246,6 +246,12 @@ and searches live again when a cached search yields no usable booking offers. Up
 `max_parallel_requests` baggage checks run at once; results are recorded in selection
 order, so the stop after three consecutive errors is unchanged.
 
+A trip with `booked` set (the day it was marked, from the settings form) is not
+searched: each run records a `booked` run without requests, expires the trip's
+undelivered price messages and queues one "trip booked" notice per booking; the
+baggage step skips it and the estimate counts no requests for it. `booked` is not part
+of the scope, so searching again continues the same price history.
+
 A route (airport plus nonstop/any profile) whose complete, error-free date search found
 no price is skipped for 23 hours and then searched again, so it is checked about once a
 day. As soon as a search finds a price for it, it is searched in every run again. A

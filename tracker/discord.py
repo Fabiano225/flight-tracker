@@ -12,7 +12,7 @@ from .project import repository_url
 
 GREEN, RED, AMBER, BLUE = 0x22C55E, 0xEF4444, 0xF59E0B, 0x5865F2
 # Message kinds named in the first line.
-KIND = re.compile(r"([A-Z]{3}) (price alert|check status|search window ended)\n")
+KIND = re.compile(r"([A-Z]{3}) (price alert|check status|search window ended|trip booked)\n")
 VERDICTS = ("CHECK TO BUY:", "WATCH:", "WITHIN BUDGET", "STRONG DEAL:")
 
 
@@ -49,6 +49,9 @@ def payload_for(text, reference_url=None, code=None, names=None):
         title, color = '⚠️ Dashboard not updated', AMBER
     elif text.startswith('Dashboard publishing recovered'):
         title, color = '✅ Dashboard updated again', GREEN
+    elif kind and kind.group(2) == 'trip booked':
+        title, color = '🎉 ' + place + 'Trip booked', GREEN
+        text = re.sub(r'To search again: (https://\S+)', r'[Search again →](\1)', text)
     elif kind and kind.group(2) == 'search window ended':
         title = '🏁 ' + place + 'Search window ended'
         text = re.sub(r'Set up a new search: (https://\S+)', r'[Set up a new search →](\1)', text)

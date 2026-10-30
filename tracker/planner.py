@@ -49,7 +49,9 @@ def request_estimate(config, today):
     """Upper bound of one scan's requests: one per departure day, trip length,
     airport and stop profile, plus a full verification budget (one outbound and
     `outbound_candidates` return searches each), for every destination of the
-    trip. Retries come on top."""
+    trip. Retries come on top. A booked trip is not searched."""
+    if config.booked:
+        return {"calendar": 0, "verification": 0, "requests": 0, "seconds": 0}
     destinations = len(config.destinations)
     calendar = destinations * sum(len(b.pairs()) for b in plan(config, today))
     verification = destinations * config.max_verifications_per_run * (1 + config.outbound_candidates)
