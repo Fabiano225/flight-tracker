@@ -246,6 +246,14 @@ and searches live again when a cached search yields no usable booking offers. Up
 `max_parallel_requests` baggage checks run at once; results are recorded in selection
 order, so the stop after three consecutive errors is unchanged.
 
+After all searches of a run, `merge_messages` combines a trip's pending price alerts of
+its destinations into one message (cheapest offers in full up to `max_deals_per_run`, the
+rest as one line each, within Telegram's 4096 characters) and their check receipts into
+one receipt replying to the newest related alert. Its `alert_items` keep each offer's own
+scope; `expire_outside_search` accepts items of several scopes of the same trip. A search
+whose date searches were (nearly) all answered without any price records a note ("no
+flights found") instead of an error, so it is neither incomplete nor reported.
+
 A trip with `booked` set (the day it was marked, from the settings form) is not
 searched: each run records a `booked` run without requests, expires the trip's
 undelivered price messages and queues one "trip booked" notice per booking; the

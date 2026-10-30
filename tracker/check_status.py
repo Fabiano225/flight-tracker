@@ -13,6 +13,8 @@ def queue_check_status(store, config, scope, run_id, verified, now, summary, dem
     if store.db.execute("SELECT 1 FROM outbox WHERE run_id=? AND kind='check_status'", (run_id,)).fetchone():
         return False
     watches = load_watches(store, config, scope, now)
+    if not watches and summary.get('notes'):
+        return False  # No flights to this destination at all: nothing to confirm.
     compared, missing, changes, targets = [], [], [], []
     for value in watches.values():
         q = Quote(**value)
