@@ -70,6 +70,61 @@ class DestinationTests(unittest.TestCase):
         self.assertEqual(message_labels(Settings((THAILAND,)))[0], None)  # Messages name their own destination.
         self.assertEqual(message_labels(Settings((BKK,)))[0], "BKK")
 
+    def test_a_trip_sends_one_price_alert_for_all_destinations(self):
+        with tempfile.TemporaryDirectory() as directory, Store(directory) as store:
+            scan_trips(THAILAND.searches(), store, lambda trip: DemoProvider(trip), NOW)
+            alerts = store.db.execute("SELECT id, text FROM outbox WHERE kind='trend'").fetchall()
+            self.assertEqual(len(alerts), 1)
+            text = alerts[0]["text"]
+            self.assertTrue(text.startswith("BKK price alert\n"))
+            for code in ("BKK", "HKT", "CNX"):
+                self.assertIn(f"-{code} | ", text)
+            # The cheapest max_deals_per_run offers in full, the others as a line each;
+            # every offer counts as alerted and keeps its destination's history.
+            items = store.db.execute("SELECT scope, price FROM alert_items WHERE outbox_id=? ORDER BY rowid",
+                                     (alerts[0]["id"],)).fetchall()
+            self.assertEqual(len(items), 15)
+            self.assertEqual([i["price"] for i in items], sorted(i["price"] for i in items))
+            self.assertEqual({i["scope"] for i in items}, {s.scope() for s in THAILAND.searches()})
+            self.assertEqual(text.count("\n\n"), THAILAND.max_deals_per_run)  # Full offers plus the closing note.
+            self.assertEqual(text.split("Also changed:\n")[1].count("- "), 9)
+            self.assertLess(len(text), 4096)
+            sent = []
+            sender = type("Sender", (), {"send": lambda self, text, **_: sent.append(text) or "1"})()
+            deliver(store, Settings((THAILAND,)), NOW, sender)
+            self.assertEqual(sent, [text])
+
+    def test_a_trip_sends_one_check_receipt_for_all_destinations(self):
+        from datetime import timedelta
+        with tempfile.TemporaryDirectory() as directory, Store(directory) as store:
+            scan_trips(THAILAND.searches(), store, lambda trip: DemoProvider(trip), NOW)
+            sender = type("Sender", (), {"send": lambda self, text, **_: "7"})()
+            deliver(store, Settings((THAILAND,)), NOW, sender)
+            scan_trips(THAILAND.searches(), store, lambda trip: DemoProvider(trip), NOW + timedelta(hours=6))
+            receipts = store.db.execute("SELECT id, text FROM outbox WHERE kind='check_status' AND status='pending'").fetchall()
+            self.assertEqual(len(receipts), 1)
+            text = receipts[0]["text"]
+            self.assertTrue(text.startswith("BKK check status\n"))
+            for code in ("BKK", "HKT", "CNX"):
+                self.assertIn(f"\n{code}: ", text)
+            self.assertEqual(text.count("Tap the quoted message"), 1)
+            self.assertTrue(store.db.execute("SELECT 1 FROM outbox_replies WHERE outbox_id=?", (receipts[0]["id"],)).fetchone())
+
+    def test_a_destination_without_flights_is_a_finding_not_an_error(self):
+        class Empty(DemoProvider):
+            def fetch(self, batch):
+                self.http.used += 1
+                return {pair: None for pair in batch.pairs()}
+        with tempfile.TemporaryDirectory() as directory, Store(directory) as store:
+            providers = lambda trip: Empty(trip) if trip.destination == "CNX" else DemoProvider(trip)
+            summaries = scan_trips(THAILAND.searches(), store, providers, NOW)
+            empty = summaries[2]
+            self.assertEqual((empty["status"], empty["incomplete"], empty["errors"]), ("ok", False, []))
+            self.assertEqual(empty["notes"], ["No flights found to CNX from DUS, FRA, AMS for these dates and filters"])
+            kinds = [row[0] for row in store.db.execute("SELECT kind FROM outbox")]
+            self.assertNotIn("health", kinds)
+            self.assertNotIn("check_status", kinds)
+
     def test_the_dashboard_shows_all_destinations_of_a_trip_together(self):
         with tempfile.TemporaryDirectory() as directory:
             with Store(directory) as store:

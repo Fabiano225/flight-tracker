@@ -130,7 +130,9 @@ class Store:
             else:
                 scope = items[0]['scope'] if items else None
             config = by_scope.get(scope)
-            valid = config is not None and all(item['scope'] == scope for item in items)
+            # A trip's message can combine its destinations: every item must be of that trip.
+            valid = config is not None and all(by_scope.get(item['scope']) is not None
+                                               and by_scope[item['scope']].id == config.id for item in items)
             if valid and run:
                 settings = json.loads(run['summary']).get('config', {})
                 valid = all(settings.get(k) == config.public_dict()[k] for k in
@@ -138,7 +140,8 @@ class Store:
                 valid = valid and settings.get('origins') == list(config.origins)
             for item in items if valid else ():
                 try:
-                    valid = valid and item['origin'] in config.origins and config.fits(item['departure'], item['return_date'])
+                    own = by_scope[item['scope']]
+                    valid = valid and item['origin'] in own.origins and own.fits(item['departure'], item['return_date'])
                 except (ValueError,TypeError):
                     valid=False
             if not valid:

@@ -93,6 +93,10 @@ The page clearly says when a search was incomplete or the data is older than 12 
 
 ## Price alerts
 
+A trip sends **one message per search**, also with several destinations: the cheapest
+changes in full (at most "Max. offers per message"), the others as one line each under
+"Also changed". The same goes for the short check notes.
+
 Alerts go to a Discord channel (or a Telegram chat), or to the trip's own one, and name
 their destination in the title. Each flight in an alert lists its dates, price (per
 person in the trip's currency, plus the total with several travellers), flight times,
@@ -125,8 +129,9 @@ searched by city, airport name or code (German names such as "München" work too
   and a weekend in Amsterdam. Each trip has its own price targets, alerts and history;
   choose which one the website shows first.
 - **Route:** departure airports and up to five destinations per trip. Each destination
-  is searched on its own, with its own price history and alerts, and costs its own
-  requests; the dashboard shows them together with a destination filter.
+  is searched on its own, with its own price history, and costs its own requests; the
+  dashboard shows them together with a destination filter. A destination without any
+  flight for your dates and filters is reported as "no flights found", not as an error.
 - **Open jaw (return flight from):** fly out to the destination and back from another
   airport, e.g. to Bangkok and back from Phuket. See the note below.
 - **Dates:** an earliest and latest departure day and the trip length, or a

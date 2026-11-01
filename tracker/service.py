@@ -10,7 +10,7 @@ from .config import MAIN_TRIP
 from .network import ServiceError, BudgetError
 from .planner import plan, days
 from .store import stamp
-from .check_status import queue_check_status
+from .check_status import TELEGRAM_REPLY_HINT, queue_check_status
 from .notifications import SETTINGS
 from .trends import load_watches, watch_searches, queue_trends
 
@@ -154,6 +154,13 @@ def scan_trips(trips, store, providers, now, demo=False, everything=None):
     live providers share one paced client and thereby one request budget.
     `everything`: all searches, when only some of them run now."""
     summaries = [scan_trip(config, store, providers(config), now, demo, everything or trips) for config in trips]
+    # A trip with several destinations sends one message per run, not one per destination.
+    runs = {}
+    for config, summary in zip(trips, summaries):
+        runs.setdefault(config.id, (config, []))[1].append(summary["run_id"])
+    for config, run_ids in runs.values():
+        if len(run_ids) > 1:
+            merge_messages(store, config, run_ids)
     update_health(store, trips, summaries, now)
     try:
         # The longest comparison period of all trips, searched now or not, decides
@@ -171,6 +178,87 @@ def scan_trips(trips, store, providers, now, demo=False, everything=None):
     return summaries
 
 
+def merge_messages(store, config, run_ids):
+    """Combine the pending price alerts of a trip's destinations from this run into one
+    message (cheapest offers first, at most max_deals_per_run, split only at Telegram's
+    limit), and their check receipts into one receipt."""
+    db = store.db
+    marks = ",".join("?" * len(run_ids))
+
+    def pending(kind):
+        return db.execute(f"SELECT * FROM outbox WHERE status='pending' AND kind=? AND run_id IN ({marks}) "
+                          "ORDER BY rowid", (kind, *run_ids)).fetchall()
+
+    def items(outbox_id):
+        return db.execute("SELECT * FROM alert_items WHERE outbox_id=? ORDER BY rowid", (outbox_id,)).fetchall()
+
+    def replace_rows(old, texts, reply=None):
+        for text, chosen in texts:
+            message_id = uuid.uuid4().hex
+            db.execute("INSERT INTO outbox(id,run_id,kind,created,status,text) VALUES(?,?,?,?,?,?)",
+                       (message_id, old[0]["run_id"], old[0]["kind"], old[0]["created"], "pending", text))
+            db.executemany("INSERT INTO alert_items VALUES(?,?,?,?,?,?,?)",
+                           [(message_id, *tuple(item)[1:]) for item in chosen])
+            if reply:
+                db.execute("INSERT INTO outbox_replies VALUES(?,?)", (message_id, reply))
+        for row in old:
+            db.execute("DELETE FROM alert_items WHERE outbox_id=?", (row["id"],))
+            db.execute("DELETE FROM outbox_replies WHERE outbox_id=?", (row["id"],))
+            db.execute("DELETE FROM outbox WHERE id=?", (row["id"],))
+
+    alerts = pending("trend")
+    if len(alerts) > 1:
+        header = footer = None
+        blocks = []
+        for row in alerts:
+            sections = row["text"].split("\n\n")
+            head = sections[0].split("\n")
+            body = ["\n".join(head[2:]), *sections[1:-1]]
+            listed = items(row["id"])
+            if len(listed) != len(body):
+                break  # An unexpected layout: leave the messages as they are.
+            header, footer = header or "\n".join(head[:2]), footer or sections[-1]
+            blocks += [(item["price"], len(blocks), text, item) for text, item in zip(body, listed)]
+        else:
+            # The cheapest offers in full; the others as one line each in the closing note, so
+            # they count as alerted too. Everything stays within Telegram's 4096 characters.
+            blocks.sort()
+            def compose(count):
+                rest = []
+                for _, _, text, _ in blocks[count:]:
+                    head, dates = text.split("\n")[:2]
+                    parts = head.split(" | ")
+                    rest.append(f"- {parts[1]} {parts[2].lower()}: {dates}" if len(parts) == 3 else f"- {dates}")
+                if len(rest) > 10:
+                    rest = rest[:10] + [f"- … and {len(rest) - 10} more on the dashboard"]
+                note = ("Also changed:\n" + "\n".join(rest) + "\n" if rest else "") + footer
+                return header + "\n" + "\n\n".join(b[2] for b in blocks[:count]) + "\n\n" + note
+            count = min(len(blocks), config.max_deals_per_run)
+            while count > 1 and len(compose(count)) > 4096:
+                count -= 1
+            replace_rows(alerts, [(compose(count)[:4096], [b[3] for b in blocks])])
+    receipts = pending("check_status")
+    if len(receipts) > 1:
+        lines = receipts[0]["text"].split("\n")[:2]
+        sections, chosen = [], []
+        for row in receipts:
+            head, *body = row["text"].split("\n")[0:1] + row["text"].split("\n")[2:]
+            sections.append(head.split()[0] + ": " + "\n".join(line for line in body if line != TELEGRAM_REPLY_HINT))
+            chosen += items(row["id"])
+        targets = db.execute(f"""SELECT o.id FROM outbox_replies r JOIN outbox o ON o.id=r.target_id
+            WHERE r.outbox_id IN ({",".join("?" * len(receipts))}) ORDER BY o.created DESC LIMIT 1""",
+                             [row["id"] for row in receipts]).fetchone()
+        text = "\n".join(lines) + "\n" + "\n\n".join(sections) + ("\n" + TELEGRAM_REPLY_HINT if targets else "")
+        replace_rows(receipts, [(text[:4096], chosen)], targets[0] if targets else None)
+    db.commit()
+
+
+def answered_enough(summary):
+    """Whether the date searches got an answer for all but single dates."""
+    missing = summary["calendar_slots"] - summary.get("calendar_answered", summary["calendar_slots"])
+    return summary["calendar_slots"] > 0 and not (missing >= 2 and missing * 4 > summary["calendar_slots"])
+
+
 def incomplete(summary):
     """Whether a search missed a real part of its prices: none at all, no checked flight,
     or more than a quarter (and more than one) of its date searches or flight checks.
@@ -179,7 +267,7 @@ def incomplete(summary):
         return False
     big = lambda missing, total: missing >= 2 and missing * 4 > total
     checks = summary.get("verification_planned", 0)
-    return (not summary["calendar_prices"]
+    return ((not summary["calendar_prices"] and not summary.get("notes"))
             or (checks > 0 and not summary["verified_quotes"])
             or big(summary["calendar_slots"] - summary.get("calendar_answered", summary["calendar_slots"]),
                    summary["calendar_slots"])
@@ -391,7 +479,13 @@ def scan_trip(config, store, provider, now, demo=False, trips=None):
                 pass  # Optional speed-up only; the baggage step then searches live.
         summary["queued_deals"] = queue_trends(store, config, scope, run_id, verified, now, demo)
         if batches and not summary["calendar_prices"]:
-            summary["errors"].append("No calendar prices received; source health needs attention")
+            if answered_enough(summary):
+                # Google answered (nearly) every date, just without a flight for these filters:
+                # a finding, not a source problem.
+                summary["notes"] = [f"No flights found to {config.destination} from {', '.join(config.origins)} "
+                                    "for these dates and filters"]
+            else:
+                summary["errors"].append("No calendar prices received; source health needs attention")
         if batches and summary["calendar_prices"] and not verified:
             summary["errors"].append("No shortlisted itinerary passed round-trip, duration and currency checks")
         summary["status"] = "expired" if not planned else "partial" if summary["errors"] else "ok"
