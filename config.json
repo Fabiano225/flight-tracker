@@ -10,9 +10,10 @@
     "EWR"
   ],
   "departure_start": "2026-12-18",
-  "departure_end": "2026-12-27",
+  "departure_end": "2026-12-20",
   "min_trip_days": 8,
-  "max_trip_days": 8,
+  "max_trip_days": 18,
+  "latest_return": "2027-01-05",
   "currency": "EUR",
   "adults": 1,
   "travel_class": "economy",
