@@ -1,4 +1,4 @@
-import {targetFor, filteredOffers, comparison, priceStatus, money, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref, flightLegs, calendarGrid, priceStep, weekTrend, cheapestPerOrigin, departureChoices, flightSearchLink} from './model.mjs';
+import {targetFor, filteredOffers, comparison, priceStatus, money, freshness, safeFlightLink, baggageLabels, baggageView, matchingBase, baggageDescription, favoriteKey, favoriteOffers, readFavorites, writeFavorites, favoritesStorageKey, airlineChoices, pruneFavorites, unavailableFavorites, parseFavorite, belongsToTrip, chooseTrip, tripHref, flightLegs, calendarGrid, priceStep, weekTrend, cheapestPerOrigin, departureChoices, flightSearchLink, gapText} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const day = s => new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',timeZone:'Europe/Berlin'}).format(new Date(s+'T12:00:00Z'));
@@ -159,7 +159,7 @@ function showStatus() {
   if(!scan && $('baggage').value==='base')messages.push('No search has run for this trip yet. Searches run about every 6 hours; prices appear a few minutes after one starts (see “View search runs” below).');
   if(data.workflow_conclusion && data.workflow_conclusion!=='success')messages.push('The latest tracker workflow did not succeed. The website shows the last stored data; details are under “View search runs”.');
   if(fresh.stale && scan)messages.push('The latest search is more than 12 hours old or not available yet. The prices shown are not live.');
-  if(fresh.partial && scan.status!=='expired')messages.push(`The search was incomplete (${scan.batches_ok}/${scan.batches_planned} search blocks). Missing results do not mean “sold out” or “unchanged”.`);
+  if(fresh.partial && scan.status!=='expired')messages.push(`${gapText(scan,(data.config.destinations||[]).length>1)} Missing results do not mean “sold out” or “unchanged”; the next search fills them in.`);
   if(fresh.fallback)messages.push('Showing the last available prices because the newest search has no matching checked offers.');
   const expired=scan?.status==='expired';
   if(expired)messages.push('The configured departure window has ended. Only stored search prices are shown.');

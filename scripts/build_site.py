@@ -179,7 +179,8 @@ def export_data(db_path, config, now=None, variant=None):
             result['scan'] = dict(at=instant(latest['started']).isoformat(timespec='seconds'), status=latest['status'],
                 batches_ok=summary.get('calendar_queries_ok', 0),
                 batches_planned=summary.get('calendar_queries_planned', 0),
-                verified=summary.get('verified_quotes', 0), issues=len(summary.get('errors', [])))
+                verified=summary.get('verified_quotes', 0), issues=len(summary.get('errors', [])),
+                **scan_gaps(summary, latest['status'], config.destination, variant))
             if variant:
                 base = db.execute('SELECT started FROM runs WHERE id=?',(latest['run_id'],)).fetchone()
                 result['base_at'] = instant(base['started']).isoformat(timespec='seconds') if base else None
@@ -241,6 +242,22 @@ def export_data(db_path, config, now=None, variant=None):
 # A date the latest search got no answer for shows its price from an earlier search
 # of at most this age, marked with that search's time.
 CALENDAR_FILL_HOURS = 48
+
+
+def scan_gaps(summary, status, destination, variant=None):
+    """Whether the search was incomplete (as for the red run and "needs attention"; single
+    gaps are not) and, if so, what was missing: counts only, never error texts."""
+    flagged = summary.get('incomplete')
+    incomplete = bool(flagged) if flagged is not None and not variant else status == 'partial'
+    if not incomplete or variant:
+        return dict(incomplete=incomplete, gaps=[])
+    count = lambda key: summary.get(key) if type(summary.get(key)) is int and summary.get(key) >= 0 else 0
+    slots, checks = count('calendar_slots'), count('verification_planned')
+    answered = count('calendar_answered') if 'calendar_answered' in summary else slots
+    failed = count('verification_failed') + max(0, checks - count('verification_searches'))
+    return dict(incomplete=True, gaps=[dict(destination=destination, dates_missing=max(0, slots - answered),
+                                            dates=slots, checks_failed=min(failed, checks), checks=checks,
+                                            prices=count('calendar_prices'), verified=count('verified_quotes'))])
 
 
 def calendar_rows(db, config, scope, now):
@@ -337,7 +354,9 @@ def merged(views, trip):
         status = next((s for s in ('partial', 'running') if s in statuses), 'expired' if statuses == {'expired'} else 'ok')
         result['scan'] = dict(at=max(scan['at'] for scan in scans), status=status,
                               **{key: sum(scan[key] for scan in scans)
-                                 for key in ('batches_ok', 'batches_planned', 'verified', 'issues')})
+                                 for key in ('batches_ok', 'batches_planned', 'verified', 'issues')},
+                              incomplete=any(scan.get('incomplete') for scan in scans),
+                              gaps=[gap for scan in scans for gap in scan.get('gaps', [])])
     calendars = [view['calendar'] for view in views if 'calendar' in view]
     if calendars:
         times = [calendar['at'] for calendar in calendars if calendar['at']]

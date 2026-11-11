@@ -150,7 +150,20 @@ export function freshness(data, now = Date.now()) {
   const age = (now-at)/3600000;
   return {stale: !Number.isFinite(age) || age > 12,
     fallback: Boolean(data.offers_as_of && Date.parse(data.offers_as_of) !== Date.parse(data.scan?.at)),
-    partial: Boolean(data.scan && data.scan.status !== 'ok')};
+    // Only a really incomplete search; single gaps are not (data without the flag: any problem).
+    partial: Boolean(data.scan && ('incomplete' in data.scan ? data.scan.incomplete : data.scan.status !== 'ok'))};
+}
+// What an incomplete search missed, per destination, in words.
+export function gapText(scan, several=false) {
+  const parts=(scan?.gaps||[]).map(gap=>{
+    const missing=[];
+    if(gap.checks_failed)missing.push(`${gap.checks_failed} of ${gap.checks} flight checks`);
+    if(gap.dates_missing)missing.push(`${gap.dates_missing} of ${gap.dates} date searches`);
+    const text=missing.length?`${missing.join(' and ')} got no answer from Google`
+      :!gap.prices?'no date search found a price':'no flight passed the checks';
+    return (several?`${gap.destination}: `:'')+text;
+  });
+  return parts.length?`The latest search was incomplete (${parts.join('; ')}).`:'The latest search was incomplete.';
 }
 export function safeFlightLink(url) {
   try { const u = new URL(url); return u.protocol === 'https:' && u.hostname === 'www.google.com'
