@@ -89,7 +89,9 @@ jaw (back from another airport).
 - **Theme:** the selector in the header switches between *Auto* (follows your device),
   *Light* and *Dark*.
 
-The page clearly says when a search was incomplete or the data is older than 12 hours.
+The page clearly says when a search was incomplete (by the same rule as the red run:
+not for single gaps) and what was missing, e.g. "LGA: 5 of 18 flight checks got no answer
+from Google", or when the data is older than 12 hours.
 
 ## Price alerts
 

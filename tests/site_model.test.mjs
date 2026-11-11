@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {filteredOffers,comparison,priceStatus,money,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs,timesFit,parseFavorite,belongsToTrip,calendarGrid,priceStep,weekTrend,cheapestPerOrigin,departureChoices,flightSearchLink} from '../website/model.mjs';
+import {filteredOffers,comparison,priceStatus,money,shortDate,pruneFavorites,unavailableFavorites,freshness,safeFlightLink,baggageView,matchingBase,baggageDescription,favoriteKey,favoriteOffers,readFavorites,writeFavorites,favoritesStorageKey,chooseTrip,tripHref,flightLegs,timesFit,parseFavorite,belongsToTrip,calendarGrid,priceStep,weekTrend,cheapestPerOrigin,departureChoices,flightSearchLink,gapText} from '../website/model.mjs';
 const offer={origin:'FRA',departure:'2026-10-15',days:14,category:'layover',price:60000,at:'2026-09-20T12:00:00+00:00'};
 const config={good_deal_nonstop_eur:650,good_deal_layover_eur:650,realert_improvement_eur:25};
 test('browser entry point parses without executing DOM code',()=>{
@@ -305,4 +305,17 @@ test('price calendar: an earlier price fills only a date without a current one',
   assert.deepEqual([grid.cells.get('2026-10-21|14').price,grid.cells.get('2026-10-21|14').at],[52000,at]);
   assert.deepEqual([grid.cells.get('2026-10-22|14').price,grid.cells.get('2026-10-22|14').origin],[53000,'AMS']);
   assert.equal(calendarGrid(calendar,{origin:'AMS'},'2026-10-06').cells.get('2026-10-20|14').price,40000);
+});
+test('only a really incomplete search is reported, naming what was missing',()=>{
+  const at='2026-09-20T12:00:00+00:00', now=Date.parse('2026-09-20T13:00Z');
+  // Single gaps: the run was partial, but not incomplete.
+  assert.equal(freshness({scan:{at,status:'partial',incomplete:false,gaps:[]}},now).partial,false);
+  assert.equal(freshness({scan:{at,status:'partial',incomplete:true,gaps:[]}},now).partial,true);
+  assert.equal(freshness({scan:{at,status:'partial'}},now).partial,true);  // Data without the flag.
+  const scan={gaps:[{destination:'LGA',checks_failed:5,checks:18,dates_missing:0,dates:54,prices:18,verified:13},
+    {destination:'EWR',checks_failed:0,checks:18,dates_missing:40,dates:54,prices:2,verified:1}]};
+  assert.equal(gapText(scan,true),'The latest search was incomplete (LGA: 5 of 18 flight checks got no answer from Google; EWR: 40 of 54 date searches got no answer from Google).');
+  assert.equal(gapText({gaps:[{destination:'BKK',checks_failed:0,checks:18,dates_missing:0,dates:54,prices:30,verified:0}]}),
+    'The latest search was incomplete (no flight passed the checks).');
+  assert.equal(gapText({gaps:[]}),'The latest search was incomplete.');
 });

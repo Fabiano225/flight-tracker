@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.build_site import export_data, build, ASSETS, GENERATED, render_page, date_range, public_config
+from scripts.build_site import export_data, build, ASSETS, GENERATED, render_page, date_range, public_config, scan_gaps, merged
 from tracker.alerts import search_query
 from tracker.config import Config, Settings, money_text
 from tracker.provider import Quote
@@ -222,6 +222,23 @@ class SiteTests(unittest.TestCase):
         public=public_config(replace(self.config,travel_class='business',adults=2))
         self.assertEqual({key:public[key] for key in ('travel_class','adults','return_from','currency','country')},
                          {'travel_class':'business','adults':2,'return_from':None,'currency':'EUR','country':'DE'})
+
+
+    def test_the_website_names_only_real_gaps(self):
+        lga=dict(incomplete=True,calendar_slots=54,calendar_answered=53,verification_planned=18,
+                 verification_searches=18,verification_failed=5,calendar_prices=18,verified_quotes=13,errors=['x']*6)
+        self.assertEqual(scan_gaps(lga,'partial','LGA'),dict(incomplete=True,gaps=[dict(destination='LGA',dates_missing=1,
+            dates=54,checks_failed=5,checks=18,prices=18,verified=13)]))
+        self.assertEqual(scan_gaps({**lga,'incomplete':False},'partial','EWR'),dict(incomplete=False,gaps=[]))
+        self.assertEqual(scan_gaps({'errors':['x']},'partial','BKK')['incomplete'],True)  # Runs before the flag.
+        self.assertEqual(scan_gaps({},'partial','BKK',variant='cabin'),dict(incomplete=True,gaps=[]))
+        # Checks skipped after an airport was left out count as missing too.
+        self.assertEqual(scan_gaps({**lga,'verification_searches':12,'verification_failed':1},'partial','LGA')['gaps'][0]['checks_failed'],7)
+        view=lambda scan:dict(config={},offers=[],histories={},offers_as_of=None,scan=scan)
+        scan=lambda incomplete,gaps:dict(at='2026-09-20T12:00:00+00:00',status='partial',batches_ok=1,batches_planned=1,verified=1,issues=1,
+                                         incomplete=incomplete,gaps=gaps)
+        both=merged([view(scan(False,[])),view(scan(True,[{'destination':'LGA'}]))],self.config)
+        self.assertEqual((both['scan']['incomplete'],both['scan']['gaps']),(True,[{'destination':'LGA'}]))
 
 
 if __name__=='__main__':unittest.main()
