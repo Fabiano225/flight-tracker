@@ -2,53 +2,60 @@
 
 ## JFK flight tracker
 
-**LIVE** · 2026-11-14T11:05:43+00:00 · **ok**
+**LIVE** · 2026-11-14T17:05:47+00:00 · **partial**
 
 One adult, economy, EUR round-trip prices per person. Departure dates: 2026-12-23 to 2026-12-24.
 Trips last 8–12 days, returning by 2027-01-04. Direction duration limit: 1259 minutes including layovers.
 
-- Date-search batches: 25/25 (+5 skipped: routes without prices, rechecked daily)
+- Date-search batches: 30/30 (+0 skipped: routes without prices, rechecked daily)
 - Unanswered dates of the last search answered now: 0
-- Date-grid price points: 45/45 (nonstop and any-stops profiles)
-- Itinerary searches: 18; accepted quotes: 18
-- HTTP attempts: 116; queued price-alert items: 0
+- Date-grid price points: 41/54 (nonstop and any-stops profiles)
+- Itinerary searches: 18; accepted quotes: 17
+- HTTP attempts: 176; queued price-alert items: 0
 
 Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.
 The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.
 
 | Origin | Departure | Return | Type | EUR | Out / back | Stops | Airlines |
 |---|---|---|---|---:|---|---|---|
-| FRA | 2026-12-24 | 2027-01-01 | layover | 572.00 | 13h35 / 20h50 | 1/1 | AA, AY |
-| FRA | 2026-12-24 | 2027-01-03 | layover | 601.00 | 13h35 / 14h55 | 1/1 | AA, AY |
-| FRA | 2026-12-24 | 2027-01-04 | layover | 601.00 | 13h35 / 12h08 | 1/1 | AA, AY |
+| FRA | 2026-12-24 | 2027-01-01 | layover | 601.00 | 13h35 / 20h50 | 1/1 | AA, AY |
+| FRA | 2026-12-24 | 2027-01-02 | layover | 601.00 | 13h35 / 20h50 | 1/1 | AA, AY |
+| AMS | 2026-12-23 | 2026-12-31 | layover | 759.00 | 8h29 / 10h16 | 0/1 | DL |
 | AMS | 2026-12-23 | 2026-12-31 | nonstop | 759.00 | 8h29 / 7h00 | 0/0 | DL, KL |
-| AMS | 2026-12-23 | 2026-12-31 | layover | 764.00 | 8h29 / 11h30 | 0/1 | DL |
-| FRA | 2026-12-23 | 2026-12-31 | layover | 766.00 | 13h35 / 12h08 | 1/1 | AA, AY |
-| FRA | 2026-12-23 | 2027-01-01 | layover | 766.00 | 13h35 / 20h50 | 1/1 | AA, AY |
-| AMS | 2026-12-23 | 2027-01-04 | layover | 780.00 | 8h29 / 13h10 | 0/1 | DL, KL |
+| FRA | 2026-12-23 | 2027-01-02 | layover | 766.00 | 13h35 / 20h50 | 1/1 | AA, AY |
 | AMS | 2026-12-24 | 2027-01-04 | layover | 780.00 | 8h25 / 13h10 | 0/1 | DL, KL |
 | DUS | 2026-12-23 | 2026-12-31 | layover | 836.00 | 16h10 / 14h30 | 1/1 | LO |
+| AMS | 2026-12-23 | 2027-01-01 | layover | 843.00 | 8h29 / 13h10 | 0/1 | DL, KL |
 | AMS | 2026-12-23 | 2027-01-04 | nonstop | 846.00 | 8h29 / 7h20 | 0/0 | DL |
 | AMS | 2026-12-24 | 2027-01-04 | nonstop | 846.00 | 8h10 / 7h20 | 0/0 | DL, KL |
 | DUS | 2026-12-24 | 2027-01-01 | layover | 851.00 | 14h10 / 13h10 | 1/1 | AY |
 | DUS | 2026-12-24 | 2027-01-03 | layover | 851.00 | 14h10 / 13h10 | 1/1 | AY |
 | AMS | 2026-12-23 | 2027-01-01 | nonstop | 928.00 | 8h29 / 7h20 | 0/0 | DL |
-| FRA | 2026-12-24 | 2027-01-04 | nonstop | 999.00 | 8h35 / 7h20 | 0/0 | LH |
+| FRA | 2026-12-24 | 2027-01-04 | nonstop | 1004.00 | 8h35 / 7h20 | 0/0 | LH |
 | FRA | 2026-12-24 | 2027-01-03 | nonstop | 1023.00 | 9h00 / 7h40 | 0/0 | DL |
-| FRA | 2026-12-23 | 2026-12-31 | nonstop | 1040.00 | 8h35 / 7h20 | 0/0 | LH |
+| FRA | 2026-12-24 | 2027-01-01 | nonstop | 1036.00 | 8h35 / 7h20 | 0/0 | LH |
+| FRA | 2026-12-23 | 2027-01-04 | nonstop | 1222.00 | 8h35 / 7h20 | 0/0 | LH |
+
+### Attention
+- FRA/nonstop/8d: 1 of 2 dates got no answer
+- AMS/any/8d: 1 of 2 dates got no answer
+- DUS/nonstop/10d: 1 of 2 dates got no answer
+- FRA/nonstop/11d: 1 of 2 dates got no answer
+- FRA/any/11d: 1 of 2 dates got no answer
+- Verify AMS/2026-12-23/2027-01-04/any: Google Flights RPC 13; no price data received after retries
 
 ## LGA flight tracker
 
-**LIVE** · 2026-11-14T11:05:43+00:00 · **ok**
+**LIVE** · 2026-11-14T17:05:47+00:00 · **ok**
 
 One adult, economy, EUR round-trip prices per person. Departure dates: 2026-12-23 to 2026-12-24.
 Trips last 8–12 days, returning by 2027-01-04. Direction duration limit: 1259 minutes including layovers.
 
-- Date-search batches: 10/10 (+20 skipped: routes without prices, rechecked daily)
+- Date-search batches: 30/30 (+0 skipped: routes without prices, rechecked daily)
 - Unanswered dates of the last search answered now: 0
-- Date-grid price points: 18/18 (nonstop and any-stops profiles)
+- Date-grid price points: 18/54 (nonstop and any-stops profiles)
 - Itinerary searches: 18; accepted quotes: 18
-- HTTP attempts: 92; queued price-alert items: 0
+- HTTP attempts: 131; queued price-alert items: 0
 
 Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.
 The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.
@@ -76,7 +83,7 @@ The any-stops grid is not a layover-only grid. Actual itinerary stop counts dete
 
 ## EWR flight tracker
 
-**LIVE** · 2026-11-14T11:05:43+00:00 · **ok**
+**LIVE** · 2026-11-14T17:05:47+00:00 · **ok**
 
 One adult, economy, EUR round-trip prices per person. Departure dates: 2026-12-23 to 2026-12-24.
 Trips last 8–12 days, returning by 2027-01-04. Direction duration limit: 1259 minutes including layovers.
@@ -85,7 +92,7 @@ Trips last 8–12 days, returning by 2027-01-04. Direction duration limit: 1259 
 - Unanswered dates of the last search answered now: 0
 - Date-grid price points: 45/45 (nonstop and any-stops profiles)
 - Itinerary searches: 18; accepted quotes: 18
-- HTTP attempts: 107; queued price-alert items: 1
+- HTTP attempts: 108; queued price-alert items: 1
 
 Date-grid prices are indicative. Only shortlisted round-trip itineraries with checked durations and stop counts enter alerts.
 The any-stops grid is not a layover-only grid. Actual itinerary stop counts determine NONSTOP or LAYOVER.
@@ -94,19 +101,19 @@ The any-stops grid is not a layover-only grid. Actual itinerary stop counts dete
 |---|---|---|---|---:|---|---|---|
 | FRA | 2026-12-24 | 2027-01-01 | layover | 704.00 | 12h59 / 7h40 | 1/0 | UA |
 | FRA | 2026-12-24 | 2027-01-03 | layover | 704.00 | 12h59 / 9h49 | 1/1 | UA |
-| FRA | 2026-12-24 | 2027-01-04 | layover | 704.00 | 12h59 / 9h49 | 1/1 | UA |
+| FRA | 2026-12-24 | 2027-01-04 | layover | 704.00 | 12h59 / 11h55 | 1/1 | UA |
 | AMS | 2026-12-23 | 2026-12-31 | layover | 744.00 | 8h40 / 10h25 | 0/1 | LX, UA |
 | AMS | 2026-12-23 | 2026-12-31 | nonstop | 746.00 | 8h40 / 7h40 | 0/0 | UA |
-| FRA | 2026-12-24 | 2027-01-01 | nonstop | 759.00 | 8h30 / 7h40 | 0/0 | LH, UA |
 | AMS | 2026-12-23 | 2027-01-04 | layover | 761.00 | 14h35 / 11h05 | 1/1 | DL |
 | AMS | 2026-12-24 | 2027-01-04 | layover | 761.00 | 12h49 / 11h05 | 1/1 | DL |
 | AMS | 2026-12-24 | 2027-01-01 | layover | 774.00 | 12h49 / 17h45 | 1/1 | DL |
 | DUS | 2026-12-24 | 2027-01-04 | layover | 775.00 | 11h45 / 10h25 | 1/1 | LH, LX, UA |
 | FRA | 2026-12-23 | 2026-12-31 | layover | 802.00 | 16h25 / 11h20 | 1/1 | LO |
+| FRA | 2026-12-24 | 2027-01-01 | nonstop | 805.00 | 8h30 / 7h40 | 0/0 | LH, UA |
+| FRA | 2026-12-24 | 2027-01-04 | nonstop | 812.00 | 8h30 / 7h40 | 0/0 | LH, UA |
 | DUS | 2026-12-24 | 2027-01-03 | layover | 835.00 | 11h45 / 12h25 | 1/1 | LH, LX, VL |
 | AMS | 2026-12-23 | 2027-01-01 | nonstop | 836.00 | 8h40 / 7h40 | 0/0 | UA |
 | AMS | 2026-12-23 | 2027-01-04 | nonstop | 836.00 | 8h40 / 7h40 | 0/0 | UA |
-| AMS | 2026-12-24 | 2027-01-01 | nonstop | 836.00 | 8h40 / 7h40 | 0/0 | UA |
 | DUS | 2026-12-23 | 2026-12-31 | layover | 869.00 | 15h00 / 12h40 | 1/1 | TP |
-| FRA | 2026-12-23 | 2026-12-31 | nonstop | 879.00 | 8h50 / 7h20 | 0/0 | LH, UA |
-| FRA | 2026-12-23 | 2027-01-01 | nonstop | 879.00 | 8h50 / 7h40 | 0/0 | UA |
+| FRA | 2026-12-23 | 2026-12-31 | nonstop | 870.00 | 8h50 / 7h20 | 0/0 | LH, UA |
+| FRA | 2026-12-23 | 2027-01-01 | nonstop | 870.00 | 8h50 / 7h40 | 0/0 | UA |
