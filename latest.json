@@ -1,61 +1,29 @@
 {
   "trips": [
     {
-      "run_id": "c625541d0436446ca754e83a791729ba",
-      "started": "2026-11-28T02:09:42+00:00",
+      "run_id": "a6cc9c4f9077421f9e6900208ec137a4",
+      "started": "2026-11-28T05:05:48+00:00",
       "mode": "live",
       "trip": "jfk",
       "status": "partial",
       "calendar_queries_planned": 30,
       "calendar_queries_ok": 30,
       "calendar_queries_skipped": 0,
-      "calendar_slots": 45,
-      "calendar_prices": 0,
-      "calendar_unknown": 45,
-      "calendar_answered": 0,
-      "verification_planned": 5,
-      "verification_searches": 5,
-      "verification_failed": 5,
-      "verified_quotes": 0,
-      "queued_deals": 0,
-      "http_attempts": 150,
+      "calendar_slots": 54,
+      "calendar_prices": 42,
+      "calendar_unknown": 12,
+      "calendar_answered": 51,
+      "verification_planned": 18,
+      "verification_searches": 18,
+      "verification_failed": 1,
+      "verified_quotes": 17,
+      "queued_deals": 1,
+      "http_attempts": 159,
       "errors": [
-        "DUS/any/9d: 1 of 1 dates got no answer",
-        "AMS/nonstop/9d: 2 of 2 dates got no answer",
-        "FRA/any/10d: 1 of 1 dates got no answer",
-        "DUS/any/11d: 1 of 1 dates got no answer",
-        "AMS/nonstop/11d: 1 of 1 dates got no answer",
-        "AMS/any/11d: 1 of 1 dates got no answer",
-        "FRA/nonstop/12d: 1 of 1 dates got no answer",
-        "DUS/any/8d: 2 of 2 dates got no answer",
-        "FRA/nonstop/8d: 2 of 2 dates got no answer",
-        "FRA/any/8d: 2 of 2 dates got no answer",
-        "AMS/nonstop/8d: 2 of 2 dates got no answer",
-        "AMS/any/8d: 2 of 2 dates got no answer",
-        "DUS/any/9d: 1 of 1 dates got no answer",
-        "FRA/nonstop/9d: 2 of 2 dates got no answer",
-        "FRA/any/9d: 2 of 2 dates got no answer",
-        "AMS/any/9d: 2 of 2 dates got no answer",
-        "DUS/any/10d: 2 of 2 dates got no answer",
-        "FRA/nonstop/10d: 2 of 2 dates got no answer",
-        "FRA/any/10d: 1 of 1 dates got no answer",
-        "AMS/nonstop/10d: 2 of 2 dates got no answer",
-        "AMS/any/10d: 2 of 2 dates got no answer",
-        "DUS/any/11d: 1 of 1 dates got no answer",
-        "FRA/nonstop/11d: 2 of 2 dates got no answer",
-        "FRA/any/11d: 2 of 2 dates got no answer",
-        "AMS/nonstop/11d: 1 of 1 dates got no answer",
-        "AMS/any/11d: 1 of 1 dates got no answer",
-        "DUS/any/12d: 1 of 1 dates got no answer",
-        "FRA/any/12d: 1 of 1 dates got no answer",
-        "AMS/nonstop/12d: 1 of 1 dates got no answer",
-        "AMS/any/12d: 1 of 1 dates got no answer",
-        "Verify FRA/2026-12-24/2027-01-01/any: Google Flights RPC 13; no price data received after retries",
-        "Verify AMS/2026-12-23/2026-12-31/any: Google Flights RPC 13; no price data received after retries",
-        "Verify AMS/2026-12-23/2026-12-31/nonstop: Google Flights RPC 13; no price data received after retries",
-        "Verify DUS/2026-12-24/2027-01-01/any: Google Flights RPC 13; no price data received after retries",
-        "Verify FRA/2026-12-24/2027-01-04/nonstop: Google Flights RPC 13; no price data received after retries",
-        "No calendar prices received; source health needs attention"
+        "AMS/any/8d: 1 of 2 dates got no answer",
+        "FRA/nonstop/10d: 1 of 2 dates got no answer",
+        "FRA/any/10d: 1 of 2 dates got no answer",
+        "Verify FRA/2026-12-24/2027-01-01/nonstop: Google Flights RPC 13; no price data received after retries"
       ],
       "config": {
         "origins": [
@@ -104,55 +72,561 @@
         "booked": null,
         "id": "jfk"
       },
-      "incomplete": true,
-      "incomplete_in_row": 1,
-      "queued_check_status": 1,
-      "calendar_dates_recovered": 0,
-      "quotes": []
+      "incomplete": false,
+      "incomplete_in_row": 0,
+      "queued_check_status": 0,
+      "calendar_dates_recovered": 42,
+      "quotes": [
+        {
+          "origin": "FRA",
+          "departure": "2026-12-23",
+          "return_date": "2026-12-31",
+          "category": "layover",
+          "price": 71700,
+          "outbound_minutes": 635,
+          "inbound_minutes": 645,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "FI",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+JFK+2026-12-23+return+2026-12-31+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "056f34695b6a7f8da73d1362be22a1893cbc20b7ebfebeb12905b88e0d0ba90b",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T13:05",
+            "2026-12-23T17:40",
+            "2026-12-31T19:25",
+            "2027-01-01T12:10"
+          ],
+          "layovers": [
+            [
+              [
+                "KEF",
+                35
+              ]
+            ],
+            [
+              [
+                "KEF",
+                75
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "FRA",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-01",
+          "category": "layover",
+          "price": 71700,
+          "outbound_minutes": 815,
+          "inbound_minutes": 1250,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "AA, AY",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+JFK+2026-12-24+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "1091cf4a188c729b92d57b907892582c8d48fa91123d67f84987672891fee234",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T11:30",
+            "2026-12-24T19:05",
+            "2027-01-01T06:00",
+            "2027-01-02T08:50"
+          ],
+          "layovers": [
+            [
+              [
+                "HEL",
+                110
+              ]
+            ],
+            [
+              [
+                "CLT",
+                610
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "FRA",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-03",
+          "category": "layover",
+          "price": 71700,
+          "outbound_minutes": 815,
+          "inbound_minutes": 895,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "AA, AY",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+JFK+2026-12-24+return+2027-01-03+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "0331e1ae9ee67b3a449df4d40e0a57455e8d1936d8a912d84e3a4abc5da2b655",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T11:30",
+            "2026-12-24T19:05",
+            "2027-01-03T11:55",
+            "2027-01-04T08:50"
+          ],
+          "layovers": [
+            [
+              [
+                "HEL",
+                110
+              ]
+            ],
+            [
+              [
+                "CLT",
+                260
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "FRA",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-04",
+          "category": "layover",
+          "price": 71700,
+          "outbound_minutes": 815,
+          "inbound_minutes": 728,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "AA, AY",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+JFK+2026-12-24+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "c47c233dd48c840be8e8de002a1cff687f54270a11a207dee074da55882877f1",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T11:30",
+            "2026-12-24T19:05",
+            "2027-01-04T14:42",
+            "2027-01-05T08:50"
+          ],
+          "layovers": [
+            [
+              [
+                "HEL",
+                110
+              ]
+            ],
+            [
+              [
+                "CLT",
+                96
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "DUS",
+          "departure": "2026-12-23",
+          "return_date": "2026-12-31",
+          "category": "layover",
+          "price": 79400,
+          "outbound_minutes": 650,
+          "inbound_minutes": 675,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "AF, KL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+JFK+2026-12-23+return+2026-12-31+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "d9124a88ec6770ecff6668c52d81d0f1941bf09adc5e1592b905831714a5b77b",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T14:30",
+            "2026-12-23T19:20",
+            "2026-12-31T17:30",
+            "2027-01-01T10:45"
+          ],
+          "layovers": [
+            [
+              [
+                "AMS",
+                100
+              ]
+            ],
+            [
+              [
+                "CDG",
+                165
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "DUS",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-01",
+          "category": "layover",
+          "price": 79700,
+          "outbound_minutes": 650,
+          "inbound_minutes": 630,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "KL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+JFK+2026-12-24+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "031f0cbf5d9d2bf6018d6dee7768e55cbce0d390c29cc9ce2253f251374bb5af",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T14:30",
+            "2026-12-24T19:20",
+            "2027-01-01T21:20",
+            "2027-01-02T13:50"
+          ],
+          "layovers": [
+            [
+              [
+                "AMS",
+                100
+              ]
+            ],
+            [
+              [
+                "AMS",
+                150
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "DUS",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-04",
+          "category": "layover",
+          "price": 81100,
+          "outbound_minutes": 650,
+          "inbound_minutes": 520,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "KL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+JFK+2026-12-24+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "b8c06fd0fa3a0ed75e9a74a8bad79b62973147c865fcf3aa7169adebf7b2a600",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T14:30",
+            "2026-12-24T19:20",
+            "2027-01-04T17:00",
+            "2027-01-05T07:40"
+          ],
+          "layovers": [
+            [
+              [
+                "AMS",
+                100
+              ]
+            ],
+            [
+              [
+                "AMS",
+                55
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-23",
+          "return_date": "2026-12-31",
+          "category": "layover",
+          "price": 81800,
+          "outbound_minutes": 650,
+          "inbound_minutes": 635,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "LH, LX, VL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+JFK+2026-12-23+return+2026-12-31+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "877ff99b92a6673b7900ea6d1c6e93b3f858137852d4772365d63c476bb91f50",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T08:45",
+            "2026-12-23T13:35",
+            "2026-12-31T16:25",
+            "2027-01-01T09:00"
+          ],
+          "layovers": [
+            [
+              [
+                "FRA",
+                70
+              ]
+            ],
+            [
+              [
+                "ZRH",
+                60
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-23",
+          "return_date": "2027-01-04",
+          "category": "layover",
+          "price": 83800,
+          "outbound_minutes": 490,
+          "inbound_minutes": 600,
+          "outbound_stops": 0,
+          "inbound_stops": 1,
+          "airlines": "AF, KL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+JFK+2026-12-23+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "f522b0bda9a0556d3da43cd622f800fcfa32e053c74ec1f01373d38c55f1154e",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T12:50",
+            "2026-12-23T15:00",
+            "2027-01-04T18:30",
+            "2027-01-05T10:30"
+          ],
+          "layovers": [
+            [],
+            [
+              [
+                "CDG",
+                70
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-04",
+          "category": "layover",
+          "price": 83800,
+          "outbound_minutes": 490,
+          "inbound_minutes": 600,
+          "outbound_stops": 0,
+          "inbound_stops": 1,
+          "airlines": "AF, KL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+JFK+2026-12-24+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "a930b7c06c49f6bc080ee232a2e9123c60ee2f474f2ec38e990e8e037fa57f20",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T12:50",
+            "2026-12-24T15:00",
+            "2027-01-04T18:30",
+            "2027-01-05T10:30"
+          ],
+          "layovers": [
+            [],
+            [
+              [
+                "CDG",
+                70
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-23",
+          "return_date": "2026-12-31",
+          "category": "nonstop",
+          "price": 85300,
+          "outbound_minutes": 505,
+          "inbound_minutes": 420,
+          "outbound_stops": 0,
+          "inbound_stops": 0,
+          "airlines": "DL, KL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+JFK+2026-12-23+return+2026-12-31+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "88834f45f8113334da6fd61aed55c853b501eeb8729bb4b5d3301bcd5625c135",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T11:35",
+            "2026-12-23T14:00",
+            "2026-12-31T17:00",
+            "2027-01-01T06:00"
+          ],
+          "layovers": [
+            [],
+            []
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-23",
+          "return_date": "2027-01-04",
+          "category": "nonstop",
+          "price": 89300,
+          "outbound_minutes": 505,
+          "inbound_minutes": 420,
+          "outbound_stops": 0,
+          "inbound_stops": 0,
+          "airlines": "DL, KL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+JFK+2026-12-23+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "b926a68797ec365b8c51c57a70f56a021a5281d3c4c0368aac4d95a3e88ff349",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T11:35",
+            "2026-12-23T14:00",
+            "2027-01-04T17:00",
+            "2027-01-05T06:00"
+          ],
+          "layovers": [
+            [],
+            []
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-04",
+          "category": "nonstop",
+          "price": 89300,
+          "outbound_minutes": 505,
+          "inbound_minutes": 420,
+          "outbound_stops": 0,
+          "inbound_stops": 0,
+          "airlines": "DL, KL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+JFK+2026-12-24+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "e73633218ad48e712cb6ab970a4812bf811b1dd9bf386251edb42d96244a2200",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T11:35",
+            "2026-12-24T14:00",
+            "2027-01-04T17:00",
+            "2027-01-05T06:00"
+          ],
+          "layovers": [
+            [],
+            []
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-23",
+          "return_date": "2027-01-01",
+          "category": "nonstop",
+          "price": 90500,
+          "outbound_minutes": 505,
+          "inbound_minutes": 440,
+          "outbound_stops": 0,
+          "inbound_stops": 0,
+          "airlines": "DL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+JFK+2026-12-23+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "6c5c8ec73633f8480651f401b4564be3c1e3d5769e4542c5dc40ad2016c77495",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T11:35",
+            "2026-12-23T14:00",
+            "2027-01-01T22:40",
+            "2027-01-02T12:00"
+          ],
+          "layovers": [
+            [],
+            []
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-23",
+          "return_date": "2027-01-01",
+          "category": "layover",
+          "price": 91600,
+          "outbound_minutes": 505,
+          "inbound_minutes": 700,
+          "outbound_stops": 0,
+          "inbound_stops": 1,
+          "airlines": "DL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+JFK+2026-12-23+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "9d18a706ef814ce2b876abedafe0c0539ecbb06a27a6c2f2b11348b51ced45c2",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T11:35",
+            "2026-12-23T14:00",
+            "2027-01-01T16:55",
+            "2027-01-02T10:35"
+          ],
+          "layovers": [
+            [],
+            [
+              [
+                "DTW",
+                86
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "FRA",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-04",
+          "category": "nonstop",
+          "price": 92900,
+          "outbound_minutes": 515,
+          "inbound_minutes": 440,
+          "outbound_stops": 0,
+          "inbound_stops": 0,
+          "airlines": "LH",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+JFK+2026-12-24+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "3532c717b76c88edd4ea45889bf521385efccf284f809baf3938abc32d9d19e3",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T11:00",
+            "2026-12-24T13:35",
+            "2027-01-04T15:55",
+            "2027-01-05T05:15"
+          ],
+          "layovers": [
+            [],
+            []
+          ]
+        },
+        {
+          "origin": "FRA",
+          "departure": "2026-12-23",
+          "return_date": "2026-12-31",
+          "category": "nonstop",
+          "price": 95100,
+          "outbound_minutes": 515,
+          "inbound_minutes": 440,
+          "outbound_stops": 0,
+          "inbound_stops": 0,
+          "airlines": "LH",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+JFK+2026-12-23+return+2026-12-31+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "ffeaaf0a1b6a34252dbd9dfff8a1c32790067974a839839a0761b9b4f37abf2f",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T11:00",
+            "2026-12-23T13:35",
+            "2026-12-31T15:55",
+            "2027-01-01T05:15"
+          ],
+          "layovers": [
+            [],
+            []
+          ]
+        }
+      ]
     },
     {
-      "run_id": "696a6dcbd5b745ba991795884be4d5c4",
-      "started": "2026-11-28T02:09:42+00:00",
+      "run_id": "4e2121149cce4b7dacc4484dd5af4858",
+      "started": "2026-11-28T05:05:48+00:00",
       "mode": "live",
       "trip": "jfk",
       "status": "partial",
-      "calendar_queries_planned": 16,
-      "calendar_queries_ok": 16,
-      "calendar_queries_skipped": 14,
+      "calendar_queries_planned": 19,
+      "calendar_queries_ok": 19,
+      "calendar_queries_skipped": 11,
       "calendar_slots": 27,
-      "calendar_prices": 3,
-      "calendar_unknown": 24,
-      "calendar_answered": 4,
-      "verification_planned": 5,
-      "verification_searches": 5,
-      "verification_failed": 5,
-      "verified_quotes": 0,
+      "calendar_prices": 15,
+      "calendar_unknown": 12,
+      "calendar_answered": 24,
+      "verification_planned": 16,
+      "verification_searches": 16,
+      "verification_failed": 4,
+      "verified_quotes": 12,
       "queued_deals": 0,
-      "http_attempts": 90,
+      "http_attempts": 137,
       "errors": [
-        "DUS/any/9d: 1 of 1 dates got no answer",
-        "AMS/any/12d: 1 of 1 dates got no answer",
-        "DUS/any/8d: 2 of 2 dates got no answer",
-        "FRA/any/8d: 2 of 2 dates got no answer",
-        "AMS/any/8d: 2 of 2 dates got no answer",
-        "DUS/any/9d: 1 of 1 dates got no answer",
-        "FRA/any/9d: 2 of 2 dates got no answer",
-        "AMS/any/9d: 2 of 2 dates got no answer",
-        "DUS/any/10d: 2 of 2 dates got no answer",
-        "FRA/any/10d: 2 of 2 dates got no answer",
-        "AMS/any/10d: 1 of 2 dates got no answer",
-        "DUS/any/11d: 1 of 2 dates got no answer",
-        "FRA/any/11d: 1 of 2 dates got no answer",
-        "AMS/any/11d: 1 of 2 dates got no answer",
-        "DUS/any/12d: 1 of 1 dates got no answer",
-        "FRA/any/12d: 1 of 1 dates got no answer",
-        "Verify FRA/2026-12-24/2027-01-01/any: Google Flights RPC 13; no price data received after retries",
-        "Verify AMS/2026-12-23/2026-12-31/any: Google Flights RPC 13; no price data received after retries",
+        "AMS/any/8d: 1 of 2 dates got no answer",
+        "AMS/any/9d: 1 of 2 dates got no answer",
+        "FRA/any/10d: 1 of 2 dates got no answer",
         "Verify FRA/2026-12-24/2027-01-04/any: Google Flights RPC 13; no price data received after retries",
-        "Verify AMS/2026-12-24/2027-01-03/any: Google Flights RPC 13; no price data received after retries",
-        "Verify AMS/2026-12-24/2027-01-04/any: Google Flights RPC 13; no price data received after retries",
-        "AMS: flight checks stopped after repeated errors; the other airports continue",
-        "No shortlisted itinerary passed round-trip, duration and currency checks"
+        "Verify FRA/2026-12-23/2027-01-04/any: Google Flights RPC 13; no price data received after retries",
+        "Verify FRA/2026-12-23/2027-01-02/any: Google Flights RPC 13; no price data received after retries",
+        "Verify FRA/2026-12-23/2027-01-03/any: Google Flights RPC 13; no price data received after retries",
+        "FRA: flight checks stopped after repeated errors; the other airports continue"
       ],
       "config": {
         "origins": [
@@ -201,60 +675,461 @@
         "booked": null,
         "id": "jfk"
       },
-      "incomplete": true,
-      "incomplete_in_row": 1,
+      "incomplete": false,
+      "incomplete_in_row": 0,
       "queued_check_status": 1,
-      "calendar_dates_recovered": 0,
-      "quotes": []
+      "calendar_dates_recovered": 20,
+      "quotes": [
+        {
+          "origin": "FRA",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-01",
+          "category": "layover",
+          "price": 70500,
+          "outbound_minutes": 764,
+          "inbound_minutes": 616,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+LGA+2026-12-24+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "e7fa4f52082d44924ab8fb0cb4e034bc441d938716b2dd15d5659a03e0a3c372",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T17:00",
+            "2026-12-24T23:44",
+            "2027-01-01T19:44",
+            "2027-01-02T12:00"
+          ],
+          "layovers": [
+            [
+              [
+                "IAD",
+                135
+              ]
+            ],
+            [
+              [
+                "IAD",
+                54
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "FRA",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-02",
+          "category": "layover",
+          "price": 70700,
+          "outbound_minutes": 764,
+          "inbound_minutes": 890,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "AC, UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+LGA+2026-12-24+return+2027-01-02+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "221f4ae58d644f463e3fbdac5da6ac3e09afa4ae93041e9ec498c0bd8ecd2ff0",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T17:00",
+            "2026-12-24T23:44",
+            "2027-01-02T10:35",
+            "2027-01-03T07:25"
+          ],
+          "layovers": [
+            [
+              [
+                "IAD",
+                135
+              ]
+            ],
+            [
+              [
+                "YUL",
+                340
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "FRA",
+          "departure": "2026-12-23",
+          "return_date": "2026-12-31",
+          "category": "layover",
+          "price": 82200,
+          "outbound_minutes": 788,
+          "inbound_minutes": 616,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "AC, UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+LGA+2026-12-23+return+2026-12-31+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "cfb04387cec94bb54df5bdd8481673e7a5b21545f99ed41c7ad710c6925559ed",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T09:45",
+            "2026-12-23T16:53",
+            "2026-12-31T19:44",
+            "2027-01-01T12:00"
+          ],
+          "layovers": [
+            [
+              [
+                "YUL",
+                200
+              ]
+            ],
+            [
+              [
+                "IAD",
+                54
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "FRA",
+          "departure": "2026-12-23",
+          "return_date": "2027-01-01",
+          "category": "layover",
+          "price": 82200,
+          "outbound_minutes": 788,
+          "inbound_minutes": 616,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "AC, UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+LGA+2026-12-23+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "93f173c7cff81e554e1c792f0fe94a6c0a0e5da59864a40ef1a6bae81739fe88",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T09:45",
+            "2026-12-23T16:53",
+            "2027-01-01T19:44",
+            "2027-01-02T12:00"
+          ],
+          "layovers": [
+            [
+              [
+                "YUL",
+                200
+              ]
+            ],
+            [
+              [
+                "IAD",
+                54
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-23",
+          "return_date": "2026-12-31",
+          "category": "layover",
+          "price": 83200,
+          "outbound_minutes": 815,
+          "inbound_minutes": 666,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+LGA+2026-12-23+return+2026-12-31+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "76f732a56a315e35f00cc803db153a33d0dd372e5a4b5f6104a33500e9e6dfe0",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T11:40",
+            "2026-12-23T19:15",
+            "2026-12-31T14:59",
+            "2027-01-01T08:05"
+          ],
+          "layovers": [
+            [
+              [
+                "ORD",
+                115
+              ]
+            ],
+            [
+              [
+                "IAD",
+                101
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-01",
+          "category": "layover",
+          "price": 86600,
+          "outbound_minutes": 815,
+          "inbound_minutes": 1095,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "DL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+LGA+2026-12-24+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "46b0c436e2890fc1589912842955c79719b5697af880e66eadc0288e085c4ea9",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T10:10",
+            "2026-12-24T17:45",
+            "2027-01-01T08:00",
+            "2027-01-02T08:15"
+          ],
+          "layovers": [
+            [
+              [
+                "DTW",
+                175
+              ]
+            ],
+            [
+              [
+                "BOS",
+                601
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-23",
+          "return_date": "2027-01-04",
+          "category": "layover",
+          "price": 89900,
+          "outbound_minutes": 734,
+          "inbound_minutes": 1186,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "DL, KL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+LGA+2026-12-23+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "09047826cf8de3240e7786c0c29c4baee8606418f0262e4d379600fca218b971",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T12:15",
+            "2026-12-23T18:29",
+            "2027-01-04T07:59",
+            "2027-01-05T09:45"
+          ],
+          "layovers": [
+            [
+              [
+                "BOS",
+                158
+              ]
+            ],
+            [
+              [
+                "BOS",
+                700
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-23",
+          "return_date": "2027-01-03",
+          "category": "layover",
+          "price": 92200,
+          "outbound_minutes": 815,
+          "inbound_minutes": 666,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+LGA+2026-12-23+return+2027-01-03+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "ec78a9aa577d9e21d0f33c15a75fdedc406478b5af20c7460af4094e0cb3da47",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T11:40",
+            "2026-12-23T19:15",
+            "2027-01-03T14:59",
+            "2027-01-04T08:05"
+          ],
+          "layovers": [
+            [
+              [
+                "ORD",
+                115
+              ]
+            ],
+            [
+              [
+                "IAD",
+                101
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-03",
+          "category": "layover",
+          "price": 92200,
+          "outbound_minutes": 824,
+          "inbound_minutes": 666,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+LGA+2026-12-24+return+2027-01-03+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "a5a456fd0bffef9f4ac2fa6b22ce665678d4e83b2bb2c02e7b391884936d6d15",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T11:00",
+            "2026-12-24T18:44",
+            "2027-01-03T14:59",
+            "2027-01-04T08:05"
+          ],
+          "layovers": [
+            [
+              [
+                "IAD",
+                185
+              ]
+            ],
+            [
+              [
+                "IAD",
+                101
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-04",
+          "category": "layover",
+          "price": 92200,
+          "outbound_minutes": 824,
+          "inbound_minutes": 666,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+LGA+2026-12-24+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "f07b61c9dce1506d935564b16eed831d7068628951b089a5c192729a2df3c4fd",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T11:00",
+            "2026-12-24T18:44",
+            "2027-01-04T14:59",
+            "2027-01-05T08:05"
+          ],
+          "layovers": [
+            [
+              [
+                "IAD",
+                185
+              ]
+            ],
+            [
+              [
+                "IAD",
+                101
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-23",
+          "return_date": "2027-01-02",
+          "category": "layover",
+          "price": 95000,
+          "outbound_minutes": 815,
+          "inbound_minutes": 785,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+LGA+2026-12-23+return+2027-01-02+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "462a3cb5776d90f22ab07d5bc121d78b26daa1608482ae592eb5bda6760bb261",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T11:40",
+            "2026-12-23T19:15",
+            "2027-01-02T14:30",
+            "2027-01-03T09:35"
+          ],
+          "layovers": [
+            [
+              [
+                "ORD",
+                115
+              ]
+            ],
+            [
+              [
+                "ORD",
+                112
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-02",
+          "category": "layover",
+          "price": 95000,
+          "outbound_minutes": 824,
+          "inbound_minutes": 785,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+LGA+2026-12-24+return+2027-01-02+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "b20c5158ecb3f0617929a605de8e0a23759939efeb44bbcb4bb11b07a4b5e8a9",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T11:00",
+            "2026-12-24T18:44",
+            "2027-01-02T14:30",
+            "2027-01-03T09:35"
+          ],
+          "layovers": [
+            [
+              [
+                "IAD",
+                185
+              ]
+            ],
+            [
+              [
+                "ORD",
+                112
+              ]
+            ]
+          ]
+        }
+      ]
     },
     {
-      "run_id": "c33c3f40a58b4540b5073c4bac7c6353",
-      "started": "2026-11-28T02:09:42+00:00",
+      "run_id": "6becd5ed9bea4a87b14f84830845ee61",
+      "started": "2026-11-28T05:05:48+00:00",
       "mode": "live",
       "trip": "jfk",
       "status": "partial",
-      "calendar_queries_planned": 31,
-      "calendar_queries_ok": 31,
-      "calendar_queries_skipped": -1,
+      "calendar_queries_planned": 51,
+      "calendar_queries_ok": 51,
+      "calendar_queries_skipped": -21,
       "calendar_slots": 54,
-      "calendar_prices": 22,
-      "calendar_unknown": 32,
-      "calendar_answered": 27,
+      "calendar_prices": 39,
+      "calendar_unknown": 15,
+      "calendar_answered": 48,
       "verification_planned": 18,
       "verification_searches": 18,
-      "verification_failed": 3,
+      "verification_failed": 2,
       "verified_quotes": 16,
-      "queued_deals": 0,
-      "http_attempts": 195,
+      "queued_deals": 1,
+      "http_attempts": 180,
       "errors": [
+        "DUS/any/8d: 1 of 1 dates got no answer",
+        "DUS/any/11d: 1 of 1 dates got no answer",
         "FRA/any/11d: 1 of 1 dates got no answer",
-        "DUS/nonstop/8d: 1 of 2 dates got no answer",
-        "DUS/any/8d: 1 of 2 dates got no answer",
-        "FRA/nonstop/8d: 1 of 2 dates got no answer",
-        "FRA/any/8d: 1 of 2 dates got no answer",
-        "AMS/nonstop/8d: 1 of 2 dates got no answer",
-        "AMS/any/8d: 2 of 2 dates got no answer",
-        "DUS/nonstop/9d: 1 of 2 dates got no answer",
-        "DUS/any/9d: 1 of 2 dates got no answer",
-        "FRA/nonstop/9d: 1 of 2 dates got no answer",
-        "FRA/any/9d: 1 of 2 dates got no answer",
-        "AMS/nonstop/9d: 2 of 2 dates got no answer",
-        "AMS/any/9d: 1 of 2 dates got no answer",
-        "DUS/nonstop/10d: 1 of 2 dates got no answer",
-        "DUS/any/10d: 1 of 2 dates got no answer",
-        "FRA/nonstop/10d: 1 of 2 dates got no answer",
-        "FRA/any/10d: 1 of 2 dates got no answer",
-        "AMS/nonstop/10d: 1 of 2 dates got no answer",
-        "DUS/nonstop/11d: 1 of 2 dates got no answer",
-        "DUS/any/11d: 1 of 2 dates got no answer",
-        "FRA/nonstop/11d: 1 of 2 dates got no answer",
-        "AMS/nonstop/11d: 1 of 2 dates got no answer",
-        "AMS/any/11d: 1 of 2 dates got no answer",
-        "AMS/nonstop/12d: 1 of 1 dates got no answer",
-        "AMS/any/12d: 1 of 1 dates got no answer",
-        "Verify AMS/2026-12-23/2026-12-31/nonstop: Google Flights RPC 13; no price data received after retries",
-        "Verify FRA/2026-12-24/2027-01-02/any: Google Flights RPC 13; no price data received after retries",
-        "Verify FRA/2026-12-23/2027-01-01/nonstop: Google Flights RPC 13; no price data received after retries"
+        "FRA/nonstop/11d: 1 of 1 dates got no answer",
+        "FRA/any/11d: 1 of 1 dates got no answer",
+        "AMS/any/11d: 1 of 1 dates got no answer",
+        "Verify DUS/2026-12-24/2027-01-04/any: Google Flights RPC 13; no price data received after retries",
+        "Verify FRA/2026-12-24/2027-01-03/nonstop: Google Flights RPC 13; no price data received after retries"
       ],
       "config": {
         "origins": [
@@ -303,11 +1178,11 @@
         "booked": null,
         "id": "jfk"
       },
-      "incomplete": true,
-      "incomplete_in_row": 2,
-      "queued_check_status": 1,
-      "calendar_dates_recovered": 0,
-      "pruned_rows": 115,
+      "incomplete": false,
+      "incomplete_in_row": 0,
+      "queued_check_status": 0,
+      "calendar_dates_recovered": 24,
+      "pruned_rows": 50,
       "quotes": [
         {
           "origin": "FRA",
@@ -382,26 +1257,36 @@
         {
           "origin": "FRA",
           "departure": "2026-12-24",
-          "return_date": "2027-01-01",
-          "category": "nonstop",
-          "price": 75900,
-          "outbound_minutes": 510,
-          "inbound_minutes": 460,
-          "outbound_stops": 0,
-          "inbound_stops": 0,
-          "airlines": "LH, UA",
-          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+EWR+2026-12-24+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
-          "itinerary_id": "ff014b84c797dde551ce6c4625ecec719413b8e2198cc110cf2bb32acec6269a",
+          "return_date": "2027-01-03",
+          "category": "layover",
+          "price": 69500,
+          "outbound_minutes": 690,
+          "inbound_minutes": 1165,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "LH, LX, UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+EWR+2026-12-24+return+2027-01-03+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "4b622534c4150645f981a53f4577eb139c490b47cc523fa57059c9574839dbac",
           "baggage": null,
           "schedule": [
-            "2026-12-24T13:30",
-            "2026-12-24T16:00",
-            "2027-01-01T19:30",
-            "2027-01-02T09:10"
+            "2026-12-24T15:00",
+            "2026-12-24T20:30",
+            "2027-01-03T06:00",
+            "2027-01-04T07:25"
           ],
           "layovers": [
-            [],
-            []
+            [
+              [
+                "ZRH",
+                80
+              ]
+            ],
+            [
+              [
+                "IAD",
+                605
+              ]
+            ]
           ]
         },
         {
@@ -409,7 +1294,7 @@
           "departure": "2026-12-24",
           "return_date": "2027-01-03",
           "category": "layover",
-          "price": 77800,
+          "price": 72800,
           "outbound_minutes": 705,
           "inbound_minutes": 990,
           "outbound_stops": 1,
@@ -437,6 +1322,56 @@
                 485
               ]
             ]
+          ]
+        },
+        {
+          "origin": "FRA",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-01",
+          "category": "nonstop",
+          "price": 75900,
+          "outbound_minutes": 510,
+          "inbound_minutes": 460,
+          "outbound_stops": 0,
+          "inbound_stops": 0,
+          "airlines": "LH, UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+EWR+2026-12-24+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "ff014b84c797dde551ce6c4625ecec719413b8e2198cc110cf2bb32acec6269a",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T13:30",
+            "2026-12-24T16:00",
+            "2027-01-01T19:30",
+            "2027-01-02T09:10"
+          ],
+          "layovers": [
+            [],
+            []
+          ]
+        },
+        {
+          "origin": "FRA",
+          "departure": "2026-12-24",
+          "return_date": "2027-01-04",
+          "category": "nonstop",
+          "price": 77500,
+          "outbound_minutes": 510,
+          "inbound_minutes": 460,
+          "outbound_stops": 0,
+          "inbound_stops": 0,
+          "airlines": "LH, UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+EWR+2026-12-24+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "629d8b857df1ccf206027aceb90f3f919652701f9f5f7b840bbb9032a135f4f1",
+          "baggage": null,
+          "schedule": [
+            "2026-12-24T13:30",
+            "2026-12-24T16:00",
+            "2027-01-04T19:30",
+            "2027-01-05T09:10"
+          ],
+          "layovers": [
+            [],
+            []
           ]
         },
         {
@@ -470,76 +1405,6 @@
               [
                 "ZRH",
                 55
-              ]
-            ]
-          ]
-        },
-        {
-          "origin": "DUS",
-          "departure": "2026-12-24",
-          "return_date": "2027-01-04",
-          "category": "layover",
-          "price": 81300,
-          "outbound_minutes": 705,
-          "inbound_minutes": 825,
-          "outbound_stops": 1,
-          "inbound_stops": 1,
-          "airlines": "LX",
-          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+EWR+2026-12-24+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
-          "itinerary_id": "05af4d17f12e6c719a9f37ad2a8f0cd436b28243ff6a20d06b5774956b994f95",
-          "baggage": null,
-          "schedule": [
-            "2026-12-24T14:45",
-            "2026-12-24T20:30",
-            "2027-01-04T22:00",
-            "2027-01-05T17:45"
-          ],
-          "layovers": [
-            [
-              [
-                "ZRH",
-                75
-              ]
-            ],
-            [
-              [
-                "ZRH",
-                295
-              ]
-            ]
-          ]
-        },
-        {
-          "origin": "FRA",
-          "departure": "2026-12-23",
-          "return_date": "2027-01-03",
-          "category": "layover",
-          "price": 82200,
-          "outbound_minutes": 665,
-          "inbound_minutes": 1165,
-          "outbound_stops": 1,
-          "inbound_stops": 1,
-          "airlines": "AC, UA",
-          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+EWR+2026-12-23+return+2027-01-03+economy+one+adult&curr=EUR&hl=en&gl=DE",
-          "itinerary_id": "aa09cd22b1738847c9e0c22a5ce868b3e266341b6512e6c69d4f69cdb42a3db3",
-          "baggage": null,
-          "schedule": [
-            "2026-12-23T09:45",
-            "2026-12-23T14:50",
-            "2027-01-03T06:00",
-            "2027-01-04T07:25"
-          ],
-          "layovers": [
-            [
-              [
-                "YUL",
-                70
-              ]
-            ],
-            [
-              [
-                "IAD",
-                605
               ]
             ]
           ]
@@ -610,17 +1475,17 @@
           "return_date": "2027-01-03",
           "category": "layover",
           "price": 82600,
-          "outbound_minutes": 870,
+          "outbound_minutes": 860,
           "inbound_minutes": 685,
           "outbound_stops": 1,
           "inbound_stops": 1,
           "airlines": "DL, KL, TP",
           "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+EWR+2026-12-24+return+2027-01-03+economy+one+adult&curr=EUR&hl=en&gl=DE",
-          "itinerary_id": "f5ed45fcf7c241dc795d5d0eae1c0da478b6d4cd59e20f36e18ca10830ffebb8",
+          "itinerary_id": "71759e8e53cc05f787b1eedaea9f725c21030c137376673727ef87f86542dfca",
           "baggage": null,
           "schedule": [
-            "2026-12-24T13:40",
-            "2026-12-24T22:10",
+            "2026-12-24T07:00",
+            "2026-12-24T15:20",
             "2027-01-03T19:30",
             "2027-01-04T12:55"
           ],
@@ -628,7 +1493,7 @@
             [
               [
                 "LIS",
-                155
+                140
               ]
             ],
             [
@@ -642,28 +1507,123 @@
         {
           "origin": "AMS",
           "departure": "2026-12-24",
-          "return_date": "2027-01-04",
+          "return_date": "2027-01-01",
           "category": "layover",
-          "price": 84800,
-          "outbound_minutes": 769,
+          "price": 85200,
+          "outbound_minutes": 690,
           "inbound_minutes": 620,
           "outbound_stops": 1,
           "inbound_stops": 1,
-          "airlines": "AF, DL",
-          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+EWR+2026-12-24+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
-          "itinerary_id": "436bfbb00a2353915e3aae9dfde9d49ed9e5a6ebcf34cc6a7fbbbf4b93314082",
+          "airlines": "FI",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+EWR+2026-12-24+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "6c622c4f996cd1d39ad3666bbc0fd6711dda506ad0438bd19c8fcc81416e04df",
           "baggage": null,
           "schedule": [
-            "2026-12-24T12:35",
-            "2026-12-24T19:24",
+            "2026-12-24T12:55",
+            "2026-12-24T18:25",
+            "2027-01-01T19:35",
+            "2027-01-02T11:55"
+          ],
+          "layovers": [
+            [
+              [
+                "KEF",
+                100
+              ]
+            ],
+            [
+              [
+                "KEF",
+                85
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "DUS",
+          "departure": "2026-12-23",
+          "return_date": "2027-01-04",
+          "category": "layover",
+          "price": 87000,
+          "outbound_minutes": 1005,
+          "inbound_minutes": 1245,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "LH, LX, UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+DUS+to+EWR+2026-12-23+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "5e6378b3bf1046c06b02799543f3e0e1961fa59f0c547a61780fec647f8eb6df",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T09:45",
+            "2026-12-23T20:30",
+            "2027-01-04T19:30",
+            "2027-01-05T22:15"
+          ],
+          "layovers": [
+            [
+              [
+                "ZRH",
+                375
+              ]
+            ],
+            [
+              [
+                "FRA",
+                740
+              ]
+            ]
+          ]
+        },
+        {
+          "origin": "FRA",
+          "departure": "2026-12-23",
+          "return_date": "2026-12-31",
+          "category": "nonstop",
+          "price": 87900,
+          "outbound_minutes": 530,
+          "inbound_minutes": 440,
+          "outbound_stops": 0,
+          "inbound_stops": 0,
+          "airlines": "LH, UA",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+EWR+2026-12-23+return+2026-12-31+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "ad6673ef0737c0e2f2b139b94b809ac61676019e40811084228c9c04ede2ec7e",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T11:05",
+            "2026-12-23T13:55",
+            "2026-12-31T18:00",
+            "2027-01-01T07:20"
+          ],
+          "layovers": [
+            [],
+            []
+          ]
+        },
+        {
+          "origin": "AMS",
+          "departure": "2026-12-23",
+          "return_date": "2027-01-04",
+          "category": "layover",
+          "price": 90000,
+          "outbound_minutes": 800,
+          "inbound_minutes": 620,
+          "outbound_stops": 1,
+          "inbound_stops": 1,
+          "airlines": "AF, KL",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+EWR+2026-12-23+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "50f1fc4d53ddac74a9b54031ca5ed954266a67c2ec605b4c1036b4ce4cd52d97",
+          "baggage": null,
+          "schedule": [
+            "2026-12-23T07:25",
+            "2026-12-23T14:45",
             "2027-01-04T17:05",
             "2027-01-05T09:25"
           ],
           "layovers": [
             [
               [
-                "DTW",
-                129
+                "CDG",
+                210
               ]
             ],
             [
@@ -675,33 +1635,8 @@
           ]
         },
         {
-          "origin": "FRA",
-          "departure": "2026-12-23",
-          "return_date": "2027-01-04",
-          "category": "nonstop",
-          "price": 89400,
-          "outbound_minutes": 530,
-          "inbound_minutes": 460,
-          "outbound_stops": 0,
-          "inbound_stops": 0,
-          "airlines": "UA",
-          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+FRA+to+EWR+2026-12-23+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
-          "itinerary_id": "c71a532bf0cbebb5d6263523f267f1a4d2a93789954cfaa657fa980612342660",
-          "baggage": null,
-          "schedule": [
-            "2026-12-23T11:05",
-            "2026-12-23T13:55",
-            "2027-01-04T19:30",
-            "2027-01-05T09:10"
-          ],
-          "layovers": [
-            [],
-            []
-          ]
-        },
-        {
           "origin": "AMS",
-          "departure": "2026-12-24",
+          "departure": "2026-12-23",
           "return_date": "2027-01-01",
           "category": "nonstop",
           "price": 91600,
@@ -710,12 +1645,12 @@
           "outbound_stops": 0,
           "inbound_stops": 0,
           "airlines": "UA",
-          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+EWR+2026-12-24+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
-          "itinerary_id": "50ea9f6b7ce36dbaca9a339f35edb4a776a4284130b4b0d77b444a30898fd586",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+EWR+2026-12-23+return+2027-01-01+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "7f908b53588b67ab290a2c882b548caa64ccc0cfe35597a4a34a0ca75225cf0e",
           "baggage": null,
           "schedule": [
-            "2026-12-24T09:15",
-            "2026-12-24T11:55",
+            "2026-12-23T09:15",
+            "2026-12-23T11:55",
             "2027-01-01T17:35",
             "2027-01-02T07:15"
           ],
@@ -726,8 +1661,8 @@
         },
         {
           "origin": "AMS",
-          "departure": "2026-12-24",
-          "return_date": "2027-01-04",
+          "departure": "2026-12-23",
+          "return_date": "2027-01-03",
           "category": "nonstop",
           "price": 91600,
           "outbound_minutes": 520,
@@ -735,74 +1670,14 @@
           "outbound_stops": 0,
           "inbound_stops": 0,
           "airlines": "UA",
-          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+EWR+2026-12-24+return+2027-01-04+economy+one+adult&curr=EUR&hl=en&gl=DE",
-          "itinerary_id": "67a52be8e09c367d2c898001f5470fb0485ab845b3c1182df7bd31f6dfeb7415",
-          "baggage": null,
-          "schedule": [
-            "2026-12-24T09:15",
-            "2026-12-24T11:55",
-            "2027-01-04T17:35",
-            "2027-01-05T07:15"
-          ],
-          "layovers": [
-            [],
-            []
-          ]
-        },
-        {
-          "origin": "AMS",
-          "departure": "2026-12-23",
-          "return_date": "2027-01-02",
-          "category": "layover",
-          "price": 92400,
-          "outbound_minutes": 716,
-          "inbound_minutes": 1063,
-          "outbound_stops": 1,
-          "inbound_stops": 1,
-          "airlines": "AC, UA",
-          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+EWR+2026-12-23+return+2027-01-02+economy+one+adult&curr=EUR&hl=en&gl=DE",
-          "itinerary_id": "cbf6c39485352d299b3da5c8e960743fa35f9bafd4af06de7229484fdd30d0e9",
-          "baggage": null,
-          "schedule": [
-            "2026-12-23T12:05",
-            "2026-12-23T18:01",
-            "2027-01-02T09:52",
-            "2027-01-03T09:35"
-          ],
-          "layovers": [
-            [
-              [
-                "YYZ",
-                125
-              ]
-            ],
-            [
-              [
-                "ORD",
-                383
-              ]
-            ]
-          ]
-        },
-        {
-          "origin": "AMS",
-          "departure": "2026-12-23",
-          "return_date": "2027-01-02",
-          "category": "nonstop",
-          "price": 109600,
-          "outbound_minutes": 520,
-          "inbound_minutes": 460,
-          "outbound_stops": 0,
-          "inbound_stops": 0,
-          "airlines": "UA",
-          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+EWR+2026-12-23+return+2027-01-02+economy+one+adult&curr=EUR&hl=en&gl=DE",
-          "itinerary_id": "6beb6fc98d29a94a47689f5d1b9705236949b397abd96e98417602bfd95fc414",
+          "link": "https://www.google.com/travel/flights?q=Round+trip+flights+AMS+to+EWR+2026-12-23+return+2027-01-03+economy+one+adult&curr=EUR&hl=en&gl=DE",
+          "itinerary_id": "7d591fc30e9d34364835d54878ca9fa3cd12cb7d9b1cb8212b7da838a05b8bba",
           "baggage": null,
           "schedule": [
             "2026-12-23T09:15",
             "2026-12-23T11:55",
-            "2027-01-02T17:35",
-            "2027-01-03T07:15"
+            "2027-01-03T17:35",
+            "2027-01-04T07:15"
           ],
           "layovers": [
             [],
